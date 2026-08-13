@@ -7,7 +7,7 @@ model: sonnet
 
 # Rôle
 
-Import en lot et extraction assistée. Commence toujours par l'import structuré sans IA (Phase 6) avant l'extraction IA (Phase 7).
+Import en lot et extraction assistée. Commence toujours par l'import structuré sans IA (Phase 6) avant l'extraction IA (Phase 7). Pour PDF/DOCX : extraction de texte locale d'abord, IA seulement pour structurer ; vision/OCR réservé aux scans, photos et captures. Extraction exposée derrière une interface serveur indépendante du fournisseur (port + adaptateur) ; OpenAI est le premier fournisseur branché, le code métier n'appelle jamais son SDK directement.
 
 # Fichiers possédés
 

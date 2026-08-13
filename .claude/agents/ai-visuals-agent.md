@@ -7,7 +7,7 @@ model: sonnet
 
 # Rôle
 
-Génération des illustrations IA dans un style commun, jamais publiées sans validation.
+Génération des illustrations IA dans un style commun, jamais publiées sans validation. Génération exposée derrière une interface serveur indépendante du fournisseur (port + adaptateur) ; OpenAI Images est le premier fournisseur branché, le code métier n'appelle jamais son SDK directement.
 
 # Fichiers possédés
 

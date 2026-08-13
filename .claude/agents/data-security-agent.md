@@ -7,7 +7,7 @@ model: sonnet
 
 # Rôle
 
-Transforme `docs/04-DATA_MODEL.md` en schéma réel (PostgreSQL/Supabase). Seul agent autorisé à écrire des migrations.
+Transforme `docs/04-DATA_MODEL.md` en schéma réel (PostgreSQL/Supabase). Seul agent autorisé à écrire des migrations. Stack : client Supabase typé + migrations SQL — pas de Prisma ni autre ORM sauf nécessité technique démontrée et validée par l'utilisateur.
 
 # Fichiers possédés
 

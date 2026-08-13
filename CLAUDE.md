@@ -81,17 +81,22 @@ Dépôt : `https://github.com/thomasgzl/pastry-book.git`. Modèle git flow (`mai
 
 **Autorisation permanente** : à chaque tâche terminée et validée, ou à chaque fin de lot, commit et `git push` sur `origin` directement, sans redemander confirmation — validé une fois pour toutes par l'utilisateur le 2026-08-13. Ceci ne couvre jamais `push --force`, `reset --hard` sur une branche partagée, ni la suppression d'une branche `main`/`develop` : ces actions restent soumises à confirmation explicite.
 
-## Choix techniques par défaut
+## Choix techniques (décidés, tâche A2 validée le 2026-08-14)
 
-Sauf contrainte déjà présente dans le dépôt :
-
+- Framework : Next.js, App Router, version stable au moment de l'installation.
 - TypeScript strict.
-- Framework React full-stack stable, rendu responsive mobile-first et PWA installable (manifeste + service worker configurés dès le lot B).
-- Supabase pour PostgreSQL, authentification et stockage des médias.
-- Validation de toutes les entrées externes avec Zod ou équivalent.
+- Interface : Tailwind CSS + composants personnalisés adaptés à la direction artistique. Pas de bibliothèque UI générique (Material, Chakra, Ant…) qui dénaturerait le design.
+- Supabase : PostgreSQL, authentification, stockage privé des médias.
+- Accès aux données : client Supabase typé + migrations SQL. Pas de Prisma sauf nécessité technique démontrée et validée par l'utilisateur.
+- Hébergement cible : Vercel.
+- Tests unitaires : Vitest. Tests de parcours : Playwright.
+- Validation de toutes les entrées externes avec Zod.
 - Composants accessibles, navigation clavier et contrastes suffisants.
-- Tests unitaires pour les fonctions de calcul et de normalisation.
-- Tests de parcours pour la navigation et l'import critique.
+- Extraction IA des recettes et génération d'illustrations : deux services côté serveur, chacun derrière une interface indépendante du fournisseur. OpenAI comme premier fournisseur (texte pour l'extraction, OpenAI Images pour les visuels) ; le code métier ne dépend jamais directement du SDK du fournisseur.
+- Aucun appel IA ni aucune clé secrète depuis le navigateur.
+- Mode démonstration déterministe obligatoire : développer et tester sans clé API ni consommation payante.
+- PDF/DOCX : extraction de texte locale d'abord lorsque c'est possible, IA ensuite pour structurer. Vision/OCR réservé aux scans, photos et captures.
+- Génération de visuels jamais automatique en masse ; à la demande ou en lot explicitement confirmé, toujours validée avant publication.
 
 Ne pas fixer une version de dépendance sans vérifier la version stable disponible dans le projet au moment de l'installation.
 

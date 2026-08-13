@@ -1,5 +1,7 @@
 # Modèle de données recommandé
 
+Accès : client Supabase typé + migrations SQL versionnées. Pas d'ORM (Prisma ou autre) sauf nécessité technique démontrée et validée par l'utilisateur (voir décisions techniques, `docs/10-AGENT_ARCHITECTURE.md`).
+
 ## Principes
 
 - La donnée importée originale est immuable.

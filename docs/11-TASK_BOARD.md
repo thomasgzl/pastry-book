@@ -19,7 +19,7 @@ Propriétaire : `project-orchestrator`
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
 | A1 | Audit du dépôt existant (structure, dépendances déjà installées, git) | — | Terminée | Constat écrit et daté, aucune supposition non vérifiée | `docs/10-AGENT_ARCHITECTURE.md` |
-| A2 | Inventaire des décisions techniques encore nécessaires (framework React, hébergement, fournisseur IA extraction, fournisseur IA image) | A1 | À vérifier | Liste explicite soumise à validation humaine, aucun choix imposé silencieusement | `docs/10-AGENT_ARCHITECTURE.md` |
+| A2 | Décisions techniques (framework, hébergement, fournisseurs IA) | A1 | À vérifier (QA) | Décisions validées par l'utilisateur le 2026-08-14, consignées dans `CLAUDE.md` et `docs/10-AGENT_ARCHITECTURE.md`, aucune contradiction avec les principes non négociables | `CLAUDE.md`, `docs/10-AGENT_ARCHITECTURE.md`, `docs/11-TASK_BOARD.md`, `docs/04-DATA_MODEL.md`, `docs/05-AI_IMPORT.md`, `docs/09-AI_VISUALS.md` |
 | A3 | Vérification du mécanisme multi-agents réellement disponible | — | Terminée | `.claude/agents/*.md` créés et conformes au format attendu | `.claude/agents/*.md` |
 | A4 | Création des fichiers d'organisation (`10`, `11`, `12`) | A1, A3 | Terminée | Fichiers présents et conformes aux exigences de la mission | `docs/10-AGENT_ARCHITECTURE.md`, `docs/11-TASK_BOARD.md`, `docs/12-INTEGRATION_PROTOCOL.md` |
 
@@ -29,7 +29,7 @@ Propriétaire principal : `data-security-agent` ; parallèle après validation d
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| B1 | Initialisation technique (framework choisi en A2, TypeScript strict, qualité de code, base mobile-first) | A2 (validée par l'utilisateur) | À faire | L'application démarre, contrôles de qualité passent, rendu de base testé téléphone/tablette/ordinateur | config racine, `package.json` |
+| B1 | Init Next.js App Router + TypeScript strict + Tailwind + Vitest + Playwright + Zod + client Supabase (déps) | A2 (validée par l'utilisateur) | À faire | L'application démarre, contrôles de qualité passent, rendu de base testé téléphone/tablette/ordinateur | config racine, `package.json` |
 | B2 | Contrats communs (types du domaine, schémas de validation, conventions d'erreur, structure des médias) | B1 | À faire | Contrats écrits, relus par `project-orchestrator`, aucun agent métier n'a encore commencé | types partagés |
 | B3 | Schéma de base de données et migrations (`docs/04-DATA_MODEL.md`) | B2 | À faire | Toutes les entités du modèle de données créées, invariants respectés | migrations |
 | B4 | Authentification privée et politiques d'accès | B3 | À faire | Accès non authentifié bloqué, testé, formulaire utilisable au clavier virtuel | auth, politiques d'accès |
@@ -62,7 +62,7 @@ Propriétaire : `ai-import-agent`
 |---|---|---|---|---|---|
 | D1 | Import structuré sans IA (upload, lot, saisie/correction manuelle) | B3, B4, B8 | À faire | Lot traité sans IA ni clé payante, import possible depuis fichiers et appareil photo téléphone/tablette, lot interrompu par coupure réseau reprend sans doublon | pipeline import manuel |
 | D2 | Écran de vérification (original + proposition) | D1 | À faire | Comparaison visuelle possible, validation recette par recette, utilisable sur tablette portrait et paysage | écran de vérification |
-| D3 | Extraction IA (PDF/Word puis OCR image) | D1, D2 | À faire | Schéma strict, valeurs `null` si incertain, aucune invention | pipeline extraction |
+| D3 | Extraction IA (texte local PDF/Word d'abord, IA pour structurer ; OCR/vision réservé aux scans/photos) derrière une interface indépendante du fournisseur (OpenAI en premier) | D1, D2 | À faire | Schéma strict, valeurs `null` si incertain, aucune invention, mode démonstration sans clé API | pipeline extraction |
 | D4 | Normalisation des ingrédients + détection allergènes/spécificités | D3 | À faire | Règles déterministes d'abord, IA pour ambigus, aucune trace déduite | normalisation, allergènes |
 
 ## Lot E — Visuels IA
@@ -71,7 +71,7 @@ Propriétaire : `ai-visuals-agent`
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| E1 | Preset versionné « Botanique éditorial » | B3 (table `visual_assets`) | À faire | Prompt stocké une seule fois, versionné | preset |
+| E1 | Preset versionné « Botanique éditorial » + interface serveur indépendante du fournisseur (OpenAI Images en premier) | B3 (table `visual_assets`) | À faire | Prompt stocké une seule fois, versionné, aucune génération automatique en masse | preset |
 | E2 | 5 exemples de référence (Citron, Pistache, une recette, une entreprise, une catégorie) | E1 | À faire | Cohérence visuelle validée manuellement avant tout lot | génération unitaire |
 | E3 | Génération en lot | E2 (validée par l'utilisateur) | À faire | Ignore les objets déjà approuvés, galerie de validation groupée | génération en lot |
 

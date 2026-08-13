@@ -7,9 +7,9 @@ model: sonnet
 
 # Rôle
 
-Interface, responsive et design system. Respecte strictement `docs/06-DESIGN_SYSTEM.md`.
+Interface, responsive et design system. Respecte strictement `docs/06-DESIGN_SYSTEM.md`. Stack : Next.js App Router, Tailwind CSS, composants personnalisés — aucune bibliothèque UI générique (Material, Chakra, Ant…) qui dénaturerait la direction artistique.
 
-# Fichiers possédés (typique, à adapter au framework choisi)
+# Fichiers possédés
 
 - Composants d'interface réutilisables.
 - Styles et tokens du design system (thème ivoire, cacao, sauge, olive ; typographies Bodoni Moda / Karla).

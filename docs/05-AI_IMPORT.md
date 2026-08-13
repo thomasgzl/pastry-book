@@ -14,6 +14,10 @@ Importer des centaines de recettes sans saisie manuelle individuelle, tout en ga
 
 L'interface accepte plusieurs fichiers dans un même lot.
 
+Pour un PDF/DOCX exploitable, extraction de texte **locale** d'abord (sans IA), puis appel IA uniquement pour structurer ce texte. La vision/OCR n'est utilisée que pour les scans, photos et captures où le texte n'est pas extractible localement.
+
+Extraction structurée et détection assistée exposées par un service côté serveur, derrière une interface indépendante du fournisseur (port + adaptateur). OpenAI est le premier fournisseur branché ; le code métier n'appelle jamais son SDK directement, ce qui permet de changer ou d'ajouter un fournisseur sans toucher à la logique métier.
+
 ## Pipeline
 
 ```text

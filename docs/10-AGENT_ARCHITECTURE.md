@@ -10,6 +10,26 @@ Claude Code prend en charge les agents personnalisés via des fichiers Markdown 
 - Les « sous-agents » Claude Code n'ont pas de mémoire partagée automatique entre eux : toute information qu'un agent doit transmettre à un autre passe par un fichier écrit (rapport de livraison dans `docs/11-TASK_BOARD.md` ou commentaire de tâche), jamais par supposition d'un contexte commun.
 - Aucun outil natif ne verrouille un fichier au niveau du système. Le verrouillage décrit ici est une convention respectée par les agents et contrôlée par `project-orchestrator`, pas une contrainte technique.
 
+## Décisions techniques (tâche A2, validées par l'utilisateur le 2026-08-14)
+
+| Domaine | Choix |
+|---|---|
+| Framework | Next.js, App Router |
+| Langage | TypeScript strict |
+| Interface | Tailwind CSS + composants personnalisés, aucune bibliothèque UI générique |
+| Base de données / auth / stockage | Supabase |
+| Accès aux données | Client Supabase typé + migrations SQL — pas de Prisma sauf nécessité démontrée |
+| Hébergement | Vercel |
+| Tests unitaires | Vitest |
+| Tests de parcours | Playwright |
+| Validation des entrées externes | Zod |
+| Extraction IA des recettes | Service serveur, interface indépendante du fournisseur, OpenAI en premier fournisseur |
+| Génération d'illustrations | Service serveur, interface indépendante du fournisseur, OpenAI Images en premier fournisseur |
+| PDF/DOCX | Extraction de texte locale d'abord, IA pour structurer ensuite ; vision/OCR réservé aux scans/photos/captures |
+| Démonstration | Mode déterministe obligatoire, sans clé API ni coût |
+
+`ai-import-agent` et `ai-visuals-agent` possèdent chacun leur propre interface serveur indépendante du fournisseur (un port + un adaptateur OpenAI) ; aucun autre agent n'appelle le SDK OpenAI directement. `data-security-agent` est seul propriétaire du client Supabase et des migrations SQL — introduire un ORM (Prisma ou autre) est une décision produit qui repasse par une validation humaine.
+
 ## Rôle de chaque agent
 
 | Agent | Rôle | Périmètre |
