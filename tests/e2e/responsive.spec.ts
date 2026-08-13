@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Cibles tactiles (B9)", () => {
   test("les boutons existants respectent 44x44px minimum", async ({ page }) => {
     await page.goto("/");
-    const homeButton = page.getByRole("button", { name: "Voir la recette" });
+    const homeButton = page.getByRole("button", { name: "Importer" }).first();
     const homeBox = await homeButton.boundingBox();
     expect(homeBox?.width).toBeGreaterThanOrEqual(44);
     expect(homeBox?.height).toBeGreaterThanOrEqual(44);
