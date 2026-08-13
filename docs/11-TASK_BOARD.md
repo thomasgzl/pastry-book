@@ -10,7 +10,7 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| — | — | — | — |
+| `src/components/`, shell applicatif | `frontend-design-agent` | Lot C — batch 1 (C1) | 2026-08-14 |
 
 ## Lot A — Audit
 
@@ -46,14 +46,17 @@ Propriétaire : `recipe-search-agent` (composition avec composants de `frontend-
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| C1 | Page Entreprises générale | B4, B7 | À faire | Toutes les sources listées, aucune carte vide | page Entreprises |
-| C2 | Page intérieure d'une entreprise + catégories locales (exemple Hennessy) | C1 | À faire | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy | page Entreprise |
-| C3 | Répertoire des recettes + recherche par titre | B4, B7 | À faire | Recette retrouvable par titre et par source | page Recettes |
-| C4 | Fiche recette adaptative | C3 | À faire | Recette minimale et détaillée testées, aucune section vide, aucun défilement horizontal, une colonne sur téléphone | fiche recette |
-| C5 | Coefficient multiplicateur | C4 | À faire | Tests unitaires décimaux, `QS`/absent non calculés, boutons utilisables au doigt, visibles avant la liste d'ingrédients sur téléphone | logique coefficient |
-| C6 | Répertoire des matières premières | B4, B7 | À faire | Alias retrouvent la matière canonique sans changer le libellé source | page Matières premières |
-| C7 | Répertoire des spécificités et allergènes (séparés) | B4, B7 | À faire | Deux espaces distincts, statuts proposé/confirmé visibles | page Spécificités |
-| C8 | Recherche globale groupée | C1, C3, C6 | À faire | Résultats groupés par type, source toujours indiquée, filtres utilisables au toucher, état de navigation préservé au retour depuis une recette | recherche globale |
+Renumérotation 2026-08-14 pour correspondre exactement à la spécification détaillée validée (shell d'abord, coefficient séparé de la fiche recette, recherche globale en dernier).
+
+| C1 | Structure commune : shell authentifié, en-tête, nav principale/mobile, bouton Importer non fonctionnel, fil d'Ariane, états chargement/erreur/hors connexion/aucun résultat | B4, B7, B8 | En cours | Hennessy jamais en nav principale, nav tactile mobile cohérente PWA | `src/components/`, shell applicatif |
+| C2 | Page d'accueil (titre, sous-titre, recherche globale, 4 cartes égales, illustration démo, Importer secondaire) | C1 | À faire | Aucun widget hors périmètre, 4 cartes poids visuel identique | page d'accueil |
+| C3 | Entreprises : `/entreprises`, `/entreprises/:entreprise`, `/entreprises/:entreprise/:categorie` | C1 | À faire | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy absentes ailleurs, catégorie vide jamais affichée | pages Entreprises |
+| C4 | Répertoire des recettes `/recettes` (recherche titre, filtres, état sans résultat, conservation filtres au retour) | C1 | À faire | Deux recettes homonymes distinguables par source, aucun champ hors périmètre (durée/difficulté/etc.) | page Recettes |
+| C5 | Fiche recette adaptative `/recettes/:id` | C3, C4 | À faire | CAP minimale sans bloc vide, Hennessy détaillée avec informations complémentaires, préparation jamais globalisée | fiche recette |
+| C6 | Coefficient multiplicateur (`× 0,5/1/1,5/2` + personnalisé) | C5 | À faire | `QS`/absent/`needs_review` jamais inventés, × 1 restitue l'original, calcul pur testé unitairement | logique + UI coefficient |
+| C7 | Matières premières `/matieres-premieres` + fiche matière | C1 | À faire | Alias citron (jus/zeste/purée) retrouvent Citron sans modifier les libellés source | pages Matières premières |
+| C8 | Spécificités et allergènes `/specificites`, séparés | C1 | À faire | `confirmed`/`proposed` visuellement distincts, aucune confirmation par absence d'ingrédient | page Spécificités |
+| C9 | Recherche globale groupée (Entreprises/Recettes/Matières premières/Catégories) | C3, C4, C7 | À faire | État vide/erreur, clavier, aucun appel IA, catégorie indique son entreprise parente | recherche globale |
 
 ## Lot D — Import
 
