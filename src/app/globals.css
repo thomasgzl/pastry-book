@@ -34,4 +34,13 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /*
+   * Zones sûres (encoche, barre de gestes) — B8. `env()` retombe sur 0 sur
+   * un appareil sans zone sûre déclarée ; combiné à `viewport-fit=cover`
+   * (layout.tsx), garantit que le contenu n'est jamais masqué.
+   */
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
