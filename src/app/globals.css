@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Palette — docs/06-DESIGN_SYSTEM.md
+ * Le brun cacao, le vert olive et le brun rouge sont conformes aux valeurs
+ * indicatives du document (contraste texte suffisant, voir rapport de
+ * livraison B6). La sauge et le laiton ancien ont été très légèrement
+ * assombris par rapport aux valeurs indicatives (#8C9774 -> #828C6C,
+ * #B38A45 -> #A68040) pour atteindre 3:1 minimum sur fond ivoire — seuil
+ * WCAG des composants d'interface non textuels. Ce sont des accents
+ * (bordures, icônes, petites touches) : ne jamais les utiliser comme
+ * couleur de texte de corps, qui resterait sous 4.5:1.
+ */
+@theme {
+  --color-ivoire: #f7f3ea; /* fond principal */
+  --color-coquille: #fffcf6; /* surface (cartes) */
+  --color-avoine: #e8ddcc; /* surface secondaire */
+  --color-cacao: #3b291f; /* texte principal */
+  --color-olive: #556043; /* action / navigation */
+  --color-sauge: #828c6c; /* accent secondaire — ajusté, voir note ci-dessus */
+  --color-laiton: #a68040; /* accent rare — ajusté, voir note ci-dessus */
+  --color-grise: #d8cdbd; /* bordures */
+  --color-brunrouge: #8a4f45; /* erreur / à vérifier */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--color-ivoire);
+  --color-foreground: var(--color-cacao);
+  --font-serif: var(--font-bodoni-moda);
+  --font-sans: var(--font-karla);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
