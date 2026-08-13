@@ -1,17 +1,19 @@
 # Dépendances
-node_modules/
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js
+/.next/
+/out/
 
 # Build
-dist/
-build/
-.next/
-out/
+/build
 .turbo/
 
 # Environnement — jamais de secret committé
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # Éditeurs / OS
 .DS_Store
@@ -19,13 +21,29 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+*.pem
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
 # Supabase local
 .supabase/
 
-# Tests / couverture
-coverage/
+# Worktrees des agents (scratch space du harness, jamais committé)
+.claude/worktrees/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Tests
+/coverage
+/test-results/
+/playwright-report/
