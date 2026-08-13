@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Le Grand Livre de Pâtisserie">
+  <!--
+    Icône placeholder (B8) : monogramme "G" géométrique, olive sur fond
+    ivoire, dessiné à la main en SVG — aucune illustration IA n'existe encore
+    (lot E non lancé). À remplacer par un visuel de ai-visuals-agent, même
+    fichier, mêmes usages (manifeste + apple-touch-icon).
+  -->
+  <rect width="512" height="512" rx="96" fill="#F7F3EA" />
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#556043" stroke-width="28" />
+  <path d="M 256 256 L 256 150" fill="none" stroke="#556043" stroke-width="28" stroke-linecap="round" />
+  <path d="M 256 256 L 340 256" fill="none" stroke="#556043" stroke-width="28" stroke-linecap="round" />
+</svg>
