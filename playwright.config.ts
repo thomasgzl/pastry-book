@@ -17,7 +17,15 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "téléphone",
+      // ~375px de large (iPhone SE) : le gabarit le plus contraignant pour
+      // le zéro-défilement-horizontal et les cibles tactiles.
+      name: "téléphone étroit",
+      use: { ...devices["iPhone SE (3rd gen)"] },
+    },
+    {
+      // Anciennement "téléphone" — renommé pour le distinguer clairement du
+      // profil étroit ci-dessus (B9).
+      name: "iPhone récent",
       use: { ...devices["iPhone 14"] },
     },
     {
