@@ -1,0 +1,31 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# Environnement — jamais de secret committé
+.env
+.env.local
+.env.*.local
+
+# Éditeurs / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Supabase local
+.supabase/
+
+# Tests / couverture
+coverage/
