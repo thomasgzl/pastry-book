@@ -33,6 +33,9 @@ yarn-error.log*
 # Supabase local
 .supabase/
 
+# Worktrees des agents (scratch space du harness, jamais committé)
+.claude/worktrees/
+
 # Vercel
 .vercel
 
