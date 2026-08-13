@@ -68,7 +68,24 @@
 - [ ] Le thème ivoire, cacao et olive est cohérent sur toutes les pages.
 - [ ] Le végétal ne réduit jamais la lisibilité.
 - [ ] Les contrastes et focus clavier sont visibles.
-- [ ] Les quatre parcours fonctionnent sur mobile.
+- [ ] Les quatre parcours fonctionnent sur téléphone étroit, tablette portrait, tablette paysage et ordinateur.
 - [ ] Les quantités restent alignées et lisibles sur petit écran.
 - [ ] Aucun élément hors périmètre n'apparaît dans l'interface.
+- [ ] Aucune page n'a été conçue pour l'ordinateur puis adaptée après coup.
+- [ ] Aucun défilement horizontal, sur aucun écran.
+- [ ] Toutes les cibles interactives mesurent au moins 44 × 44 px.
+- [ ] Aucun comportement essentiel ne dépend du survol de la souris.
+- [ ] Un formulaire reste utilisable avec le clavier virtuel ouvert (champ actif non masqué).
+- [ ] La rotation de la tablette (portrait ↔ paysage) ne provoque ni perte de saisie ni rupture de mise en page.
+
+## PWA et hors connexion
+
+- [ ] L'application est installable sur iOS/iPadOS, Android et ordinateur.
+- [ ] Le manifeste PWA contient nom, nom court, icônes, couleurs et mode `standalone`.
+- [ ] L'application se lance en mode autonome après installation, sans barre de navigateur.
+- [ ] L'installation n'est jamais imposée pour utiliser l'application dans le navigateur.
+- [ ] Une recette déjà chargée reste consultable lors d'une coupure réseau temporaire.
+- [ ] Une page de repli claire s'affiche pour un contenu non chargé hors connexion.
+- [ ] Une mise à jour de la PWA ne conserve pas indéfiniment une ancienne version en cache.
+- [ ] Un import interrompu par une perte de connexion reprend sans créer de doublon.
 

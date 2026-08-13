@@ -6,7 +6,7 @@ Claude Code prend en charge les agents personnalisés via des fichiers Markdown 
 
 ### Adaptations par rapport à l'organisation demandée
 
-- **Pas de dépôt git initialisé** au moment de la création de cette organisation (`git status` renvoie « not a git repository »). Les worktrees/branches isolées ne sont donc pas disponibles pour le travail parallèle tant que le dépôt n'est pas initialisé. En attendant, l'isolation des fichiers repose sur un ledger de verrous manuel tenu dans `docs/11-TASK_BOARD.md` (voir `docs/12-INTEGRATION_PROTOCOL.md`). Recommandation : initialiser git dès le Lot A pour permettre commits par tâche et retour arrière propre — décision à valider par l'utilisateur, non prise unilatéralement.
+- **Dépôt git initialisé** (voir `docs/12-INTEGRATION_PROTOCOL.md` §0, git flow sur `https://github.com/thomasgzl/pastry-book.git`). Une branche `feature/*` par tâche reste néanmoins doublée du ledger de verrous ci-dessous, qui reste la référence pour savoir quelles branches peuvent être ouvertes en même temps.
 - Les « sous-agents » Claude Code n'ont pas de mémoire partagée automatique entre eux : toute information qu'un agent doit transmettre à un autre passe par un fichier écrit (rapport de livraison dans `docs/11-TASK_BOARD.md` ou commentaire de tâche), jamais par supposition d'un contexte commun.
 - Aucun outil natif ne verrouille un fichier au niveau du système. Le verrouillage décrit ici est une convention respectée par les agents et contrôlée par `project-orchestrator`, pas une contrainte technique.
 
@@ -15,7 +15,7 @@ Claude Code prend en charge les agents personnalisés via des fichiers Markdown 
 | Agent | Rôle | Périmètre |
 |---|---|---|
 | `project-orchestrator` | Coordination, découpage, contrôle qualité produit | `docs/10,11,12`, `.claude/agents/*` |
-| `frontend-design-agent` | Interface, design system, navigation, responsive | Composants, styles, layouts, routes de présentation |
+| `frontend-design-agent` | Interface, design system, navigation, responsive mobile-first, PWA | Composants, styles, layouts, routes de présentation, manifeste, service worker |
 | `data-security-agent` | Base de données, auth, sécurité | Migrations, politiques d'accès, contrats de données, `visual_assets` (structure) |
 | `recipe-search-agent` | Consultation, recherche, coefficient | Pages Entreprises/Recettes/Matières premières/Spécificités, fiche adaptative, calculs |
 | `ai-import-agent` | Import Quantara, extraction, classement assisté | Pipeline d'import, OCR, validation JSON, écran de vérification |
@@ -23,6 +23,38 @@ Claude Code prend en charge les agents personnalisés via des fichiers Markdown 
 | `qa-integration-agent` | Validation indépendante et intégration | Plan de tests, rapports, régressions |
 
 Le détail des responsabilités, fichiers possédés et règles impératives de chaque agent est dans son propre fichier `.claude/agents/<nom>.md` — cette table est un résumé, pas la source de vérité.
+
+## Responsabilités tablette, mobile et PWA par agent
+
+Contrainte non négociable (`CLAUDE.md`, détail dans `docs/06-DESIGN_SYSTEM.md`) : mobile-first et tablet-first, tablette = appareil principal. Portée dans le lot B dès les fondations, pas repoussée en fin de projet.
+
+### `frontend-design-agent`
+
+- Travaille en mobile-first ; définit les points de rupture à partir du contenu réel.
+- Teste systématiquement téléphone, tablette portrait, tablette paysage et ordinateur.
+- Construit des composants tactiles et accessibles (cibles ≥ 44 × 44 px).
+- Configure le manifeste et l'expérience d'installation PWA.
+- Prévoit les états hors connexion et de mise à jour de version.
+- Vérifie les zones sûres iOS/iPadOS.
+
+### `recipe-search-agent`
+
+- Garantit que la fiche recette et le coefficient sont pleinement utilisables sur petit écran.
+- Garantit que les listes d'ingrédients ne nécessitent aucun défilement horizontal.
+- Garantit que la recherche et les filtres fonctionnent au toucher.
+- Préserve l'état de navigation après un retour depuis une recette.
+
+### `ai-import-agent`
+
+- Prévoit l'import depuis les fichiers du téléphone et de la tablette.
+- Prévoit la sélection depuis l'appareil photo lorsque la plateforme le permet.
+- Construit un écran de vérification utilisable sur tablette.
+- Prévoit la reprise d'un lot interrompu par une perte de connexion.
+
+### `qa-integration-agent`
+
+- Refuse une livraison non vérifiée au minimum en : téléphone étroit, iPhone récent, tablette portrait, tablette paysage, ordinateur standard.
+- Teste aussi : installation de la PWA, lancement en mode autonome, navigation tactile, rotation de la tablette, présence d'un état hors connexion, reprise après coupure réseau, absence de défilement horizontal, comportement avec le clavier virtuel, tailles des zones tactiles.
 
 ## Fichiers possédés (exclusifs)
 
@@ -84,4 +116,4 @@ qa-integration-agent (validation à chaque étape, pas seulement à la fin)
 2. `project-orchestrator` tient le ledger de verrous dans `docs/11-TASK_BOARD.md` et refuse d'activer une tâche dont un fichier est déjà verrouillé par une tâche `En cours`.
 3. Les migrations ne sont jamais touchées par un agent autre que `data-security-agent`.
 4. Un agent qui découvre qu'il a besoin de modifier un fichier hors de son périmètre s'arrête et le signale au coordinateur au lieu de le modifier.
-5. Dès qu'un dépôt git est initialisé, privilégier une branche par tâche pour tout travail réellement parallèle ; le ledger de verrous reste la référence pour savoir quelles branches peuvent être ouvertes en même temps.
+5. Une branche `feature/*` par tâche pour tout travail réellement parallèle ; le ledger de verrous reste la référence pour savoir quelles branches peuvent être ouvertes en même temps.

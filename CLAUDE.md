@@ -22,7 +22,8 @@ Avant toute modification :
 7. **Préparations non globalisées.** Une crème pâtissière Hennessy et une crème pâtissière CAP sont deux préparations indépendantes. Une préparation appartient à une recette précise.
 8. **IA supervisée.** L'IA propose une extraction, des ingrédients canoniques, des spécificités et des allergènes. Les cas ambigus passent en validation humaine.
 9. **Allergènes prudents.** Ne jamais déduire les traces ou contaminations croisées à partir de la seule recette. Afficher clairement ce qui est détecté et ce qui reste à vérifier.
-10. **Responsive dès le départ.** Les parcours principaux doivent fonctionner sur ordinateur, tablette et mobile.
+10. **Mobile-first et tablet-first, non négociable.** L'application est principalement utilisée sur tablette et téléphone en laboratoire. Toute page ou fonctionnalité se conçoit d'abord pour téléphone et tablette, puis s'adapte à l'ordinateur — jamais l'inverse. La tablette est l'appareil principal de consultation. Aucun écran n'est développé « pour desktop d'abord, responsive ensuite ».
+11. **PWA installable dès les fondations.** Manifeste complet, service worker et repli hors connexion font partie du lot B (fondations techniques), pas d'une phase de finition. Une recette déjà chargée reste consultable lors d'une coupure réseau temporaire. L'installation ne doit jamais être imposée pour utiliser l'application dans le navigateur.
 
 ## Architecture fonctionnelle à respecter
 
@@ -39,6 +40,18 @@ Accueil
 ```
 
 Ne jamais présenter Hennessy comme un onglet de premier niveau.
+
+## Contrainte prioritaire : tablette, mobile et PWA
+
+Détail complet dans `docs/06-DESIGN_SYSTEM.md`. Résumé impératif :
+
+- Mobile-first et tablet-first pour toute page, tout composant.
+- Fonctionnement complet sur téléphone, tablette et ordinateur — pas de fonction exclusive à un format.
+- Cibles tactiles ≥ 44 × 44 px, aucun comportement dépendant du survol souris.
+- Aucun défilement horizontal, formulaires utilisables clavier virtuel ouvert.
+- PWA installable (iOS/iPadOS, Android, ordinateur) sans que l'installation soit obligatoire pour utiliser l'app dans le navigateur.
+- Manifeste complet, service worker, page de repli hors connexion, mise à jour de version sans conserver indéfiniment une ancienne version en cache.
+- Rotation tablette portrait/paysage sans perte de saisie ni rupture de mise en page.
 
 ## Périmètre du MVP
 
@@ -73,7 +86,7 @@ Dépôt : `https://github.com/thomasgzl/pastry-book.git`. Modèle git flow (`mai
 Sauf contrainte déjà présente dans le dépôt :
 
 - TypeScript strict.
-- Framework React full-stack stable, rendu responsive et PWA.
+- Framework React full-stack stable, rendu responsive mobile-first et PWA installable (manifeste + service worker configurés dès le lot B).
 - Supabase pour PostgreSQL, authentification et stockage des médias.
 - Validation de toutes les entrées externes avec Zod ou équivalent.
 - Composants accessibles, navigation clavier et contrastes suffisants.
@@ -100,7 +113,7 @@ Ne pas fixer une version de dépendance sans vérifier la version stable disponi
 Une tâche n'est terminée que si :
 
 - Le comportement correspond aux documents produit.
-- Les états responsive et vides ont été contrôlés.
+- Les états responsive et vides ont été contrôlés sur téléphone étroit, tablette portrait, tablette paysage et ordinateur.
 - Les validations et erreurs sont traitées.
 - Les tests pertinents passent.
 - La documentation est mise à jour si une décision change.

@@ -10,22 +10,25 @@ Construire par tranches verticales vérifiables. Ne pas commencer par l'IA. Le p
 - Initialiser TypeScript strict et la qualité de code.
 - Configurer variables d'environnement et exemple sans secret.
 - Préparer structure de pages, composants, services et tests.
-- Configurer le thème visuel et les polices.
+- Configurer le thème visuel et les polices, en mobile-first.
+- Configurer le manifeste PWA (nom, nom court, icônes, couleurs, mode `standalone`, écran de démarrage).
+- Mettre en place le service worker et la page de repli hors connexion.
+- Définir les points de rupture à partir de contenus réels (carte, fiche, liste).
 
-**Validation :** l'application démarre, une page témoin responsive utilise le thème et les contrôles de qualité passent.
+**Validation :** l'application démarre, une page témoin responsive utilise le thème sur téléphone/tablette/ordinateur, la PWA est installable et fonctionne hors connexion pour une page déjà chargée, les contrôles de qualité passent.
 
 ## Phase 1 — Navigation et design
 
-- Connexion privée minimale.
-- Accueil avec les quatre entrées.
+- Connexion privée minimale, utilisable au clavier virtuel.
+- Accueil avec les quatre entrées, mobile-first.
 - Page Entreprises générale.
 - Page Hennessy comme exemple imbriqué.
 - Pages Recettes, Matières premières et Spécificités.
-- Navigation mobile.
+- Navigation mobile et tablette (portrait et paysage), zones tactiles ≥ 44 × 44 px.
 
 Utiliser des données fictives explicitement marquées.
 
-**Validation :** aucun lien principal ne mène à une impasse et Hennessy est bien imbriqué sous Entreprises.
+**Validation :** aucun lien principal ne mène à une impasse, Hennessy est bien imbriqué sous Entreprises, la navigation est testée sur téléphone étroit, tablette portrait, tablette paysage et ordinateur, sans défilement horizontal.
 
 ## Phase 2 — Base de données
 
@@ -44,7 +47,7 @@ Utiliser des données fictives explicitement marquées.
 - Affichage photo/illustration facultatif.
 - Allergènes, matières clés et informations complémentaires facultatifs.
 
-**Validation :** tester une recette CAP minimale et un dessert à l'assiette détaillé.
+**Validation :** tester une recette CAP minimale et un dessert à l'assiette détaillé, sur téléphone, tablette portrait, tablette paysage et ordinateur, sans défilement horizontal.
 
 ## Phase 4 — Coefficient
 
@@ -68,13 +71,13 @@ Utiliser des données fictives explicitement marquées.
 
 ## Phase 6 — Import sans IA
 
-- Téléversement multiple.
-- Création et suivi d'un lot.
-- Écran de vérification.
+- Téléversement multiple, y compris depuis les fichiers et l'appareil photo du téléphone/tablette.
+- Création et suivi d'un lot, reprenable après coupure réseau.
+- Écran de vérification utilisable sur tablette.
 - Saisie/correction manuelle structurée.
 - Enregistrement validé et conservation du document original.
 
-**Validation :** un lot de plusieurs recettes peut être traité sans IA ni clé payante.
+**Validation :** un lot de plusieurs recettes peut être traité sans IA ni clé payante, l'écran de vérification est testé sur tablette portrait et paysage, un lot interrompu par une coupure réseau reprend sans doublon.
 
 ## Phase 7 — Extraction et classement IA
 

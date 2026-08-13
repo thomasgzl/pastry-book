@@ -29,13 +29,15 @@ Propriétaire principal : `data-security-agent` ; parallèle après validation d
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| B1 | Initialisation technique (framework choisi en A2, TypeScript strict, qualité de code) | A2 (validée par l'utilisateur) | À faire | L'application démarre, contrôles de qualité passent | config racine, `package.json` |
+| B1 | Initialisation technique (framework choisi en A2, TypeScript strict, qualité de code, base mobile-first) | A2 (validée par l'utilisateur) | À faire | L'application démarre, contrôles de qualité passent, rendu de base testé téléphone/tablette/ordinateur | config racine, `package.json` |
 | B2 | Contrats communs (types du domaine, schémas de validation, conventions d'erreur, structure des médias) | B1 | À faire | Contrats écrits, relus par `project-orchestrator`, aucun agent métier n'a encore commencé | types partagés |
 | B3 | Schéma de base de données et migrations (`docs/04-DATA_MODEL.md`) | B2 | À faire | Toutes les entités du modèle de données créées, invariants respectés | migrations |
-| B4 | Authentification privée et politiques d'accès | B3 | À faire | Accès non authentifié bloqué, testé | auth, politiques d'accès |
+| B4 | Authentification privée et politiques d'accès | B3 | À faire | Accès non authentifié bloqué, testé, formulaire utilisable au clavier virtuel | auth, politiques d'accès |
 | B5 | Jeu de données de démonstration | B3 | À faire | Données clairement marquées fictives, couvrant recette minimale et recette détaillée | seed/fixtures |
-| B6 | Tokens du design system (couleurs, typographies, espacements) | B2 | À faire (parallèle à B3-B5 après B2) | Conforme à `docs/06-DESIGN_SYSTEM.md`, contrastes vérifiés | tokens/thème |
-| B7 | Composants visuels de base (carte, bouton, badge « À vérifier ») | B6 | À faire | États chargement/vide/erreur prévus, clavier accessible | composants UI |
+| B6 | Tokens du design system mobile-first (couleurs, typographies, espacements, points de rupture à partir du contenu) | B2 | À faire (parallèle à B3-B5 après B2) | Conforme à `docs/06-DESIGN_SYSTEM.md`, contrastes vérifiés, points de rupture définis | tokens/thème |
+| B7 | Composants visuels de base tactiles (carte, bouton, badge « À vérifier ») | B6 | À faire | États chargement/vide/erreur prévus, cibles ≥ 44 × 44 px, clavier accessible, zéro dépendance au survol souris | composants UI |
+| B8 | Manifeste PWA + service worker + page de repli hors connexion | B7 | À faire | Installable iOS/iPadOS/Android/ordinateur, mode `standalone`, page déjà chargée consultable hors connexion, mise à jour de version sans double cache indéfini | manifest, service worker |
+| B9 | Harnais de test responsive (téléphone étroit, tablette portrait, tablette paysage, ordinateur) | B7 | À faire | Les 4 formats vérifiables à chaque livraison, zones sûres iOS/iPadOS prises en compte | config de test/preview |
 
 ## Lot C — Navigation métier
 
@@ -46,11 +48,11 @@ Propriétaire : `recipe-search-agent` (composition avec composants de `frontend-
 | C1 | Page Entreprises générale | B4, B7 | À faire | Toutes les sources listées, aucune carte vide | page Entreprises |
 | C2 | Page intérieure d'une entreprise + catégories locales (exemple Hennessy) | C1 | À faire | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy | page Entreprise |
 | C3 | Répertoire des recettes + recherche par titre | B4, B7 | À faire | Recette retrouvable par titre et par source | page Recettes |
-| C4 | Fiche recette adaptative | C3 | À faire | Recette minimale et détaillée testées, aucune section vide | fiche recette |
-| C5 | Coefficient multiplicateur | C4 | À faire | Tests unitaires décimaux, `QS`/absent non calculés | logique coefficient |
+| C4 | Fiche recette adaptative | C3 | À faire | Recette minimale et détaillée testées, aucune section vide, aucun défilement horizontal, une colonne sur téléphone | fiche recette |
+| C5 | Coefficient multiplicateur | C4 | À faire | Tests unitaires décimaux, `QS`/absent non calculés, boutons utilisables au doigt, visibles avant la liste d'ingrédients sur téléphone | logique coefficient |
 | C6 | Répertoire des matières premières | B4, B7 | À faire | Alias retrouvent la matière canonique sans changer le libellé source | page Matières premières |
 | C7 | Répertoire des spécificités et allergènes (séparés) | B4, B7 | À faire | Deux espaces distincts, statuts proposé/confirmé visibles | page Spécificités |
-| C8 | Recherche globale groupée | C1, C3, C6 | À faire | Résultats groupés par type, source toujours indiquée | recherche globale |
+| C8 | Recherche globale groupée | C1, C3, C6 | À faire | Résultats groupés par type, source toujours indiquée, filtres utilisables au toucher, état de navigation préservé au retour depuis une recette | recherche globale |
 
 ## Lot D — Import
 
@@ -58,8 +60,8 @@ Propriétaire : `ai-import-agent`
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| D1 | Import structuré sans IA (upload, lot, saisie/correction manuelle) | B3, B4 | À faire | Lot traité sans IA ni clé payante | pipeline import manuel |
-| D2 | Écran de vérification (original + proposition) | D1 | À faire | Comparaison visuelle possible, validation recette par recette | écran de vérification |
+| D1 | Import structuré sans IA (upload, lot, saisie/correction manuelle) | B3, B4, B8 | À faire | Lot traité sans IA ni clé payante, import possible depuis fichiers et appareil photo téléphone/tablette, lot interrompu par coupure réseau reprend sans doublon | pipeline import manuel |
+| D2 | Écran de vérification (original + proposition) | D1 | À faire | Comparaison visuelle possible, validation recette par recette, utilisable sur tablette portrait et paysage | écran de vérification |
 | D3 | Extraction IA (PDF/Word puis OCR image) | D1, D2 | À faire | Schéma strict, valeurs `null` si incertain, aucune invention | pipeline extraction |
 | D4 | Normalisation des ingrédients + détection allergènes/spécificités | D3 | À faire | Règles déterministes d'abord, IA pour ambigus, aucune trace déduite | normalisation, allergènes |
 
@@ -79,7 +81,7 @@ Propriétaire : `qa-integration-agent`
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| F1 | Plan de tests dérivé de `docs/08-ACCEPTANCE_CRITERIA.md` | A4 | À faire | Chaque critère converti en test vérifiable | plan de tests |
+| F1 | Plan de tests dérivé de `docs/08-ACCEPTANCE_CRITERIA.md`, incluant matrice téléphone/tablette portrait/tablette paysage/ordinateur et checklist PWA | A4 | À faire | Chaque critère converti en test vérifiable, y compris les critères « Design et responsive » et « PWA et hors connexion » | plan de tests |
 | F2 | Validation de chaque lot avant démarrage du lot dépendant suivant | correspond au lot validé | À faire | Rapport clair, défauts assignés à l'agent propriétaire | rapports de validation |
 
 ## Trois premières tâches prêtes

@@ -99,13 +99,62 @@ Ordre recommandé :
 
 Badge discret mais visible, accompagné d'une explication. Ne pas se contenter de la couleur.
 
-## Responsive
+## Contrainte prioritaire : tablette, mobile et PWA
 
-- Navigation principale simplifiée sur mobile.
-- Listes transformées en cartes verticales.
-- Ingrédients conservés en colonnes lisibles.
-- Coefficient accessible sans défilement horizontal.
-- Les illustrations de marge peuvent disparaître sur petits écrans.
+L'application est principalement utilisée sur tablette et téléphone, en laboratoire. Conception **mobile-first et tablet-first**, puis adaptation à l'ordinateur. Contrainte non négociable, voir `CLAUDE.md`.
+
+- L'intégralité du projet est responsive ; toutes les pages et fonctionnalités marchent sur téléphone, tablette et ordinateur.
+- Aucun écran n'est développé pour desktop puis adapté à la fin.
+- La tablette est l'appareil principal de consultation.
+- Application installable en PWA sur iOS, iPadOS, Android et ordinateur.
+- Manifeste PWA complet : nom, nom court, icônes, couleurs, mode `standalone`, écran de démarrage lorsque la plateforme le permet.
+- Service worker et page de repli claire en cas de perte de connexion.
+- Une recette déjà chargée reste consultable lors d'une coupure réseau temporaire.
+- L'installation de la PWA n'est jamais imposée pour utiliser l'application dans le navigateur.
+- Les mises à jour de la PWA sont gérées sans conserver indéfiniment une ancienne version en cache.
+
+## Expérience tactile
+
+- Cibles interactives ≥ 44 × 44 px.
+- Aucun comportement dépendant uniquement du survol souris.
+- Boutons du coefficient facilement utilisables au doigt.
+- Navigation et retour arrière évidents.
+- Champs et claviers mobiles adaptés au contenu (`type="number"`, `type="tel"`, etc.).
+- Quantités parfaitement lisibles et alignées.
+- Absence de défilement horizontal.
+- Formulaires utilisables avec le clavier virtuel ouvert (champ actif non masqué).
+- Prise en compte des zones sûres des appareils mobiles (encoche, barre de gestes — `env(safe-area-inset-*)`).
+- Illustrations décoratives réduites ou masquées lorsqu'elles gênent la lecture.
+
+## Comportement selon l'écran
+
+### Téléphone
+
+- Navigation compacte.
+- Cartes empilées verticalement.
+- Recherche rapidement accessible.
+- Fiche recette en une seule colonne.
+- Coefficient visible avant la liste des ingrédients.
+- Quantités et unités lisibles sans zoom.
+- Actions principales accessibles au pouce.
+
+### Tablette — support prioritaire
+
+- Mise en page utilisant efficacement l'espace disponible.
+- Consultation confortable en orientation portrait et paysage.
+- Recette avec ses ingrédients affichable sans densité excessive.
+- Éléments tactiles jamais trop petits lorsque plusieurs colonnes sont utilisées.
+- Changement d'orientation sans perte de saisie ni rupture de mise en page.
+
+### Ordinateur
+
+- Utiliser l'espace supplémentaire sans étirer excessivement les textes.
+- Conserver une largeur de lecture confortable.
+- Ne pas ajouter de fonction exclusivement disponible sur ordinateur.
+
+## Points de rupture
+
+Définis à partir du contenu réel (où une carte, une fiche ou une liste casse visuellement), pas de valeurs arbitraires imposées à l'avance. Vérification systématique sur : téléphone étroit, tablette portrait, tablette paysage, ordinateur standard.
 
 ## Ce que le design ne doit pas devenir
 
