@@ -10,7 +10,8 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| types partagés | `project-orchestrator` | B2 | 2026-08-14 |
+| `supabase/`, `src/lib/supabase/`, `middleware.ts` | `data-security-agent` | B3, B4 | 2026-08-14 |
+| `src/app/globals.css`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/components/` | `frontend-design-agent` | B6, B7 | 2026-08-14 |
 
 ## Lot A — Audit
 
@@ -30,12 +31,12 @@ Propriétaire principal : `data-security-agent` ; parallèle après validation d
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
 | B1 | Init Next.js App Router + TypeScript strict + Tailwind + Vitest + Playwright + Zod + client Supabase (déps) | A2 (validée par l'utilisateur) | Terminée | L'application démarre, contrôles de qualité passent, rendu de base testé téléphone/tablette/ordinateur | config racine, `package.json` |
-| B2 | Contrats communs (types du domaine, schémas de validation, conventions d'erreur, structure des médias) | B1 | À faire | Contrats écrits, relus par `project-orchestrator`, aucun agent métier n'a encore commencé | types partagés |
-| B3 | Schéma de base de données et migrations (`docs/04-DATA_MODEL.md`) | B2 | À faire | Toutes les entités du modèle de données créées, invariants respectés | migrations |
-| B4 | Authentification privée et politiques d'accès | B3 | À faire | Accès non authentifié bloqué, testé, formulaire utilisable au clavier virtuel | auth, politiques d'accès |
+| B2 | Contrats communs (types du domaine, schémas de validation, conventions d'erreur, structure des médias) | B1 | Terminée | Contrats écrits (`src/lib/domain/`), relus et validés par `project-orchestrator`, aucun agent métier n'avait encore commencé | `src/lib/domain/` |
+| B3 | Schéma de base de données et migrations (`docs/04-DATA_MODEL.md`) | B2 | En cours | Toutes les entités du modèle de données créées, invariants respectés | `supabase/migrations/` |
+| B4 | Authentification privée et politiques d'accès | B3 | En cours | Accès non authentifié bloqué, testé, formulaire utilisable au clavier virtuel | `supabase/`, `src/lib/supabase/`, `middleware.ts` |
 | B5 | Jeu de données de démonstration | B3 | À faire | Données clairement marquées fictives, couvrant recette minimale et recette détaillée | seed/fixtures |
-| B6 | Tokens du design system mobile-first (couleurs, typographies, espacements, points de rupture à partir du contenu) | B2 | À faire (parallèle à B3-B5 après B2) | Conforme à `docs/06-DESIGN_SYSTEM.md`, contrastes vérifiés, points de rupture définis | tokens/thème |
-| B7 | Composants visuels de base tactiles (carte, bouton, badge « À vérifier ») | B6 | À faire | États chargement/vide/erreur prévus, cibles ≥ 44 × 44 px, clavier accessible, zéro dépendance au survol souris | composants UI |
+| B6 | Tokens du design system mobile-first (couleurs, typographies, espacements, points de rupture à partir du contenu) | B2 | En cours (parallèle à B3-B4) | Conforme à `docs/06-DESIGN_SYSTEM.md`, contrastes vérifiés, points de rupture définis | `src/app/globals.css` |
+| B7 | Composants visuels de base tactiles (carte, bouton, badge « À vérifier ») | B6 | En cours | États chargement/vide/erreur prévus, cibles ≥ 44 × 44 px, clavier accessible, zéro dépendance au survol souris | `src/components/` |
 | B8 | Manifeste PWA + service worker + page de repli hors connexion | B7 | À faire | Installable iOS/iPadOS/Android/ordinateur, mode `standalone`, page déjà chargée consultable hors connexion, mise à jour de version sans double cache indéfini | manifest, service worker |
 | B9 | Harnais de test responsive (téléphone étroit, tablette portrait, tablette paysage, ordinateur) | B7 | À faire | Les 4 formats vérifiables à chaque livraison, zones sûres iOS/iPadOS prises en compte | config de test/preview |
 
