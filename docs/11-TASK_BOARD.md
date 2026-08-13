@@ -10,7 +10,7 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| — | — | — | — |
+| config racine, `package.json` | `data-security-agent` (scaffold) | B1 | 2026-08-14 |
 
 ## Lot A — Audit
 
@@ -19,7 +19,7 @@ Propriétaire : `project-orchestrator`
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
 | A1 | Audit du dépôt existant (structure, dépendances déjà installées, git) | — | Terminée | Constat écrit et daté, aucune supposition non vérifiée | `docs/10-AGENT_ARCHITECTURE.md` |
-| A2 | Décisions techniques (framework, hébergement, fournisseurs IA) | A1 | À vérifier (QA) | Décisions validées par l'utilisateur le 2026-08-14, consignées dans `CLAUDE.md` et `docs/10-AGENT_ARCHITECTURE.md`, aucune contradiction avec les principes non négociables | `CLAUDE.md`, `docs/10-AGENT_ARCHITECTURE.md`, `docs/11-TASK_BOARD.md`, `docs/04-DATA_MODEL.md`, `docs/05-AI_IMPORT.md`, `docs/09-AI_VISUALS.md` |
+| A2 | Décisions techniques (framework, hébergement, fournisseurs IA) | A1 | Terminée | Décisions validées par l'utilisateur le 2026-08-14, consignées dans `CLAUDE.md` et `docs/10-AGENT_ARCHITECTURE.md`, aucune contradiction avec les principes non négociables, validé par `qa-integration-agent` (mojibake `docs/09-AI_VISUALS.md` corrigé et revérifié) | `CLAUDE.md`, `docs/10-AGENT_ARCHITECTURE.md`, `docs/11-TASK_BOARD.md`, `docs/04-DATA_MODEL.md`, `docs/05-AI_IMPORT.md`, `docs/09-AI_VISUALS.md` |
 | A3 | Vérification du mécanisme multi-agents réellement disponible | — | Terminée | `.claude/agents/*.md` créés et conformes au format attendu | `.claude/agents/*.md` |
 | A4 | Création des fichiers d'organisation (`10`, `11`, `12`) | A1, A3 | Terminée | Fichiers présents et conformes aux exigences de la mission | `docs/10-AGENT_ARCHITECTURE.md`, `docs/11-TASK_BOARD.md`, `docs/12-INTEGRATION_PROTOCOL.md` |
 
@@ -84,8 +84,8 @@ Propriétaire : `qa-integration-agent`
 | F1 | Plan de tests dérivé de `docs/08-ACCEPTANCE_CRITERIA.md`, incluant matrice téléphone/tablette portrait/tablette paysage/ordinateur et checklist PWA | A4 | À faire | Chaque critère converti en test vérifiable, y compris les critères « Design et responsive » et « PWA et hors connexion » | plan de tests |
 | F2 | Validation de chaque lot avant démarrage du lot dépendant suivant | correspond au lot validé | À faire | Rapport clair, défauts assignés à l'agent propriétaire | rapports de validation |
 
-## Trois premières tâches prêtes
+## Tâches prêtes
 
-1. **A2** — Inventaire des décisions techniques encore nécessaires, soumis à validation humaine avant de démarrer B1.
-2. **B1** — Initialisation technique, bloquée tant que A2 n'est pas validée par l'utilisateur.
-3. **B6** — Tokens du design system, peut démarrer dès que B2 (contrats communs) existe, en parallèle de B3-B5.
+1. **B1** — Initialisation technique. Prête (A2 Terminée).
+2. **B2** — Contrats communs. Prête après B1.
+3. **B3/B4** (`data-security-agent`) et **B6/B7** (`frontend-design-agent`) — prêtes en parallèle après validation de B2, fichiers distincts uniquement. `ai-import-agent` et `ai-visuals-agent` restent non lancés (lot D/E, hors périmètre de cette étape).

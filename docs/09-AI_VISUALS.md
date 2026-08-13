@@ -9,7 +9,7 @@ Les objets illustrables sont :
 - les matières premières canoniques ;
 - les recettes ;
 - les entreprises et formations ;
-- les catégories propres � une entreprise.
+- les catégories propres à une entreprise.
 
 ## Types de visuels
 
@@ -36,12 +36,12 @@ Créer une ambiance éditoriale liée au lieu ou au métier : architecture styli
 
 Créer un symbole culinaire lisible :
 
-- Dessert � l'assiette : dessert dressé sous cloche ou assiette raffinée ;
+- Dessert à l'assiette : dessert dressé sous cloche ou assiette raffinée ;
 - Dessert boutique : petit gâteau individuel en présentation vitrine ;
-- Recettes de base : fouet, poche � douille et préparation ;
+- Recettes de base : fouet, poche à douille et préparation ;
 - Petit-déjeuner : viennoiserie raffinée.
 
-Ces associations sont propres � la catégorie concernée et peuvent être modifiées.
+Ces associations sont propres à la catégorie concernée et peuvent être modifiées.
 
 ## Preset « Botanique éditorial »
 
@@ -50,7 +50,7 @@ Ces associations sont propres � la catégorie concernée et peuvent être modi
 ```text
 Illustration culinaire botanique française, élégante et intemporelle.
 Sujet unique immédiatement reconnaissable, composition aérée et centrée.
-Trait fin �  l'encre olive profond, lavis aquarelle subtil, ombres très douces,
+Trait fin à l'encre olive profond, lavis aquarelle subtil, ombres très douces,
 couleurs naturelles légèrement désaturées, détails précis sans photoréalisme dur.
 Fond ivoire chaud uniforme ou véritable transparence selon le support.
 Esthétique d'un grand livre de pâtisserie haut de gamme, artisanale et éditoriale.
@@ -75,10 +75,10 @@ Le texte et les libellés sont toujours ajoutés par l'interface HTML, jamais g�
 
 ```text
 Objet sans visuel
-�  Générer une illustration
-�  Aperçu de la proposition
-�  Approuver / Régénérer / Rejeter
-�  Publication du visuel approuvé
+→ Générer une illustration
+→ Aperçu de la proposition
+→ Approuver / Régénérer / Rejeter
+→ Publication du visuel approuvé
 ```
 
 Pour une recette, l'utilisatrice choisit d'abord : photo source ou description.
@@ -93,7 +93,7 @@ Disponible pour les matières premières, entreprises et catégories sans visuel
 4. présenter une galerie de validation ;
 5. approuver individuellement ou en masse les résultats satisfaisants.
 
-Par défaut, un lot ignore tout objet possédant déj� un visuel approuvé. Les recettes ne sont pas illustrées automatiquement au moment de leur import.
+Par défaut, un lot ignore tout objet possédant déjà un visuel approuvé. Les recettes ne sont pas illustrées automatiquement au moment de leur import.
 
 ## Cohérence et versionnement
 
@@ -101,7 +101,7 @@ Par défaut, un lot ignore tout objet possédant déj� un visuel approuvé. Le
 - Une modification du preset ne régénère pas les anciennes images automatiquement.
 - Permettre plus tard de filtrer les visuels créés avec une ancienne version.
 - Ne montrer qu'une image principale approuvée par objet.
-- Conserver les variantes rejetées jusqu'� suppression volontaire, ou appliquer une politique de nettoyage explicitement validée.
+- Conserver les variantes rejetées jusqu'à suppression volontaire, ou appliquer une politique de nettoyage explicitement validée.
 
 ## Contrôles automatiques
 
@@ -114,7 +114,7 @@ Avant de proposer une image :
 - arrière-plan compatible avec la carte ;
 - absence de contenu sans rapport avec le sujet.
 
-Un échec de contrôle place l'image en `ì vérifier`, jamais en visuel principal.
+Un échec de contrôle place l'image en `À vérifier`, jamais en visuel principal.
 
 ## Interface de gestion
 
