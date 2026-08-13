@@ -10,7 +10,7 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| `src/components/`, shell applicatif | `frontend-design-agent` | Lot C — batch 1 (C1) | 2026-08-14 |
+| `src/app/(app)/**`, `src/lib/demo/`, `src/lib/data/`, `src/lib/recipes/search*` | `recipe-search-agent` | Lot C — batch 2 (C2/C3/C4/C7/C8/C9) | 2026-08-14 |
 
 ## Lot A — Audit
 
@@ -48,7 +48,7 @@ Propriétaire : `recipe-search-agent` (composition avec composants de `frontend-
 |---|---|---|---|---|---|
 Renumérotation 2026-08-14 pour correspondre exactement à la spécification détaillée validée (shell d'abord, coefficient séparé de la fiche recette, recherche globale en dernier).
 
-| C1 | Structure commune : shell authentifié, en-tête, nav principale/mobile, bouton Importer non fonctionnel, fil d'Ariane, états chargement/erreur/hors connexion/aucun résultat | B4, B7, B8 | En cours | Hennessy jamais en nav principale, nav tactile mobile cohérente PWA | `src/components/`, shell applicatif |
+| C1 | Structure commune : shell authentifié, en-tête, nav principale/mobile, bouton Importer non fonctionnel, fil d'Ariane, états chargement/erreur/hors connexion/aucun résultat | B4, B7, B8 | Terminée | Hennessy jamais en nav principale, nav tactile mobile cohérente PWA — validé QA (82 tests) | `src/components/`, shell applicatif |
 | C2 | Page d'accueil (titre, sous-titre, recherche globale, 4 cartes égales, illustration démo, Importer secondaire) | C1 | À faire | Aucun widget hors périmètre, 4 cartes poids visuel identique | page d'accueil |
 | C3 | Entreprises : `/entreprises`, `/entreprises/:entreprise`, `/entreprises/:entreprise/:categorie` | C1 | À faire | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy absentes ailleurs, catégorie vide jamais affichée | pages Entreprises |
 | C4 | Répertoire des recettes `/recettes` (recherche titre, filtres, état sans résultat, conservation filtres au retour) | C1 | À faire | Deux recettes homonymes distinguables par source, aucun champ hors périmètre (durée/difficulté/etc.) | page Recettes |
