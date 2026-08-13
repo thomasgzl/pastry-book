@@ -243,7 +243,7 @@ insert into recipe_specificities (recipe_id, specificity_id, status, reason, sou
   (
     (select id from recipes where slug = 'tarte-au-citron-hennessy'),
     (select id from specificities where slug = 'sans-lactose'),
-    'proposed', 'Présence de beurre non confirmée dans la source (démo, à vérifier).', 'ai'
+    'proposed', 'Beurre présent mais quantité illisible dans la source : statut non confirmable automatiquement (démo, à vérifier).', 'ai'
   ),
   (
     (select id from recipes where slug = 'pain-aux-noisettes-demo'),
