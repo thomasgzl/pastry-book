@@ -63,13 +63,38 @@ export interface SpecificityProposal {
 }
 
 /**
+ * Fichier/texte source d'une extraction (F-IA1). `text` et `fileBase64` sont
+ * tous deux optionnels : l'adaptateur de démonstration n'en a besoin
+ * d'aucun (il identifie ses 3 exemples par nom de fichier) ; l'adaptateur
+ * réel les utilise pour décider texte local vs vision (texte prioritaire —
+ * docs/05-AI_IMPORT.md).
+ */
+export interface ExtractSourceFile {
+  name: string;
+  type: string;
+  /** Texte déjà disponible localement (collé par la personne, ou déjà extrait localement d'un PDF/DOCX en amont de ce port) — prioritaire sur la vision quand exploitable. */
+  text?: string | null;
+  /** Contenu binaire encodé en base64 (image, capture, page de PDF scanné) — utilisé seulement quand aucun texte local exploitable n'est fourni. */
+  fileBase64?: string | null;
+  /** Nombre de pages du document si connu (PDF) — permet de refuser un document trop long avant tout appel payant. */
+  pageCount?: number | null;
+}
+
+export interface ExtractOptions {
+  /** Identifiant stable de la demande, consommé par la garde de coût (idempotence, anti-double-clic). Un adaptateur sans état (démonstration) l'ignore. */
+  requestId?: string;
+  /** Vrai seulement si la personne a explicitement signalé un document difficile à lire — jamais déduit automatiquement (paramètre explicite de l'appel, pas un état global). */
+  documentDifficult?: boolean;
+}
+
+/**
  * Port serveur d'extraction/normalisation d'import. Toutes les méthodes sont
  * asynchrones (traitement d'import asynchrone, CLAUDE.md) même quand
  * l'adaptateur de démonstration résout immédiatement.
  */
 export interface ImportAIProvider {
   readonly name: string;
-  extractText(file: { name: string; type: string }): Promise<RawExtractionResult>;
+  extractText(file: ExtractSourceFile, options?: ExtractOptions): Promise<RawExtractionResult>;
   proposeCanonicalIngredients(ingredients: ExtractedIngredient[]): Promise<CanonicalIngredientProposal[]>;
   proposeAllergens(ingredients: ExtractedIngredient[]): Promise<AllergenProposal[]>;
   proposeSpecificities(ingredients: ExtractedIngredient[]): Promise<SpecificityProposal[]>;
