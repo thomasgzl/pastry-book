@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ErrorState } from "@/components/states/ErrorState";
 import { getAllergens, getSpecificities } from "@/lib/data/specificities";
 import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
 interface ReviewStepProps {
@@ -16,6 +17,10 @@ interface ReviewStepProps {
   duplicate: { title: string; sourceId: string } | null;
   acknowledgeDuplicate: boolean;
   onAcknowledgeDuplicateChange: (value: boolean) => void;
+  /** Contrôle de complétude de l'extraction IA réelle (lot G) — `null` en saisie manuelle ou en mode démonstration classique. */
+  completeness: ExtractionCompleteness | null;
+  acknowledgeIncomplete: boolean;
+  onAcknowledgeIncompleteChange: (value: boolean) => void;
   saveError: string | null;
 }
 
@@ -34,6 +39,9 @@ export function ReviewStep({
   duplicate,
   acknowledgeDuplicate,
   onAcknowledgeDuplicateChange,
+  completeness,
+  acknowledgeIncomplete,
+  onAcknowledgeIncompleteChange,
   saveError,
 }: ReviewStepProps) {
   const canonicalById = new Map(getCanonicalIngredients().map((c) => [c.id, c]));
@@ -67,6 +75,41 @@ export function ReviewStep({
             />
             Je confirme vouloir enregistrer quand même, en connaissance de ce doublon probable.
           </label>
+        </Card>
+      )}
+
+      {completeness && (
+        <Card className={`flex flex-col gap-2 ${completeness.status !== "complete" ? "border-brunrouge/40 bg-brunrouge/10" : ""}`}>
+          <p className="text-sm font-medium text-cacao">
+            {completeness.detectedPreparationTitles.length} préparation{completeness.detectedPreparationTitles.length > 1 ? "s" : ""} détectée
+            {completeness.detectedPreparationTitles.length > 1 ? "s" : ""} — {completeness.extractedPreparationTitles.length} préparation
+            {completeness.extractedPreparationTitles.length > 1 ? "s" : ""} extraite{completeness.extractedPreparationTitles.length > 1 ? "s" : ""}
+          </p>
+          {completeness.status !== "complete" && (
+            <>
+              <p className="font-medium text-brunrouge">Extraction potentiellement incomplète</p>
+              {completeness.missingOrUnclearSections.length > 0 && (
+                <ul className="list-disc pl-5 text-sm text-brunrouge">
+                  {completeness.missingOrUnclearSections.map((section, index) => (
+                    <li key={index}>{section}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-sm text-cacao/70">
+                Complétez manuellement ci-dessus (« Ajouter une préparation »), ou revenez à l&rsquo;étape Fichiers pour une nouvelle
+                extraction explicitement demandée.
+              </p>
+              <label className="flex min-h-11 items-center gap-2 text-sm text-cacao">
+                <input
+                  type="checkbox"
+                  checked={acknowledgeIncomplete}
+                  onChange={(event) => onAcknowledgeIncompleteChange(event.target.checked)}
+                  className="h-5 w-5"
+                />
+                Je confirme avoir vérifié et complété manuellement malgré cette extraction potentiellement incomplète.
+              </label>
+            </>
+          )}
         </Card>
       )}
 

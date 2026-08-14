@@ -97,6 +97,7 @@ Par défaut, un lot ignore tout objet possédant déjà un visuel approuvé. Les
 
 ## Cohérence et versionnement
 
+- **Référence artistique — preset v1 (lot G, pilote G3)** : le visuel « Citron » réel généré et approuvé le 14/08/2026 (`visual_assets.id = 049a7647-417a-4659-bc15-18845e797ec5`, prompt et preset stockés avec l'asset) sert de référence de STYLE pour toute génération réelle ultérieure de cette version — niveau de détail, finesse du trait, légèreté de l'aquarelle, fond ivoire, quantité d'espace négatif, échelle dans le cadre, palette olive/sauge. Réutilisé verbatim via `PILOT_STYLE_DESCRIPTOR` (`src/app/(app)/visuels/pilotStyleKit.ts`), jamais comme élément de CONTENU des autres sujets.
 - Stocker le prompt final exact, le preset et sa version avec chaque image.
 - Une modification du preset ne régénère pas les anciennes images automatiquement.
 - Permettre plus tard de filtrer les visuels créés avec une ancienne version.

@@ -37,7 +37,7 @@ const QUALITY_PARAM: Record<ImageQuality, string> = {
  * ponytail: mapping approximatif à 3 tailles fixes, à affiner si l'API
  * propose un jour des ratios personnalisés.
  */
-const SIZE_BY_RATIO: Record<ImageGenerationRequest["ratio"], string> = {
+export const SIZE_BY_RATIO: Record<ImageGenerationRequest["ratio"], string> = {
   "1:1": "1024x1024",
   "4:3": "1536x1024",
   "16:9": "1536x1024",
@@ -76,6 +76,74 @@ interface OpenAiImagesResponse {
   data?: Array<{ b64_json?: string }>;
 }
 
+interface OpenAiErrorBody {
+  error?: { message?: string; type?: string; code?: string | null };
+}
+
+/** Catégories distinguées pour l'utilisatrice (correction lot G, diagnostic pilote Citron) — jamais un simple « 500 » générique. */
+export type ImageGenerationErrorCategory =
+  | "invalid_key"
+  | "insufficient_quota"
+  | "model_access"
+  | "invalid_parameter"
+  | "decode_error"
+  | "transient";
+
+const CATEGORY_MESSAGE: Record<ImageGenerationErrorCategory, string> = {
+  invalid_key: "Clé OpenAI refusée.",
+  insufficient_quota: "Crédit API insuffisant.",
+  model_access: "Modèle non accessible pour ce projet.",
+  invalid_parameter: "Paramètre de génération invalide.",
+  decode_error: "Image générée mais impossible à enregistrer.",
+  transient: "Service temporairement indisponible.",
+};
+
+/** Porte le statut HTTP réel et l'identifiant de requête OpenAI (jamais le corps brut, jamais la clé) — pour un diagnostic exact au prochain incident sans deviner. */
+export class RealImageGenerationError extends Error {
+  constructor(
+    public readonly category: ImageGenerationErrorCategory,
+    public readonly status: number | null,
+    public readonly providerRequestId: string | null,
+  ) {
+    super(CATEGORY_MESSAGE[category]);
+    this.name = "RealImageGenerationError";
+  }
+}
+
+function classifyHttpError(status: number, body: OpenAiErrorBody | null): ImageGenerationErrorCategory {
+  if (status === 401) return "invalid_key";
+  // 403 = accès/vérification d'organisation requise pour certains modèles (ex. famille gpt-image) — jamais confondu avec une clé invalide.
+  if (status === 403) return "model_access";
+  if (status === 429) {
+    const code = body?.error?.code ?? "";
+    return code.includes("quota") ? "insufficient_quota" : "transient";
+  }
+  if (status === 400) return "invalid_parameter";
+  return "transient";
+}
+
+async function readErrorBodySafely(response: Response): Promise<OpenAiErrorBody | null> {
+  try {
+    return (await response.json()) as OpenAiErrorBody;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Journal serveur uniquement (jamais renvoyé au navigateur) — statut, type/
+ * code/message d'erreur OpenAI, request ID. JAMAIS la clé, JAMAIS les
+ * en-têtes d'autorisation, JAMAIS une image encodée en base64.
+ */
+function logImageGenerationFailure(status: number | null, requestId: string | null, body: OpenAiErrorBody | null, cause?: unknown): void {
+  const detail = body?.error
+    ? `type=${body.error.type ?? "?"} code=${body.error.code ?? "?"} message=${body.error.message ?? "?"}`
+    : cause instanceof Error
+      ? cause.message
+      : "corps de réponse indisponible";
+  console.error(`[visuals:openai] Échec génération image — statut=${status ?? "aucune réponse (réseau)"} requestId=${requestId ?? "absent"} ${detail}`);
+}
+
 /**
  * Construit l'adaptateur réel, lié à un niveau de qualité fixé à la
  * création (le port `generate()` ne transporte pas de paramètre de
@@ -106,19 +174,35 @@ export function createOpenAiImageProvider(
           n: 1,
           size: SIZE_BY_RATIO[request.ratio],
           quality: QUALITY_PARAM[quality],
-          background: request.background === "transparent" ? "transparent" : "opaque",
+          // `gpt-image-2` ne supporte pas les fonds transparents (confirmé par l'API :
+          // "Transparent background is not supported for this model.", statut 400,
+          // type image_generation_user_error/invalid_value) — jamais envoyé, quel que
+          // soit `request.background` demandé par l'appelant. Le fond ivoire uniforme
+          // doit être obtenu par le prompt (voir `visuels/pilote/prompt.ts`), pas par ce paramètre.
+          background: "opaque",
         }),
       });
 
+      const providerRequestId = response.headers?.get?.("x-request-id") ?? null;
+
       if (!response.ok) {
-        // Jamais la clé ni les en-têtes dans le message d'erreur — statut seul.
-        throw new Error(`Échec de la génération OpenAI Images (statut ${response.status}).`);
+        const body = await readErrorBodySafely(response);
+        logImageGenerationFailure(response.status, providerRequestId, body);
+        throw new RealImageGenerationError(classifyHttpError(response.status, body), response.status, providerRequestId);
       }
 
-      const payload = (await response.json()) as OpenAiImagesResponse;
+      let payload: OpenAiImagesResponse;
+      try {
+        payload = (await response.json()) as OpenAiImagesResponse;
+      } catch (cause) {
+        logImageGenerationFailure(response.status, providerRequestId, null, cause);
+        throw new RealImageGenerationError("decode_error", response.status, providerRequestId);
+      }
+
       const b64 = payload.data?.[0]?.b64_json;
       if (!b64) {
-        throw new Error("Réponse OpenAI Images invalide : aucune image reçue.");
+        logImageGenerationFailure(response.status, providerRequestId, null);
+        throw new RealImageGenerationError("decode_error", response.status, providerRequestId);
       }
 
       return {

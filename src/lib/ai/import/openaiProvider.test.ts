@@ -32,6 +32,10 @@ function minimalParsed(overrides: Record<string, unknown> = {}) {
     additionalInformation: null,
     sections: [],
     warnings: [],
+    detectedPreparationTitles: [],
+    extractedPreparationTitles: [],
+    completenessStatus: "complete",
+    missingOrUnclearSections: [],
     ...overrides,
   };
 }
@@ -50,7 +54,7 @@ describe("openaiImportProvider.extractText — contrat", () => {
   it("texte local exploitable → method local-text, structure conforme au contrat", async () => {
     parseMock.mockResolvedValue({
       output_parsed: minimalParsed({
-        sections: [{ name: null, ingredients: [{ originalName: "Farine", originalQuantityText: "250", unit: "g" }] }],
+        sections: [{ name: null, procedureText: null, ingredients: [{ originalName: "Farine", originalQuantityText: "250", unit: "g" }] }],
       }),
     });
 
@@ -88,7 +92,7 @@ describe("openaiImportProvider.extractText — refus et sortie invalide", () => 
     parseMock.mockResolvedValue({
       output_parsed: minimalParsed({
         // quantité renvoyée en nombre par le modèle : viole le schéma (doit rester texte ou null).
-        sections: [{ name: null, ingredients: [{ originalName: "Farine", originalQuantityText: 250, unit: "g" }] }],
+        sections: [{ name: null, procedureText: null, ingredients: [{ originalName: "Farine", originalQuantityText: 250, unit: "g" }] }],
       }),
     });
     const result = await openaiImportProvider.extractText(
@@ -114,7 +118,7 @@ describe("openaiImportProvider.extractText — QS et quantité illisible", () =>
   it("QS reste une chaîne textuelle, jamais convertie en nombre", async () => {
     parseMock.mockResolvedValue({
       output_parsed: minimalParsed({
-        sections: [{ name: null, ingredients: [{ originalName: "Cannelle", originalQuantityText: "QS", unit: null }] }],
+        sections: [{ name: null, procedureText: null, ingredients: [{ originalName: "Cannelle", originalQuantityText: "QS", unit: null }] }],
       }),
     });
     const result = await openaiImportProvider.extractText(
@@ -127,7 +131,7 @@ describe("openaiImportProvider.extractText — QS et quantité illisible", () =>
   it("quantité illisible → null, jamais une valeur inventée, avertissement ajouté (base du needs_review en aval)", async () => {
     parseMock.mockResolvedValue({
       output_parsed: minimalParsed({
-        sections: [{ name: null, ingredients: [{ originalName: "Beurre", originalQuantityText: null, unit: null }] }],
+        sections: [{ name: null, procedureText: null, ingredients: [{ originalName: "Beurre", originalQuantityText: null, unit: null }] }],
       }),
     });
     const result = await openaiImportProvider.extractText(

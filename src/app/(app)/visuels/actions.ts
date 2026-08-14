@@ -22,6 +22,7 @@ import {
   VisualAssetActionError,
 } from "@/lib/visuals/storage";
 import { getAllVisualSubjects, getVisualSubject } from "@/lib/visuals/subjects";
+import type { VisualAsset } from "@/lib/domain/schemas";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
 import { BATCH_CONFIRMATION_PREFIX } from "@/lib/visuals/batch";
 
@@ -36,6 +37,15 @@ function readForm<T>(formData: FormData, schema: z.ZodType<T>): T | null {
 
 function recipeModeFor(photoUrl: string | null | undefined): RecipeVisualMode {
   return photoUrl ? "photo" : "description";
+}
+
+/** Matière première : les pages publiques (`/matieres-premieres`) affichent le visuel PRINCIPAL — jamais un brouillon — donc revalidées à chaque changement de statut/principal (lot G, G3). Aucun effet pour les autres types de sujet (pas encore affichés hors `/visuels`). */
+function revalidatePublicPages(asset: VisualAsset): void {
+  if (asset.subjectType !== "ingredient") return;
+  const subject = getVisualSubject(asset.subjectType, asset.subjectId);
+  if (!subject) return;
+  revalidatePath("/matieres-premieres");
+  revalidatePath(`/matieres-premieres/${subject.slug}`);
 }
 
 export async function generateAction(formData: FormData): Promise<void> {
@@ -73,7 +83,28 @@ export async function approveAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
+    revalidatePublicPages(approveVisualAsset(input.assetId));
+  } catch (error) {
+    if (!(error instanceof VisualAssetActionError)) throw error;
+  }
+  revalidatePath("/visuels");
+}
+
+/**
+ * Approuve un brouillon ET le fait basculer principal dans la foulée — pour
+ * le parcours de versionnement (lot G, correction G3) où un visuel est déjà
+ * approuvé/principal : `approveVisualAsset` seul ne suffit pas dans ce cas
+ * (il ne bascule jamais un principal existant, voir sa documentation), donc
+ * `setPrimaryVisualAsset` complète la même transaction logique. Bascule
+ * atomique déjà garantie par `setPrimaryVisualAsset` (un seul `isPrimary`
+ * par sujet) — jamais deux appels séparés déclenchés par l'UI.
+ */
+export async function approveAsPrimaryAction(formData: FormData): Promise<void> {
+  const input = readForm(formData, assetIdSchema);
+  if (!input) return;
+  try {
     approveVisualAsset(input.assetId);
+    revalidatePublicPages(setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -84,7 +115,7 @@ export async function rejectAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    rejectVisualAsset(input.assetId);
+    revalidatePublicPages(rejectVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -95,7 +126,7 @@ export async function setPrimaryAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    setPrimaryVisualAsset(input.assetId);
+    revalidatePublicPages(setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }

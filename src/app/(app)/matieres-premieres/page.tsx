@@ -6,6 +6,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { CanonicalIngredientCard } from "@/components/cards/CanonicalIngredientCard";
 import { getCanonicalIngredients, getRecipeCountForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
+import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
 
 export default function MatieresPremieresPage() {
   const ingredients = getCanonicalIngredients();
@@ -22,6 +23,7 @@ export default function MatieresPremieresPage() {
             key={ingredient.id}
             name={ingredient.name}
             recipeCount={getRecipeCountForCanonicalIngredient(ingredient.slug)}
+            imageUrl={getPrimaryVisualAsset("ingredient", ingredient.id)?.imageUrl}
             href={`/matieres-premieres/${ingredient.slug}`}
           />
         ))}

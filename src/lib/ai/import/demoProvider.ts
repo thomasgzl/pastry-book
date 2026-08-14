@@ -34,8 +34,9 @@ function findFixtureByFileName(fileName: string) {
 export const demoImportProvider: ImportAIProvider = {
   name: "demo",
 
-  async extractText(file: { name: string; type: string }): Promise<RawExtractionResult> {
-    const fixture = findFixtureByFileName(file.name);
+  async extractText(files: { name: string; type: string } | { name: string; type: string }[]): Promise<RawExtractionResult> {
+    const list = Array.isArray(files) ? files : [files];
+    const fixture = findFixtureByFileName(list[0].name);
     if (fixture) return fixture.extraction;
 
     // Mode démonstration : aucun moteur d'OCR/extraction réel branché ici

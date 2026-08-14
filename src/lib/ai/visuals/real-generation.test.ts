@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAiCostGuardForTests } from "@/lib/domain/aiCostGuard";
-import { approveVisualAsset, listVisualAssets, seedVisualAssetsStore } from "@/lib/visuals/storage";
+import { approveVisualAsset, getVisualAssetById, listVisualAssets, seedVisualAssetsStore } from "@/lib/visuals/storage";
 import { generateRealVisualDraft } from "./real-generation";
 import * as service from "./service";
 
@@ -47,6 +47,26 @@ describe("generateRealVisualDraft — avec clé factice de test (fetch mocké, a
     expect(listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId).length).toBe(before);
   });
 
+  it("correction versionnement (G3) : allowAdditionalVersion permet une génération malgré un visuel déjà approuvé, SANS le modifier", async () => {
+    stubFetchSuccess();
+    const draft = await service.generateVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
+    const approved = approveVisualAsset(draft.id);
+
+    const result = await generateRealVisualDraft({ ...SUBJECT, subjectLabel: "Citron", allowAdditionalVersion: true });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.id).not.toBe(approved.id);
+      expect(result.data.status).toBe("draft");
+      expect(result.data.isPrimary).toBe(false);
+    }
+    const untouchedApproved = getVisualAssetById(approved.id)!;
+    expect(untouchedApproved.status).toBe("approved");
+    expect(untouchedApproved.isPrimary).toBe(true);
+    expect(untouchedApproved.imageUrl).toBe(approved.imageUrl);
+    expect(listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).toHaveLength(2);
+  });
+
   it("anti-double-clic : deux appels avec le même identifiant de demande, le second est refusé pendant que le premier est en cours", async () => {
     stubFetchSuccess();
     const input = { ...SUBJECT, subjectLabel: "Citron", requestId: "click-1" };
@@ -71,6 +91,18 @@ describe("generateRealVisualDraft — avec clé factice de test (fetch mocké, a
       expect(result.data.isPrimary).toBe(false);
       expect(result.data.prompt).toContain("Citron");
       expect(result.data.imageUrl).toBe("data:image/png;base64,aW1n");
+    }
+  });
+
+  it("promptOverride (pilote G3) : remplace buildVisualPrompt, jamais combiné avec lui", async () => {
+    stubFetchSuccess();
+    const customPrompt = "Illustration botanique éditoriale raffinée d'un citron jaune entier (brief pilote G3).";
+    const result = await generateRealVisualDraft({ ...SUBJECT, subjectLabel: "Citron", promptOverride: customPrompt });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.prompt).toBe(customPrompt);
+      expect(result.data.status).toBe("draft");
     }
   });
 

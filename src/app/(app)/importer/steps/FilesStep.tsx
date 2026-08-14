@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { listDemoFixtures, type DemoFixtureId } from "@/lib/ai/import/fixtures";
 import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportFileRef } from "@/lib/import/schema";
+import { PilotExtractionPanel } from "./PilotExtractionPanel";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_FILES = 10;
@@ -18,8 +19,11 @@ interface FilesStepProps {
   pastedText: string | null;
   onFilesChange: (files: ImportFileRef[]) => void;
   onPastedTextChange: (text: string | null) => void;
-  /** Appelé une fois qu'un exemple de démonstration (D3) a été chargé et transformé en brouillon pré-rempli. */
+  /** Appelé une fois qu'un exemple de démonstration (D3) — ou une extraction réelle du pilote (lot G) — a été chargé et transformé en brouillon pré-rempli. */
   onDemoExampleLoaded: (draft: DemoExtractionDraft, providerName: string) => void;
+  /** Clé OpenAI présente côté serveur — affiche les 3 emplacements du pilote réel (lot G, G2). */
+  realExtractionAvailable: boolean;
+  extractionModel: string;
 }
 
 /**
@@ -31,7 +35,15 @@ interface FilesStepProps {
  * démonstration illustrent ce que l'extraction assistée produirait, mode
  * démonstration déterministe uniquement (aucune clé, aucun appel réseau).
  */
-export function FilesStep({ files, pastedText, onFilesChange, onPastedTextChange, onDemoExampleLoaded }: FilesStepProps) {
+export function FilesStep({
+  files,
+  pastedText,
+  onFilesChange,
+  onPastedTextChange,
+  onDemoExampleLoaded,
+  realExtractionAvailable,
+  extractionModel,
+}: FilesStepProps) {
   const [loadingFixture, setLoadingFixture] = useState<DemoFixtureId | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,6 +158,10 @@ export function FilesStep({ files, pastedText, onFilesChange, onPastedTextChange
         </div>
         {loadingFixture && <LoadingState message="Chargement de l'exemple de démonstration…" />}
       </div>
+
+      {realExtractionAvailable && (
+        <PilotExtractionPanel extractionModel={extractionModel} onExtracted={onDemoExampleLoaded} />
+      )}
 
       {error && <ErrorState message={error} />}
     </div>

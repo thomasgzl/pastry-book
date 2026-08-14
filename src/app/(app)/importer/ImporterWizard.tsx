@@ -22,6 +22,7 @@ import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
+import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import {
   checkDuplicate,
   createImportBatch,
@@ -55,7 +56,13 @@ function applyDemoExtraction(draft: ImportRecipeDraft, extracted: DemoExtraction
   };
 }
 
-export function ImporterWizard() {
+interface ImporterWizardProps {
+  /** Clé OpenAI présente côté serveur — active les 3 emplacements du pilote réel (lot G, G2). Jamais la valeur elle-même. */
+  realExtractionAvailable: boolean;
+  extractionModel: string;
+}
+
+export function ImporterWizard({ realExtractionAvailable, extractionModel }: ImporterWizardProps) {
   const sources = getSources();
 
   const [step, setStep] = useState<Step>(0);
@@ -67,6 +74,8 @@ export function ImporterWizard() {
   const [providerName, setProviderName] = useState("manual");
   const [rawExtraction, setRawExtraction] = useState<unknown>(null);
   const [acknowledgeDuplicate, setAcknowledgeDuplicate] = useState(false);
+  const [completeness, setCompleteness] = useState<ExtractionCompleteness | null>(null);
+  const [acknowledgeIncomplete, setAcknowledgeIncomplete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<SaveImportRecipeResult | null>(null);
@@ -119,6 +128,8 @@ export function ImporterWizard() {
     setDraft(applyDemoExtraction(base, extracted));
     setProviderName(provider);
     setRawExtraction(extracted);
+    setCompleteness(extracted.completeness);
+    setAcknowledgeIncomplete(false);
     goTo(3);
   }
 
@@ -156,6 +167,8 @@ export function ImporterWizard() {
     setProviderName("manual");
     setRawExtraction(null);
     setAcknowledgeDuplicate(false);
+    setCompleteness(null);
+    setAcknowledgeIncomplete(false);
     setSaveError(null);
     setSaveResult(null);
   }
@@ -215,6 +228,8 @@ export function ImporterWizard() {
           onFilesChange={(files) => setDraft((d) => (d ? { ...d, originalFiles: files } : d))}
           onPastedTextChange={(text) => setDraft((d) => (d ? { ...d, pastedText: text } : d))}
           onDemoExampleLoaded={handleDemoExampleLoaded}
+          realExtractionAvailable={realExtractionAvailable}
+          extractionModel={extractionModel}
         />
       )}
 
@@ -231,6 +246,9 @@ export function ImporterWizard() {
           duplicate={duplicate}
           acknowledgeDuplicate={acknowledgeDuplicate}
           onAcknowledgeDuplicateChange={setAcknowledgeDuplicate}
+          completeness={completeness}
+          acknowledgeIncomplete={acknowledgeIncomplete}
+          onAcknowledgeIncompleteChange={setAcknowledgeIncomplete}
           saveError={saveError}
         />
       )}
@@ -264,7 +282,12 @@ export function ImporterWizard() {
           <Button
             type="button"
             onClick={handleConfirmSave}
-            disabled={saving || validationErrors.length > 0 || (duplicate !== null && !acknowledgeDuplicate)}
+            disabled={
+              saving ||
+              validationErrors.length > 0 ||
+              (duplicate !== null && !acknowledgeDuplicate) ||
+              (completeness !== null && completeness.status !== "complete" && !acknowledgeIncomplete)
+            }
           >
             {saving ? "Enregistrement…" : "Enregistrer la recette"}
           </Button>

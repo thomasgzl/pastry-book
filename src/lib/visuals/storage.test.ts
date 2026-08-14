@@ -91,6 +91,40 @@ describe("storage des visuels IA (E1)", () => {
     expect(oldPrimary.status).toBe("approved");
   });
 
+  it("parcours de versionnement (G3) : approuver puis définir comme principal un nouveau brouillon bascule atomiquement, jamais deux principaux", () => {
+    const first = createDraftVisualAsset(draftInput());
+    approveVisualAsset(first.id); // devient principal (premier du sujet)
+
+    const second = createDraftVisualAsset(draftInput()); // coexiste avec l'approuvé, sans le toucher
+    expect(getPrimaryVisualAsset(SUBJECT.subjectType, SUBJECT.subjectId)?.id).toBe(first.id);
+
+    approveVisualAsset(second.id);
+    const promoted = setPrimaryVisualAsset(second.id); // séquence utilisée par `approveAsPrimaryAction`
+
+    expect(promoted.status).toBe("approved");
+    expect(promoted.isPrimary).toBe(true);
+    const oldPrimary = getVisualAssetById(first.id)!;
+    expect(oldPrimary.status).toBe("approved");
+    expect(oldPrimary.isPrimary).toBe(false);
+
+    const allPrimary = listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId).filter((a) => a.isPrimary);
+    expect(allPrimary).toHaveLength(1);
+    expect(allPrimary[0].id).toBe(second.id);
+  });
+
+  it("rejeter un brouillon coexistant n'affecte jamais le principal approuvé", () => {
+    const first = createDraftVisualAsset(draftInput());
+    approveVisualAsset(first.id);
+    const second = createDraftVisualAsset(draftInput());
+
+    const rejected = rejectVisualAsset(second.id);
+
+    expect(rejected.status).toBe("rejected");
+    const primary = getVisualAssetById(first.id)!;
+    expect(primary.status).toBe("approved");
+    expect(primary.isPrimary).toBe(true);
+  });
+
   it("le rejet retire le statut principal éventuel", () => {
     const asset = createDraftVisualAsset(draftInput());
     approveVisualAsset(asset.id);

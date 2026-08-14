@@ -21,7 +21,14 @@ import { deriveQuantity } from "@/lib/import/model";
 import { demoImportProvider } from "./demoProvider";
 import { ambiguousIngredientWarnings } from "./rules";
 import { DEMO_FIXTURES, type DemoFixture, type DemoFixtureId } from "./fixtures";
-import type { ExtractedIngredient, ExtractedSection } from "./types";
+import type {
+  ExtractedIngredient,
+  ExtractedSection,
+  ExtractionCompleteness,
+  ExtractOptions,
+  ExtractSourceInput,
+  ImportAIProvider,
+} from "./types";
 
 export interface DemoExtractionDraft {
   title: string;
@@ -33,6 +40,12 @@ export interface DemoExtractionDraft {
   allergens: ImportAllergenDraft[];
   originalFiles: ImportFileRef[];
   warnings: string[];
+  /**
+   * Contrôle de complétude (lot G) — méta-donnée d'IMPORT uniquement,
+   * jamais reprise dans `ImportRecipeDraft` (voir `ImporterWizard.applyDemoExtraction`,
+   * qui ne copie que les champs de contenu réel de la recette).
+   */
+  completeness: ExtractionCompleteness;
 }
 
 let localIdCounter = 0;
@@ -55,32 +68,45 @@ function buildIngredientDraft(ingredient: ExtractedIngredient, canonicalSlug: st
   };
 }
 
-async function buildSectionDraft(section: ExtractedSection): Promise<ImportSectionDraft> {
-  const canonicalProposals = await demoImportProvider.proposeCanonicalIngredients(section.ingredients);
+async function buildSectionDraft(provider: ImportAIProvider, section: ExtractedSection): Promise<ImportSectionDraft> {
+  const canonicalProposals = await provider.proposeCanonicalIngredients(section.ingredients);
   const canonicalBySlug = new Map(canonicalProposals.map((p) => [p.originalName, p.canonicalIngredientSlug]));
   return {
     id: nextLocalId("sec"),
     name: section.name,
-    originalText: null,
+    // Procédé propre à CETTE préparation quand la source en fournit un séparément (correction lot G) — jamais partagé avec les autres préparations.
+    originalText: section.procedureText ?? null,
     ingredients: section.ingredients.map((ingredient) =>
       buildIngredientDraft(ingredient, canonicalBySlug.get(ingredient.originalName) ?? null),
     ),
   };
 }
 
+/** Défaut déterministe quand le fournisseur ne calcule pas de contrôle de complétude (démonstration, repli manuel) — toutes les préparations produites sont par construction celles attendues. */
+function defaultCompleteness(sections: ImportSectionDraft[]): ExtractionCompleteness {
+  const titles = sections.map((section, index) => section.name ?? `Préparation ${index + 1}`);
+  return { detectedPreparationTitles: titles, extractedPreparationTitles: titles, status: "complete", missingOrUnclearSections: [] };
+}
+
 /**
- * Exécute l'extraction de démonstration pour un des 3 exemples contrôlés et
- * construit un brouillon de recette pré-rempli, entièrement corrigible
- * ensuite dans le formulaire. Aucun appel réseau réel, aucune clé consommée.
+ * Pipeline d'extraction générique (D3), indépendant du fournisseur —
+ * consommé par `runDemoExtraction` (démonstration) ET par le pilote réel
+ * (G2, `/importer` server action) derrière le même port `ImportAIProvider`.
+ * Construit un brouillon de recette pré-rempli, entièrement corrigible
+ * ensuite dans le formulaire — jamais enregistré directement.
  */
-export async function runDemoExtraction(fixtureId: DemoFixtureId): Promise<DemoExtractionDraft> {
-  const fixture: DemoFixture = DEMO_FIXTURES[fixtureId];
-  const raw = await demoImportProvider.extractText({ name: fixture.fileName, type: fixture.fileType });
+export async function buildImportDraft(
+  provider: ImportAIProvider,
+  files: ExtractSourceInput,
+  options?: ExtractOptions,
+): Promise<DemoExtractionDraft> {
+  const fileList = Array.isArray(files) ? files : [files];
+  const raw = await provider.extractText(files, options);
 
   const allIngredients = raw.sections.flatMap((section) => section.ingredients);
-  const sections = await Promise.all(raw.sections.map(buildSectionDraft));
+  const sections = await Promise.all(raw.sections.map((section) => buildSectionDraft(provider, section)));
 
-  const allergenProposals = await demoImportProvider.proposeAllergens(allIngredients);
+  const allergenProposals = await provider.proposeAllergens(allIngredients);
   const allergenBySlug = new Map(getAllergens().map((a) => [a.slug, a]));
   const allergens: ImportAllergenDraft[] = allergenProposals
     .map((proposal) => {
@@ -89,7 +115,7 @@ export async function runDemoExtraction(fixtureId: DemoFixtureId): Promise<DemoE
     })
     .filter((entry): entry is ImportAllergenDraft => entry !== null);
 
-  const specificityProposals = await demoImportProvider.proposeSpecificities(allIngredients);
+  const specificityProposals = await provider.proposeSpecificities(allIngredients);
   const specificityBySlug = new Map(getSpecificities().map((s) => [s.slug, s]));
   const specificities: ImportSpecificityDraft[] = specificityProposals
     .map((proposal) => {
@@ -100,7 +126,7 @@ export async function runDemoExtraction(fixtureId: DemoFixtureId): Promise<DemoE
     })
     .filter((entry): entry is ImportSpecificityDraft => entry !== null);
 
-  const originalFiles: ImportFileRef[] = [{ name: fixture.fileName, type: fixture.fileType, sizeBytes: 0 }];
+  const originalFiles: ImportFileRef[] = fileList.map((file) => ({ name: file.name, type: file.type, sizeBytes: 0 }));
 
   return {
     // Titre absent de l'extraction → jamais inventé, placeholder explicite laissé à charge du formulaire (voir ImporterWizard).
@@ -113,5 +139,16 @@ export async function runDemoExtraction(fixtureId: DemoFixtureId): Promise<DemoE
     allergens,
     originalFiles,
     warnings: [...raw.warnings, ...ambiguousIngredientWarnings(allIngredients)],
+    completeness: raw.completeness ?? defaultCompleteness(sections),
   };
+}
+
+/**
+ * Exécute l'extraction de démonstration pour un des 3 exemples contrôlés et
+ * construit un brouillon de recette pré-rempli, entièrement corrigible
+ * ensuite dans le formulaire. Aucun appel réseau réel, aucune clé consommée.
+ */
+export async function runDemoExtraction(fixtureId: DemoFixtureId): Promise<DemoExtractionDraft> {
+  const fixture: DemoFixture = DEMO_FIXTURES[fixtureId];
+  return buildImportDraft(demoImportProvider, { name: fixture.fileName, type: fixture.fileType });
 }

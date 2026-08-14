@@ -24,11 +24,29 @@ export interface ExtractedIngredient {
 export interface ExtractedSection {
   /** `null` → préparation sans nom (liste simple). */
   name: string | null;
+  /** Procédé propre à CETTE préparation, distinct du procédé global de la recette — `null`/absent s'il n'existe pas dans la source, jamais partagé entre préparations (correction lot G, extraction « Riz au lait Vanille Caramel »). */
+  procedureText?: string | null;
   ingredients: ExtractedIngredient[];
 }
 
 /** Méthode ayant produit le texte : extraction locale (PDF/DOCX) ou vision/OCR (scans, photos, captures) — jamais l'inverse (docs/05-AI_IMPORT.md § Formats et priorité). */
 export type ExtractionMethod = "local-text" | "ocr" | "manual";
+
+export type CompletenessStatus = "complete" | "possibly_incomplete" | "needs_review";
+
+/**
+ * Contrôle de complétude de l'extraction (correction lot G — recette à
+ * plusieurs préparations partiellement extraite). Méta-donnée d'IMPORT
+ * uniquement : ne doit jamais devenir un champ de la recette enregistrée
+ * (`ImportRecipeDraft` ne la reprend pas). `status` n'est jamais `"complete"`
+ * uniquement parce que la sortie JSON est valide — voir `reconcileCompleteness`.
+ */
+export interface ExtractionCompleteness {
+  detectedPreparationTitles: string[];
+  extractedPreparationTitles: string[];
+  status: CompletenessStatus;
+  missingOrUnclearSections: string[];
+}
 
 export interface RawExtractionResult {
   method: ExtractionMethod;
@@ -41,6 +59,8 @@ export interface RawExtractionResult {
   additionalInformation: string | null;
   /** Avertissements de l'extraction (champ illisible, ingrédient ambigu…) — toujours affichés, jamais tus. */
   warnings: string[];
+  /** Absent pour l'adaptateur de démonstration et le repli manuel — `buildImportDraft` applique un défaut « complet » déterministe dans ce cas (sections canned/vides, rien à réconcilier). */
+  completeness?: ExtractionCompleteness;
 }
 
 export interface CanonicalIngredientProposal {
@@ -80,6 +100,9 @@ export interface ExtractSourceFile {
   pageCount?: number | null;
 }
 
+/** Un seul fichier (cas courant) ou plusieurs pages/captures ORDONNÉES d'UNE SEULE recette (correction lot G — regroupement en un seul appel, jamais une recette par fichier). */
+export type ExtractSourceInput = ExtractSourceFile | ExtractSourceFile[];
+
 export interface ExtractOptions {
   /** Identifiant stable de la demande, consommé par la garde de coût (idempotence, anti-double-clic). Un adaptateur sans état (démonstration) l'ignore. */
   requestId?: string;
@@ -94,7 +117,7 @@ export interface ExtractOptions {
  */
 export interface ImportAIProvider {
   readonly name: string;
-  extractText(file: ExtractSourceFile, options?: ExtractOptions): Promise<RawExtractionResult>;
+  extractText(files: ExtractSourceInput, options?: ExtractOptions): Promise<RawExtractionResult>;
   proposeCanonicalIngredients(ingredients: ExtractedIngredient[]): Promise<CanonicalIngredientProposal[]>;
   proposeAllergens(ingredients: ExtractedIngredient[]): Promise<AllergenProposal[]>;
   proposeSpecificities(ingredients: ExtractedIngredient[]): Promise<SpecificityProposal[]>;
