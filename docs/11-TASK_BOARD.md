@@ -32,7 +32,7 @@ Propriétaire principal : `data-security-agent` ; parallèle après validation d
 | B1 | Init Next.js App Router + TypeScript strict + Tailwind + Vitest + Playwright + Zod + client Supabase (déps) | A2 (validée par l'utilisateur) | Terminée | L'application démarre, contrôles de qualité passent, rendu de base testé téléphone/tablette/ordinateur | config racine, `package.json` |
 | B2 | Contrats communs (types du domaine, schémas de validation, conventions d'erreur, structure des médias) | B1 | Terminée | Contrats écrits (`src/lib/domain/`), relus et validés par `project-orchestrator`, aucun agent métier n'avait encore commencé | `src/lib/domain/` |
 | B3 | Schéma de base de données et migrations (`docs/04-DATA_MODEL.md`) | B2 | Terminée | Toutes les entités du modèle de données créées, invariants respectés (relu manuellement par `project-orchestrator` — validation SQL live impossible, Docker indisponible dans cet environnement) | `supabase/migrations/` |
-| B4 | Authentification privée et politiques d'accès | B3 | Terminée | Accès non authentifié bloqué (middleware + RLS + GRANTs explicites), testé unitairement (`route-access.test.ts`) ; test live contre un vrai projet Supabase à refaire dès qu'un environnement Docker fonctionnel est disponible | `supabase/`, `src/lib/supabase/`, `middleware.ts` |
+| B4 | Authentification privée et politiques d'accès | B3 | Terminée | Accès non authentifié bloqué (proxy + RLS + GRANTs explicites), testé unitairement (`route-access.test.ts`) et par requête HTTP réelle (lot C : `middleware.ts` renommé `src/proxy.ts`, seul nom reconnu par Next.js 16, faille corrigée) ; test live contre un vrai projet Supabase à refaire dès qu'un environnement Docker fonctionnel est disponible | `supabase/`, `src/lib/supabase/`, `src/proxy.ts` |
 | B5 | Jeu de données de démonstration | B3 | Terminée | Données clairement marquées fictives, couvrant recette minimale et recette détaillée, alias citron, préparations homonymes de sources différentes — validé par `qa-integration-agent` (incohérence mineure de texte corrigée) ; contenu jamais exécuté contre un vrai PostgreSQL (Docker indisponible, même limite que B3/B4) | `supabase/seed.sql` |
 | B6 | Tokens du design system mobile-first (couleurs, typographies, espacements, points de rupture à partir du contenu) | B2 | Terminée | Conforme à `docs/06-DESIGN_SYSTEM.md`, contrastes vérifiés (sauge et laiton ancien légèrement assombris pour atteindre 3:1 UI, réservés aux accents/bordures jamais au texte de corps) | `src/app/globals.css` |
 | B7 | Composants visuels de base tactiles (carte, bouton, badge « À vérifier ») | B6 | Terminée | États couverts, cibles ≥ 44 × 44 px, clavier accessible, zéro dépendance au survol souris | `src/components/` |
@@ -44,16 +44,19 @@ Propriétaire principal : `data-security-agent` ; parallèle après validation d
 
 Propriétaire : `recipe-search-agent` (composition avec composants de `frontend-design-agent`)
 
+Renumérotation 2026-08-14 pour correspondre exactement à la spécification détaillée validée (shell d'abord, coefficient séparé de la fiche recette, recherche globale en dernier).
+
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| C1 | Page Entreprises générale | B4, B7 | À faire | Toutes les sources listées, aucune carte vide | page Entreprises |
-| C2 | Page intérieure d'une entreprise + catégories locales (exemple Hennessy) | C1 | À faire | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy | page Entreprise |
-| C3 | Répertoire des recettes + recherche par titre | B4, B7 | À faire | Recette retrouvable par titre et par source | page Recettes |
-| C4 | Fiche recette adaptative | C3 | À faire | Recette minimale et détaillée testées, aucune section vide, aucun défilement horizontal, une colonne sur téléphone | fiche recette |
-| C5 | Coefficient multiplicateur | C4 | À faire | Tests unitaires décimaux, `QS`/absent non calculés, boutons utilisables au doigt, visibles avant la liste d'ingrédients sur téléphone | logique coefficient |
-| C6 | Répertoire des matières premières | B4, B7 | À faire | Alias retrouvent la matière canonique sans changer le libellé source | page Matières premières |
-| C7 | Répertoire des spécificités et allergènes (séparés) | B4, B7 | À faire | Deux espaces distincts, statuts proposé/confirmé visibles | page Spécificités |
-| C8 | Recherche globale groupée | C1, C3, C6 | À faire | Résultats groupés par type, source toujours indiquée, filtres utilisables au toucher, état de navigation préservé au retour depuis une recette | recherche globale |
+| C1 | Structure commune : shell authentifié, en-tête, nav principale/mobile, bouton Importer non fonctionnel, fil d'Ariane, états chargement/erreur/hors connexion/aucun résultat | B4, B7, B8 | Terminée | Hennessy jamais en nav principale, nav tactile mobile cohérente PWA — validé QA (82 tests) | `src/components/`, shell applicatif |
+| C2 | Page d'accueil (titre, sous-titre, recherche globale, 4 cartes égales, illustration démo, Importer secondaire) | C1 | Terminée | Aucun widget hors périmètre, 4 cartes poids visuel identique | page d'accueil |
+| C3 | Entreprises : `/entreprises`, `/entreprises/:entreprise`, `/entreprises/:entreprise/:categorie` | C1 | Terminée | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy absentes ailleurs, catégorie vide jamais affichée | pages Entreprises |
+| C4 | Répertoire des recettes `/recettes` (recherche titre, filtres, état sans résultat, conservation filtres au retour) | C1 | Terminée | Deux recettes homonymes distinguables par source, aucun champ hors périmètre (durée/difficulté/etc.) | page Recettes |
+| C5 | Fiche recette adaptative `/recettes/:id` | C3, C4 | Terminée | CAP minimale sans bloc vide, Hennessy détaillée avec informations complémentaires, préparation jamais globalisée — validé QA finale (checklist 15 points) | fiche recette |
+| C6 | Coefficient multiplicateur (`× 0,5/1/1,5/2` + personnalisé) | C5 | Terminée | `QS`/absent/`needs_review` jamais inventés, × 1 restitue l'original, calcul pur testé unitairement (17 cas) — validé QA finale | logique + UI coefficient |
+| C7 | Matières premières `/matieres-premieres` + fiche matière | C1 | Terminée | Alias citron (jus/zeste/purée) retrouvent Citron sans modifier les libellés source — validé QA | pages Matières premières |
+| C8 | Spécificités et allergènes `/specificites`, séparés | C1 | Terminée | `confirmed`/`proposed` visuellement distincts, aucune confirmation par absence d'ingrédient — validé QA | page Spécificités |
+| C9 | Recherche globale groupée (Entreprises/Recettes/Matières premières/Catégories) | C3, C4, C7 | Terminée | État vide/erreur, clavier, aucun appel IA, catégorie indique son entreprise parente — validé QA | recherche globale |
 
 ## Lot D — Import
 
@@ -87,8 +90,9 @@ Propriétaire : `qa-integration-agent`
 
 ## Tâches prêtes
 
-Fondations techniques complètes (B1 à B10) terminées et validées le 2026-08-14 (dont QA sur B5/B8/B9/B10). En attente d'une nouvelle validation avant lancement :
+Lot C complet (C1 à C9) terminé et validé QA le 2026-08-14 (validation par tranche C1, puis C2/C3/C4/C7/C8/C9, puis validation finale complète sur les 9 tranches — 280 tests unitaires, tests e2e sur 5 profils, checklist de 15 points, tous PASS). En attente d'une nouvelle validation avant lancement :
 
-1. **Lot C** — Navigation métier (`recipe-search-agent`) : Entreprises, Hennessy imbriqué, catégories locales, recettes, fiche adaptative, coefficient, matières premières, spécificités/allergènes, recherche globale. Toutes les dépendances (schéma, auth, tokens, composants, données démo) sont `Terminée`.
+1. **Lot D** — Import (`ai-import-agent`), en commençant par l'import structuré sans IA (D1) avant l'extraction assistée (D3/D4).
+2. **Lot E** — Visuels IA (`ai-visuals-agent`), preset commun puis 5 exemples de référence avant tout lot.
 
-`ai-import-agent` et `ai-visuals-agent` restent non lancés (lot D/E, hors périmètre tant que le lot C n'est pas validé).
+`ai-import-agent` et `ai-visuals-agent` restent non lancés — attente explicite de validation utilisateur.

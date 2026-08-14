@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Cibles tactiles (B9)", () => {
   test("les boutons existants respectent 44x44px minimum", async ({ page }) => {
     await page.goto("/");
-    const homeButton = page.getByRole("button", { name: "Voir la recette" });
+    const homeButton = page.getByRole("button", { name: "Importer" }).first();
     const homeBox = await homeButton.boundingBox();
     expect(homeBox?.width).toBeGreaterThanOrEqual(44);
     expect(homeBox?.height).toBeGreaterThanOrEqual(44);
@@ -14,6 +14,22 @@ test.describe("Cibles tactiles (B9)", () => {
     expect(submitBox?.width).toBeGreaterThanOrEqual(44);
     expect(submitBox?.height).toBeGreaterThanOrEqual(44);
   });
+});
+
+test.describe("Zéro défilement horizontal — nouvelles pages (lot C batch 2)", () => {
+  const pages = ["/entreprises", "/entreprises/hennessy", "/recettes", "/matieres-premieres", "/specificites", "/recherche?q=citron"];
+
+  for (const path of pages) {
+    test(`${path} ne défile pas horizontalement sur téléphone étroit`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== "téléphone étroit", "Vérifié sur le profil téléphone étroit dédié");
+
+      await page.goto(path);
+      const hasHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      );
+      expect(hasHorizontalScroll).toBe(false);
+    });
+  }
 });
 
 test.describe("Rotation tablette (B9)", () => {

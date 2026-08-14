@@ -46,6 +46,7 @@ L'agent retire ensuite sa ligne du ledger de verrous et passe sa tâche au statu
 
 1. Convertit les critères pertinents de `docs/08-ACCEPTANCE_CRITERIA.md` en cas de test concrets pour la tâche.
 2. Exécute les tests existants et vérifie manuellement les critères non automatisables (absence de section vide, cohérence visuelle, non-invention de donnée).
+2bis. Dès qu'une route protégée existe (auth, proxy), lance au moins une vérification HTTP réelle (`npm run dev` + `curl`/requête directe, pas seulement build/typecheck/lint/tests) sur une route censée être bloquée. Leçon du lot C : `middleware.ts` (convention Next.js 15) a cessé d'être exécuté après la migration Next 16 vers `proxy.ts`, sans aucune erreur ni échec de build/lint/test — seule une requête HTTP réelle l'a révélé. Aucun test automatisé existant ne couvre ce type de régression silencieuse de configuration serveur.
 3. Rédige un rapport pass/fail par critère.
 4. Si tout passe : tâche proposée à `Terminée`. Si un défaut est trouvé : tâche renvoyée à `Bloquée` avec le défaut assigné à l'agent propriétaire — le QA ne corrige pas lui-même, sauf correction minuscule explicitement qualifiée comme telle dans son rapport.
 
