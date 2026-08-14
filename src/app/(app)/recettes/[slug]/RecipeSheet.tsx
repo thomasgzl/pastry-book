@@ -9,16 +9,24 @@
  *
  * CBF4 (refonte visuelle) : présentation uniquement, aucun changement de
  * logique (coefficient, QS, `needs_review`, sections conditionnelles).
+ *
+ * Visuel (lot J5/J6) : `visual` est un `ReactNode` déjà résolu et rendu côté
+ * serveur par la page (`<ApprovedVisual />` — visuel approuvé si présent,
+ * repli placeholder sinon), composé ici via le slot enfant standard pour
+ * Server Component dans un Client Component. Ce fichier n'importe jamais
+ * `approvedVisual.ts`/`ApprovedVisual` directement (règle non négociable :
+ * lecture Storage serveur uniquement). Condition d'affichage identique à
+ * avant (présence d'une photo source) — aucun changement de logique.
  */
 
 import { useState } from "react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { RecipeIngredient } from "@/lib/domain/schemas";
 import { AllergenBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
 import { WarningIcon } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { CoefficientControl } from "@/components/ui/CoefficientControl";
-import { CulinaryFrame } from "@/components/ui/CulinaryFrame";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { getIngredientQuantityDisplay, isValidCoefficient } from "@/lib/recipes/coefficient";
 import type { RecipeKeyIngredient, RecipeSectionWithIngredients } from "@/lib/data/recipes";
@@ -33,7 +41,9 @@ interface RecipeSheetProps {
   title: string;
   sourceName: string;
   categoryName?: string;
-  photoUrl?: string;
+  /** Visuel déjà résolu et rendu par la page (voir note ci-dessus) — absent
+   * si la recette n'a aucune photo source (aucune section vide affichée). */
+  visual?: ReactNode;
   sections: RecipeSectionWithIngredients[];
   allergens: RecipeSheetAllergen[];
   keyIngredients: RecipeKeyIngredient[];
@@ -68,7 +78,7 @@ export function RecipeSheet({
   title,
   sourceName,
   categoryName,
-  photoUrl,
+  visual,
   sections,
   allergens,
   keyIngredients,
@@ -98,17 +108,7 @@ export function RecipeSheet({
         </p>
       </div>
 
-      {photoUrl && (
-        // Visuel temporaire (contrat CBV1) : la recette a une photo source en
-        // base, mais aucun visuel IA approuvé n'existe encore (lot E non
-        // lancé) — le cadre culinaire affiche donc le repli, jamais la photo
-        // brute non maîtrisée.
-        <CulinaryFrame
-          src="/visuals/placeholders/placeholder-recipe-4x3.svg"
-          ratio="4:3"
-          className="mx-auto sm:max-w-xl lg:max-w-md"
-        />
-      )}
+      {visual && <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>}
 
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Coefficient</EditorialTitle>

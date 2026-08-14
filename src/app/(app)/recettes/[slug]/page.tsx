@@ -9,6 +9,7 @@
  */
 
 import { notFound } from "next/navigation";
+import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import type { BadgeStatus } from "@/components/ui/StatusBadge";
 import { getRecipeDetail } from "@/lib/data/recipes";
@@ -72,6 +73,17 @@ export default async function RecettePage({
     return [{ id: allergen.id, name: allergen.name, status: toBadgeStatus(entry.status) }];
   });
 
+  // Condition d'affichage inchangée (lot J6, présentation uniquement) : le
+  // visuel n'apparaît que si la recette a une photo source en base — voir
+  // RecipeSheet. `ApprovedVisual` décide seule d'afficher le vrai visuel
+  // approuvé ou le repli placeholder. Appelé directement (await) plutôt
+  // qu'en JSX : ce composant async est résolu ici, côté serveur, avant de
+  // franchir la frontière `"use client"` de `RecipeSheet` — un élément JSX
+  // async non résolu ne peut pas être rendu par le reconciliateur client.
+  const visual = detail.recipe.photoUrl
+    ? await ApprovedVisual({ subjectType: "recipe", subjectId: detail.recipe.id, alt: detail.recipe.title, ratio: "4:3" })
+    : undefined;
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <Breadcrumb items={buildBreadcrumb(detail, from)} />
@@ -79,7 +91,7 @@ export default async function RecettePage({
         title={detail.recipe.title}
         sourceName={detail.sourceName}
         categoryName={detail.categoryName}
-        photoUrl={detail.recipe.photoUrl ?? undefined}
+        visual={visual}
         sections={detail.sections}
         allergens={allergens}
         keyIngredients={detail.keyIngredients}
