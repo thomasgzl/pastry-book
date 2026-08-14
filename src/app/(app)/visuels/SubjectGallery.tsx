@@ -1,6 +1,7 @@
 import type { VisualAsset } from "@/lib/domain/schemas";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import type { VisualSubject } from "@/lib/visuals/subjects";
 import { approveAction, generateAction, regenerateAction, rejectAction, setPrimaryAction } from "./actions";
 
@@ -145,9 +146,9 @@ export function SubjectGallery({ subject, assets }: SubjectGalleryProps) {
           ) : (
             <span
               aria-hidden="true"
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-grise text-cacao/40"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-grise bg-ivoire"
             >
-              —
+              <PlaceholderIllustration label={subject.label} className="h-9 w-9" />
             </span>
           )}
           <span className="flex flex-1 flex-col gap-1">
