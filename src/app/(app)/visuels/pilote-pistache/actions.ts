@@ -23,7 +23,7 @@ export async function runPistachePilotGeneration(): Promise<VisualAsset> {
     throw new Error("Matière première « Pistache » introuvable dans le référentiel.");
   }
 
-  const alreadyPrimary = Boolean(getPrimaryVisualAsset("ingredient", pistache.id));
+  const alreadyPrimary = Boolean(await getPrimaryVisualAsset("ingredient", pistache.id));
 
   const result = await generateRealVisualDraft({
     subjectType: "ingredient",

@@ -30,7 +30,7 @@ export async function generateVisualDraft(input: GenerateVisualInput): Promise<V
   const framing = getSubjectFraming(input.subjectType);
   const generated = await provider.generate({ prompt, ratio: framing.ratio, background: framing.background });
 
-  return createDraftVisualAsset({
+  return await createDraftVisualAsset({
     subjectType: input.subjectType,
     subjectId: input.subjectId,
     imageUrl: generated.imageUrl,
@@ -50,7 +50,7 @@ export async function regenerateVisualDraft(
   subjectLabel: string,
   extra?: { categorySlug?: string; recipeMode?: RecipeVisualMode },
 ): Promise<VisualAsset> {
-  const existing = getVisualAssetById(existingAssetId);
+  const existing = await getVisualAssetById(existingAssetId);
   if (!existing) throw new Error("Visuel introuvable.");
   return generateVisualDraft({
     subjectType: existing.subjectType,

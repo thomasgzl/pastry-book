@@ -63,7 +63,7 @@ export async function generateRealVisualDraft(
   // pas de nouvel asset créé. Régénérer pour ce sujet passe par le flux démo
   // (`generateVisualDraft`, service.ts) qui crée un brouillon à côté sans jamais
   // toucher l'approuvé.
-  const alreadyApproved = getPrimaryVisualAsset(input.subjectType, input.subjectId);
+  const alreadyApproved = await getPrimaryVisualAsset(input.subjectType, input.subjectId);
   if (alreadyApproved && !input.allowAdditionalVersion) {
     return err(
       "conflict",
@@ -90,7 +90,7 @@ export async function generateRealVisualDraft(
     const background = input.backgroundOverride ?? framing.background;
     const generated = await provider.generate({ prompt, ratio, background });
 
-    const asset = createDraftVisualAsset({
+    const asset = await createDraftVisualAsset({
       subjectType: input.subjectType,
       subjectId: input.subjectId,
       imageUrl: generated.imageUrl,

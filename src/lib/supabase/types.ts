@@ -11,6 +11,16 @@
  * exécuté dans cet environnement (Docker indisponible — voir rapport de
  * livraison B3/B4). À régénérer avec cette commande dès qu'un environnement
  * Docker est disponible, pour remplacer ce fichier par la version générée.
+ *
+ * IMPORTANT (constaté en I5) : chaque ligne de table (`XxxRow`) DOIT rester un
+ * `type` (alias d'objet), jamais une `interface`. Avec une `interface`,
+ * `@supabase/postgrest-js` (>= v13) résout silencieusement `Insert`/`Update`
+ * en `never` pour cette table dès qu'on passe par le générique `Table<>`
+ * ci-dessous — aucune erreur au moment de la déclaration, seulement au point
+ * d'appel (`.insert(...)`/`.update(...)`), avec un message trompeur
+ * (« … does not exist in type 'never[]' »). Confirmé par un test isolé
+ * minimal reproduisant exactement ce comportement avec `interface` vs
+ * `type`. Si une table est ajoutée ici, utiliser `type NouvelleRow = {...}`.
  */
 
 type Nullable<T> = T | null;
@@ -30,57 +40,57 @@ export type JobStatus = "pending" | "processing" | "needs_review" | "done" | "er
 /** `source_category` en snake_case côté base ; `sourceCategory` côté contrat Zod (schemas.ts). */
 export type VisualSubjectType = "ingredient" | "recipe" | "source" | "source_category";
 
-export interface SourceRow {
+export type SourceRow = {
   id: string;
   name: string;
   slug: string;
   description: Nullable<string>;
   illustration_url: Nullable<string>;
   created_at: string;
-}
+};
 
-export interface SourceCategoryRow {
+export type SourceCategoryRow = {
   id: string;
   source_id: string;
   name: string;
   slug: string;
   position: number;
-}
+};
 
-export interface CanonicalIngredientRow {
+export type CanonicalIngredientRow = {
   id: string;
   name: string;
   slug: string;
   parent_id: Nullable<string>;
-}
+};
 
-export interface IngredientAliasRow {
+export type IngredientAliasRow = {
   id: string;
   canonical_ingredient_id: string;
   alias: string;
   normalized_alias: string;
   status: AliasStatus;
-}
+};
 
-export interface AllergenRow {
+export type AllergenRow = {
   id: string;
   name: string;
   slug: string;
-}
+};
 
-export interface SpecificityRow {
+export type SpecificityRow = {
   id: string;
   name: string;
   slug: string;
-}
+};
 
-export interface IngredientAllergenRow {
+export type IngredientAllergenRow = {
   canonical_ingredient_id: string;
   allergen_id: string;
   status: VerificationStatus;
-}
+};
 
-export interface RecipeRow {
+export type RecipeRow = {
   id: string;
   source_id: string;
   source_category_id: Nullable<string>;
@@ -93,17 +103,17 @@ export interface RecipeRow {
   import_status: ImportStatus;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface RecipeSectionRow {
+export type RecipeSectionRow = {
   id: string;
   recipe_id: string;
   name: Nullable<string>;
   position: number;
   original_text: Nullable<string>;
-}
+};
 
-export interface RecipeIngredientRow {
+export type RecipeIngredientRow = {
   id: string;
   recipe_section_id: string;
   original_name: string;
@@ -115,40 +125,41 @@ export interface RecipeIngredientRow {
   position: number;
   verification_status: VerificationStatus;
   confidence: Nullable<string>;
-}
+};
 
-export interface RecipeSpecificityRow {
+export type RecipeSpecificityRow = {
   recipe_id: string;
   specificity_id: string;
   status: SpecificityStatus;
   reason: Nullable<string>;
   source: SpecificitySource;
-}
+};
 
-export interface RecipeAllergenRow {
+export type RecipeAllergenRow = {
   recipe_id: string;
   allergen_id: string;
   status: VerificationStatus;
-}
+};
 
-export interface ImportBatchRow {
+export type ImportBatchRow = {
   id: string;
   status: JobStatus;
   created_at: string;
-}
+};
 
-export interface ImportItemRow {
+export type ImportItemRow = {
   id: string;
   import_batch_id: string;
-  source_file_url: string;
+  /** Nullable depuis `20260814090200_import_source_file_url_nullable.sql` — la saisie manuelle sans fichier écrit `null` (jamais une URL fictive). */
+  source_file_url: Nullable<string>;
   status: JobStatus;
   raw_extraction: unknown;
   proposed_recipe: unknown;
   errors: string[];
   recipe_id: Nullable<string>;
-}
+};
 
-export interface VisualAssetRow {
+export type VisualAssetRow = {
   id: string;
   subject_type: VisualSubjectType;
   subject_id: string;
@@ -159,12 +170,20 @@ export interface VisualAssetRow {
   prompt: string;
   preset_version: string;
   created_at: string;
-}
+};
 
+/**
+ * `Relationships: []` requis depuis `@supabase/postgrest-js` v13 (le type
+ * générique `GenericTable` du SDK l'exige, même sans clé étrangère décrite
+ * ici) : sans lui, `.from(...)` résout `Insert`/`Update` en `never` côté
+ * TypeScript. Aucune relation embarquée utilisée par ce projet (pas de
+ * `select("*, autre(*)")`), donc toujours vide.
+ */
 type Table<Row, DefaultedKeys extends keyof Row> = {
   Row: Row;
   Insert: InsertOf<Row, DefaultedKeys>;
   Update: UpdateOf<Row>;
+  Relationships: [];
 };
 
 export interface Database {
@@ -205,5 +224,7 @@ export interface Database {
         "id" | "status" | "is_primary" | "source_photo_url" | "created_at"
       >;
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }

@@ -41,7 +41,7 @@ describe("runLotHGeneration — séquentiel, arrêt immédiat au premier échec"
     );
 
     const outcomes = await runWithFakeTimers();
-    const subjectsCount = resolveLotHSubjects().length;
+    const subjectsCount = (await resolveLotHSubjects()).length;
 
     expect(outcomes).toHaveLength(subjectsCount);
     expect(outcomes[0].status).toBe("ok");
@@ -74,8 +74,8 @@ describe("runLotHGeneration — séquentiel, arrêt immédiat au premier échec"
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(fakeImageResponse()));
 
     // Approuve manuellement le premier sujet du lot avant de lancer la génération.
-    const [first] = resolveLotHSubjects();
-    const draft = createDraftVisualAsset({
+    const [first] = await resolveLotHSubjects();
+    const draft = await createDraftVisualAsset({
       subjectType: first.kind,
       subjectId: first.subjectId,
       imageUrl: "data:image/png;base64,ZGVqYQ==",
@@ -83,7 +83,7 @@ describe("runLotHGeneration — séquentiel, arrêt immédiat au premier échec"
       prompt: "déjà approuvé",
       presetVersion: "v1",
     });
-    approveVisualAsset(draft.id);
+    await approveVisualAsset(draft.id);
 
     const outcomes = await runWithFakeTimers();
     expect(outcomes[0].status).toBe("skipped");

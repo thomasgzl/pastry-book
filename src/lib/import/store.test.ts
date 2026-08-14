@@ -52,25 +52,32 @@ beforeEach(() => {
   resetImportStoreForTests();
 });
 
+// `hasSupabaseConfig()` est faux dans cet environnement de test (aucune
+// variable Supabase chargée par `vitest`, voir `vitest.config.ts`) : ces
+// tests exercent uniquement le repli en mémoire de `store.ts`, jamais un
+// vrai appel réseau Supabase. Toutes les fonctions du store sont
+// asynchrones (I5) — appelées ici directement comme le ferait
+// `src/app/(app)/importer/importActions.ts`.
+
 describe("createLocalCategory", () => {
-  it("crée une catégorie locale à une source", () => {
-    const category = createLocalCategory(CAP_SOURCE_ID, "Viennoiseries");
+  it("crée une catégorie locale à une source", async () => {
+    const category = await createLocalCategory(CAP_SOURCE_ID, "Viennoiseries");
     expect(category.sourceId).toBe(CAP_SOURCE_ID);
-    expect(getCategoriesForSourceIncludingSession(CAP_SOURCE_ID)).toContainEqual(category);
+    expect(await getCategoriesForSourceIncludingSession(CAP_SOURCE_ID)).toContainEqual(category);
   });
 
-  it("ne crée pas de doublon silencieux pour un nom déjà utilisé (comparaison insensible à la casse)", () => {
-    const first = createLocalCategory(CAP_SOURCE_ID, "Viennoiseries");
-    const second = createLocalCategory(CAP_SOURCE_ID, "viennoiseries");
+  it("ne crée pas de doublon silencieux pour un nom déjà utilisé (comparaison insensible à la casse)", async () => {
+    const first = await createLocalCategory(CAP_SOURCE_ID, "Viennoiseries");
+    const second = await createLocalCategory(CAP_SOURCE_ID, "viennoiseries");
     expect(second.id).toBe(first.id);
-    expect(getCategoriesForSourceIncludingSession(CAP_SOURCE_ID)).toHaveLength(1);
+    expect(await getCategoriesForSourceIncludingSession(CAP_SOURCE_ID)).toHaveLength(1);
   });
 });
 
 describe("saveImportRecipe", () => {
-  it("enregistre une recette valide et retourne son id", () => {
-    const batch = createImportBatch();
-    const result = saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
+  it("enregistre une recette valide et retourne son id", async () => {
+    const batch = await createImportBatch();
+    const result = await saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
     expect(result.status).toBe("saved");
     if (result.status === "saved") {
       expect(result.recipe.title).toBe("Recette de test");
@@ -79,9 +86,9 @@ describe("saveImportRecipe", () => {
     }
   });
 
-  it("texte collé sans fichier : sourceFileUrl reste null, jamais une URL fictive", () => {
-    const batch = createImportBatch();
-    const result = saveImportRecipe({
+  it("texte collé sans fichier : sourceFileUrl reste null, jamais une URL fictive", async () => {
+    const batch = await createImportBatch();
+    const result = await saveImportRecipe({
       batchId: batch.id,
       draft: draft({ pastedText: "Farine 200g...", originalFiles: [] }),
       rawExtraction: null,
@@ -94,11 +101,11 @@ describe("saveImportRecipe", () => {
     }
   });
 
-  it("signale un doublon (même titre + même source) sans enregistrer, tant qu'il n'est pas explicitement reconnu", () => {
-    const batch = createImportBatch();
-    saveImportRecipe({ batchId: batch.id, draft: draft({ id: "draft-1" }), rawExtraction: null, providerName: "manual" });
+  it("signale un doublon (même titre + même source) sans enregistrer, tant qu'il n'est pas explicitement reconnu", async () => {
+    const batch = await createImportBatch();
+    await saveImportRecipe({ batchId: batch.id, draft: draft({ id: "draft-1" }), rawExtraction: null, providerName: "manual" });
 
-    const secondAttempt = saveImportRecipe({
+    const secondAttempt = await saveImportRecipe({
       batchId: batch.id,
       draft: draft({ id: "draft-2" }),
       rawExtraction: null,
@@ -107,11 +114,11 @@ describe("saveImportRecipe", () => {
     expect(secondAttempt.status).toBe("duplicate");
   });
 
-  it("accepte le doublon une fois explicitement reconnu (aucune écrasement silencieux)", () => {
-    const batch = createImportBatch();
-    saveImportRecipe({ batchId: batch.id, draft: draft({ id: "draft-1" }), rawExtraction: null, providerName: "manual" });
+  it("accepte le doublon une fois explicitement reconnu (aucune écrasement silencieux)", async () => {
+    const batch = await createImportBatch();
+    await saveImportRecipe({ batchId: batch.id, draft: draft({ id: "draft-1" }), rawExtraction: null, providerName: "manual" });
 
-    const secondAttempt = saveImportRecipe({
+    const secondAttempt = await saveImportRecipe({
       batchId: batch.id,
       draft: draft({ id: "draft-2" }),
       rawExtraction: null,
@@ -121,10 +128,10 @@ describe("saveImportRecipe", () => {
     expect(secondAttempt.status).toBe("saved");
   });
 
-  it("ré-invoquer avec le même draft.id ne crée pas une seconde recette (idempotent, pas de doublon silencieux sur relance)", () => {
-    const batch = createImportBatch();
-    const first = saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
-    const retry = saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
+  it("ré-invoquer avec le même draft.id ne crée pas une seconde recette (idempotent, pas de doublon silencieux sur relance)", async () => {
+    const batch = await createImportBatch();
+    const first = await saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
+    const retry = await saveImportRecipe({ batchId: batch.id, draft: draft(), rawExtraction: null, providerName: "manual" });
 
     expect(retry.status).toBe("already_saved");
     if (first.status === "saved" && retry.status === "already_saved") {
@@ -134,7 +141,7 @@ describe("saveImportRecipe", () => {
 });
 
 describe("checkDuplicate", () => {
-  it("ne signale rien pour un titre inédit", () => {
-    expect(checkDuplicate("Titre totalement inédit", CAP_SOURCE_ID)).toBeNull();
+  it("ne signale rien pour un titre inédit", async () => {
+    expect(await checkDuplicate("Titre totalement inédit", CAP_SOURCE_ID)).toBeNull();
   });
 });

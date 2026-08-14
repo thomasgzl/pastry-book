@@ -20,15 +20,15 @@ describe("generateVisualDraft (E1/E3)", () => {
 
   it("RÈGLE NON NÉGOCIABLE : générer à nouveau pour un sujet déjà approuvé ne touche jamais l'existant", async () => {
     const first = await generateVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
-    const approved = approveVisualAsset(first.id);
+    const approved = await approveVisualAsset(first.id);
     expect(approved.isPrimary).toBe(true);
 
     const second = await generateVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
 
     expect(second.id).not.toBe(approved.id);
     expect(second.status).toBe("draft");
-    expect(getVisualAssetById(approved.id)).toEqual(approved);
-    expect(listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).toHaveLength(2);
+    expect(await getVisualAssetById(approved.id)).toEqual(approved);
+    expect(await listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).toHaveLength(2);
   });
 
   it("régénère à partir d'un asset existant sans le modifier", async () => {
@@ -36,7 +36,7 @@ describe("generateVisualDraft (E1/E3)", () => {
     const regenerated = await regenerateVisualDraft(original.id, "Pistache");
 
     expect(regenerated.id).not.toBe(original.id);
-    expect(getVisualAssetById(original.id)).toEqual(original);
+    expect(await getVisualAssetById(original.id)).toEqual(original);
   });
 
   it("régénérer un identifiant inconnu échoue explicitement", async () => {

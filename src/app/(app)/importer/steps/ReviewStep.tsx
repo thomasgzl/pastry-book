@@ -4,6 +4,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getAllergens, getSpecificities } from "@/lib/data/specificities";
 import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
@@ -17,6 +18,12 @@ interface ReviewStepProps {
   duplicate: { title: string; sourceId: string } | null;
   acknowledgeDuplicate: boolean;
   onAcknowledgeDuplicateChange: (value: boolean) => void;
+  /** Vrai pendant la vérification réelle de doublon (Server Action) — l'enregistrement reste bloqué jusqu'à son terme (CLAUDE.md, jamais à l'aveugle). */
+  duplicateChecking: boolean;
+  /** Échec explicite de la vérification de doublon — jamais traité comme « aucun doublon trouvé ». */
+  duplicateCheckError: string | null;
+  /** Relance la vérification de doublon après un échec (action utilisatrice explicite, jamais une relance automatique). */
+  onRetryDuplicateCheck: () => void;
   /** Contrôle de complétude de l'extraction IA réelle (lot G) — `null` en saisie manuelle ou en mode démonstration classique. */
   completeness: ExtractionCompleteness | null;
   acknowledgeIncomplete: boolean;
@@ -39,6 +46,9 @@ export function ReviewStep({
   duplicate,
   acknowledgeDuplicate,
   onAcknowledgeDuplicateChange,
+  duplicateChecking,
+  duplicateCheckError,
+  onRetryDuplicateCheck,
   completeness,
   acknowledgeIncomplete,
   onAcknowledgeIncompleteChange,
@@ -60,7 +70,13 @@ export function ReviewStep({
         <ErrorState message={`Corrigez avant de continuer : ${validationErrors.join(" · ")}`} />
       )}
 
-      {duplicate && (
+      {duplicateChecking && <LoadingState message="Vérification des doublons…" />}
+
+      {!duplicateChecking && duplicateCheckError && (
+        <ErrorState message={duplicateCheckError} onRetry={onRetryDuplicateCheck} />
+      )}
+
+      {!duplicateChecking && duplicate && (
         <Card className="flex flex-col gap-3 border-brunrouge/40 bg-brunrouge/10">
           <p className="font-medium text-brunrouge">
             Une recette « {duplicate.title} » existe déjà pour cette entreprise. Enregistrer quand même créera une

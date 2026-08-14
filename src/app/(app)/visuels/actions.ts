@@ -68,7 +68,7 @@ export async function generateAction(formData: FormData): Promise<void> {
 export async function regenerateAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
-  const asset = getVisualAssetById(input.assetId);
+  const asset = await getVisualAssetById(input.assetId);
   if (!asset) return;
   const subject = getVisualSubject(asset.subjectType, asset.subjectId);
 
@@ -83,7 +83,7 @@ export async function approveAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(approveVisualAsset(input.assetId));
+    revalidatePublicPages(await approveVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -103,8 +103,8 @@ export async function approveAsPrimaryAction(formData: FormData): Promise<void> 
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    approveVisualAsset(input.assetId);
-    revalidatePublicPages(setPrimaryVisualAsset(input.assetId));
+    await approveVisualAsset(input.assetId);
+    revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -115,7 +115,7 @@ export async function rejectAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(rejectVisualAsset(input.assetId));
+    revalidatePublicPages(await rejectVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -126,7 +126,7 @@ export async function setPrimaryAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(setPrimaryVisualAsset(input.assetId));
+    revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -149,7 +149,11 @@ export async function generateMissingBatchAction(
   _previous: BatchActionState,
   formData: FormData,
 ): Promise<BatchActionState> {
-  const missing = getAllVisualSubjects().filter((subject) => !hasAnyVisualAsset(subject.type, subject.id));
+  const allSubjects = getAllVisualSubjects();
+  const missingFlags = await Promise.all(
+    allSubjects.map((subject) => hasAnyVisualAsset(subject.type, subject.id)),
+  );
+  const missing = allSubjects.filter((_, index) => !missingFlags[index]);
   if (missing.length === 0) {
     return { error: null, success: "Aucun visuel manquant : rien à générer." };
   }

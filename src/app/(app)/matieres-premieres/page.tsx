@@ -8,8 +8,11 @@ import { CanonicalIngredientCard } from "@/components/cards/CanonicalIngredientC
 import { getCanonicalIngredients, getRecipeCountForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
 import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
 
-export default function MatieresPremieresPage() {
+export default async function MatieresPremieresPage() {
   const ingredients = getCanonicalIngredients();
+  const primaryVisuals = await Promise.all(
+    ingredients.map((ingredient) => getPrimaryVisualAsset("ingredient", ingredient.id)),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -18,12 +21,12 @@ export default function MatieresPremieresPage() {
       <EditorialTitle>Matières premières</EditorialTitle>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ingredients.map((ingredient) => (
+        {ingredients.map((ingredient, index) => (
           <CanonicalIngredientCard
             key={ingredient.id}
             name={ingredient.name}
             recipeCount={getRecipeCountForCanonicalIngredient(ingredient.slug)}
-            imageUrl={getPrimaryVisualAsset("ingredient", ingredient.id)?.imageUrl}
+            imageUrl={primaryVisuals[index]?.imageUrl}
             href={`/matieres-premieres/${ingredient.slug}`}
           />
         ))}

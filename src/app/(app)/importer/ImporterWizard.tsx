@@ -11,12 +11,14 @@
  * jamais un réseau ni une clé.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Card } from "@/components/ui/Card";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getSources } from "@/lib/data/sources";
 import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
@@ -24,13 +26,13 @@ import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import {
-  checkDuplicate,
-  createImportBatch,
-  createLocalCategory,
-  getCategoriesForSourceIncludingSession,
-  saveImportRecipe,
+  checkDuplicateAction,
+  createCategoryAction,
+  createImportBatchAction,
+  getCategoriesAction,
+  saveImportRecipeAction,
   type SaveImportRecipeResult,
-} from "@/lib/import/store";
+} from "./importActions";
 import { createEmptyDraft } from "./draftFactory";
 import { SourceStep } from "./steps/SourceStep";
 import { CategoryStep } from "./steps/CategoryStep";
@@ -66,10 +68,16 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
   const sources = getSources();
 
   const [step, setStep] = useState<Step>(0);
-  const [batchId] = useState(() => createImportBatch().id);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchAttempt, setBatchAttempt] = useState(0);
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [sourceCategoryId, setSourceCategoryId] = useState<string | null>(null);
   const [categories, setCategories] = useState<SourceCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoryCreating, setCategoryCreating] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const [draft, setDraft] = useState<ImportRecipeDraft | null>(null);
   const [providerName, setProviderName] = useState("manual");
   const [rawExtraction, setRawExtraction] = useState<unknown>(null);
@@ -79,29 +87,66 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<SaveImportRecipeResult | null>(null);
+  const [duplicate, setDuplicate] = useState<{ title: string; sourceId: string } | null>(null);
+  const [duplicateChecking, setDuplicateChecking] = useState(false);
+  const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null);
 
   const selectedSource = sources.find((source) => source.id === sourceId) ?? null;
   const selectedCategory = categories.find((category) => category.id === sourceCategoryId) ?? null;
 
   const validation = useMemo(() => (draft ? importRecipeDraftSchema.safeParse(draft) : null), [draft]);
   const validationErrors = validation && !validation.success ? [...new Set(validation.error.issues.map((i) => i.message))] : [];
-  const duplicate = draft ? checkDuplicate(draft.title, draft.sourceId) : null;
+
+  // Le lot d'import doit exister côté serveur avant tout enregistrement —
+  // créé une seule fois au montage, jamais recréé silencieusement (un échec
+  // bloque explicitement le parcours, voir le rendu d'erreur plus bas).
+  useEffect(() => {
+    let cancelled = false;
+    createImportBatchAction()
+      .then((batch) => {
+        if (!cancelled) setBatchId(batch.id);
+      })
+      .catch(() => {
+        if (!cancelled) setBatchError("Impossible de démarrer l'import (connexion au serveur). Réessayez.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [batchAttempt]);
 
   function goTo(next: Step) {
     setStep(next);
   }
 
-  function handleSourceChange(nextSourceId: string) {
+  async function handleSourceChange(nextSourceId: string) {
     setSourceId(nextSourceId);
     setSourceCategoryId(null);
-    setCategories(getCategoriesForSourceIncludingSession(nextSourceId));
+    setCategories([]);
+    setCategoriesError(null);
+    setCategoriesLoading(true);
+    try {
+      const result = await getCategoriesAction(nextSourceId);
+      setCategories(result);
+    } catch {
+      setCategoriesError("Impossible de charger les catégories de cette entreprise. Réessayez.");
+    } finally {
+      setCategoriesLoading(false);
+    }
   }
 
-  function handleCreateCategory(name: string) {
+  async function handleCreateCategory(name: string) {
     if (!sourceId) return;
-    const category = createLocalCategory(sourceId, name);
-    setCategories(getCategoriesForSourceIncludingSession(sourceId));
-    setSourceCategoryId(category.id);
+    setCategoryError(null);
+    setCategoryCreating(true);
+    try {
+      const category = await createCategoryAction(sourceId, name);
+      setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
+      setSourceCategoryId(category.id);
+    } catch {
+      setCategoryError("Impossible de créer cette catégorie. Réessayez.");
+    } finally {
+      setCategoryCreating(false);
+    }
   }
 
   function ensureDraft(): ImportRecipeDraft {
@@ -123,6 +168,27 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
     goTo(3);
   }
 
+  /** Jamais un repli silencieux vers « aucun doublon » en cas d'échec réseau (CLAUDE.md) — réutilisée à l'entrée de l'étape 4 et pour une nouvelle tentative explicite depuis `ReviewStep`. */
+  async function checkForDuplicate(current: ImportRecipeDraft) {
+    setDuplicateChecking(true);
+    try {
+      const result = await checkDuplicateAction(current.title, current.sourceId);
+      setDuplicate(result);
+      setDuplicateCheckError(null);
+    } catch {
+      setDuplicateCheckError("Impossible de vérifier les doublons. Réessayez avant d'enregistrer.");
+    } finally {
+      setDuplicateChecking(false);
+    }
+  }
+
+  /** Seul point d'entrée vers l'étape 4 (vérification) : déclenche la vérification de doublon réelle à cet instant précis. */
+  async function handleGoToReview() {
+    if (!draft) return;
+    goTo(4);
+    await checkForDuplicate(draft);
+  }
+
   function handleDemoExampleLoaded(extracted: DemoExtractionDraft, provider: string) {
     const base = ensureDraft();
     setDraft(applyDemoExtraction(base, extracted));
@@ -134,11 +200,11 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
   }
 
   async function handleConfirmSave() {
-    if (!draft || !validation?.success) return;
+    if (!draft || !validation?.success || !batchId) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const result = saveImportRecipe({
+      const result = await saveImportRecipeAction({
         batchId,
         draft: validation.data,
         rawExtraction,
@@ -163,6 +229,8 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
     setSourceId(null);
     setSourceCategoryId(null);
     setCategories([]);
+    setCategoriesError(null);
+    setCategoryError(null);
     setDraft(null);
     setProviderName("manual");
     setRawExtraction(null);
@@ -171,6 +239,13 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
     setAcknowledgeIncomplete(false);
     setSaveError(null);
     setSaveResult(null);
+    setDuplicate(null);
+    setDuplicateCheckError(null);
+    // Le lot précédent est déjà marqué « terminé » côté serveur — un nouveau
+    // lot est requis pour le prochain import, jamais réutilisé silencieusement.
+    setBatchId(null);
+    setBatchError(null);
+    setBatchAttempt((n) => n + 1);
   }
 
   if (saveResult && (saveResult.status === "saved" || saveResult.status === "already_saved")) {
@@ -199,6 +274,30 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
     );
   }
 
+  if (batchError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Importer" }]} />
+        <ErrorState
+          message={batchError}
+          onRetry={() => {
+            setBatchError(null);
+            setBatchAttempt((n) => n + 1);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!batchId) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Importer" }]} />
+        <LoadingState message="Préparation de l'import…" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Importer" }]} />
@@ -213,12 +312,20 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
       {step === 0 && <SourceStep sourceId={sourceId} onChange={handleSourceChange} />}
 
       {step === 1 && sourceId && (
-        <CategoryStep
-          categories={categories}
-          sourceCategoryId={sourceCategoryId}
-          onChange={setSourceCategoryId}
-          onCreateCategory={handleCreateCategory}
-        />
+        <>
+          {categoriesLoading && <LoadingState message="Chargement des catégories…" />}
+          {categoriesError && <ErrorState message={categoriesError} onRetry={() => handleSourceChange(sourceId)} />}
+          {!categoriesLoading && !categoriesError && (
+            <CategoryStep
+              categories={categories}
+              sourceCategoryId={sourceCategoryId}
+              onChange={setSourceCategoryId}
+              onCreateCategory={handleCreateCategory}
+              creating={categoryCreating}
+              error={categoryError}
+            />
+          )}
+        </>
       )}
 
       {step === 2 && draft && (
@@ -246,6 +353,9 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
           duplicate={duplicate}
           acknowledgeDuplicate={acknowledgeDuplicate}
           onAcknowledgeDuplicateChange={setAcknowledgeDuplicate}
+          duplicateChecking={duplicateChecking}
+          duplicateCheckError={duplicateCheckError}
+          onRetryDuplicateCheck={() => checkForDuplicate(draft)}
           completeness={completeness}
           acknowledgeIncomplete={acknowledgeIncomplete}
           onAcknowledgeIncompleteChange={setAcknowledgeIncomplete}
@@ -274,7 +384,7 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
           </Button>
         )}
         {step === 3 && (
-          <Button type="button" onClick={() => goTo(4)}>
+          <Button type="button" onClick={handleGoToReview}>
             Vérifier
           </Button>
         )}
@@ -284,12 +394,14 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
             onClick={handleConfirmSave}
             disabled={
               saving ||
+              duplicateChecking ||
+              duplicateCheckError !== null ||
               validationErrors.length > 0 ||
               (duplicate !== null && !acknowledgeDuplicate) ||
               (completeness !== null && completeness.status !== "complete" && !acknowledgeIncomplete)
             }
           >
-            {saving ? "Enregistrement…" : "Enregistrer la recette"}
+            {saving ? "Enregistrement…" : duplicateChecking ? "Vérification…" : "Enregistrer la recette"}
           </Button>
         )}
       </div>

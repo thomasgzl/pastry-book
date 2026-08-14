@@ -39,7 +39,7 @@ export async function runLotHGeneration(): Promise<LotHOutcome[]> {
     throw new Error("Génération réelle indisponible : clé API absente côté serveur.");
   }
 
-  const subjects = resolveLotHSubjects();
+  const subjects = await resolveLotHSubjects();
   const outcomes: LotHOutcome[] = [];
   let stopped = false;
   let callsMade = 0;
@@ -50,7 +50,7 @@ export async function runLotHGeneration(): Promise<LotHOutcome[]> {
       continue;
     }
 
-    const stillApproved = subject.alreadyApproved || Boolean(getPrimaryVisualAsset(subject.kind, subject.subjectId));
+    const stillApproved = subject.alreadyApproved || Boolean(await getPrimaryVisualAsset(subject.kind, subject.subjectId));
     if (stillApproved) {
       outcomes.push({ key: subject.key, status: "skipped", reason: "Visuel déjà approuvé pour ce sujet — aucun doublon généré." });
       continue;

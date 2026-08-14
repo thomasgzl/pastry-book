@@ -12,10 +12,10 @@ import { LotHPanel } from "./LotHPanel";
  * explicite. Sujets déjà approuvés (Citron, Pistache) exclus par
  * construction — `resolveLotHSubjects` ne les liste même pas.
  */
-export default function LotHVisualPilotPage() {
+export default async function LotHVisualPilotPage() {
   const realGenerationAvailable = Boolean(process.env.OPENAI_API_KEY?.trim());
   const description = describeRealImageGenerationRequest("draft");
-  const subjects = resolveLotHSubjects();
+  const subjects = await resolveLotHSubjects();
 
   return (
     <div className="flex flex-col gap-6">

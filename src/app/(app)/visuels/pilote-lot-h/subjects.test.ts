@@ -8,8 +8,8 @@ beforeEach(() => {
 });
 
 describe("resolveLotHSubjects — 7 sujets du lot H", () => {
-  it("résout exactement 7 sujets réels, groupés correctement", () => {
-    const subjects = resolveLotHSubjects();
+  it("résout exactement 7 sujets réels, groupés correctement", async () => {
+    const subjects = await resolveLotHSubjects();
     expect(subjects).toHaveLength(7);
     expect(subjects.map((s) => s.key)).toEqual([
       "tarte-au-citron",
@@ -28,16 +28,16 @@ describe("resolveLotHSubjects — 7 sujets du lot H", () => {
     }
   });
 
-  it("chaque prompt contient le format carré/ivoire opaque et ses propres exclusions, jamais 'transparent' demandé", () => {
-    for (const subject of resolveLotHSubjects()) {
+  it("chaque prompt contient le format carré/ivoire opaque et ses propres exclusions, jamais 'transparent' demandé", async () => {
+    for (const subject of await resolveLotHSubjects()) {
       expect(subject.prompt).toContain("Format : carré 1:1, fond ivoire opaque");
       expect(subject.prompt).toContain("Exclusions impératives");
       expect(subject.prompt).not.toMatch(/fond transparent\b/i);
     }
   });
 
-  it("aucun sujet ne mentionne un autre sujet du lot dans son propre prompt (contenu jamais mélangé)", () => {
-    const subjects = resolveLotHSubjects();
+  it("aucun sujet ne mentionne un autre sujet du lot dans son propre prompt (contenu jamais mélangé)", async () => {
+    const subjects = await resolveLotHSubjects();
     const chocolat = subjects.find((s) => s.key === "chocolat")!;
     expect(chocolat.prompt.toLowerCase()).not.toContain("citron");
     expect(chocolat.prompt.toLowerCase()).not.toContain("pistache");
@@ -45,8 +45,8 @@ describe("resolveLotHSubjects — 7 sujets du lot H", () => {
     expect(tarte.prompt.toLowerCase()).not.toContain("pistache");
   });
 
-  it("vérification dynamique : les sujets déjà approuvés dans le fixture démo (Tarte au citron, Recettes de base) sont marqués alreadyApproved, jamais un doublon", () => {
-    const subjects = resolveLotHSubjects();
+  it("vérification dynamique : les sujets déjà approuvés dans le fixture démo (Tarte au citron, Recettes de base) sont marqués alreadyApproved, jamais un doublon", async () => {
+    const subjects = await resolveLotHSubjects();
     expect(subjects.find((s) => s.key === "tarte-au-citron")?.alreadyApproved).toBe(true);
     expect(subjects.find((s) => s.key === "recettes-de-base")?.alreadyApproved).toBe(true);
     // Hennessy (source) n'a qu'un brouillon dans le fixture, jamais approuvé — à générer.

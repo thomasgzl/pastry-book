@@ -118,7 +118,7 @@ function assemblePrompt(def: LotHSubjectDef): string {
  * survenue entre-temps). Un sujet introuvable dans le référentiel est omis
  * (jamais un identifiant inventé).
  */
-export function resolveLotHSubjects(): LotHSubject[] {
+export async function resolveLotHSubjects(): Promise<LotHSubject[]> {
   const hennessy = getSourceBySlug("hennessy");
   const results: LotHSubject[] = [];
 
@@ -162,7 +162,7 @@ export function resolveLotHSubjects(): LotHSubject[] {
       label,
       contextLabel: def.contextLabel,
       prompt: assemblePrompt(def),
-      alreadyApproved: Boolean(getPrimaryVisualAsset(kind, subjectId)),
+      alreadyApproved: Boolean(await getPrimaryVisualAsset(kind, subjectId)),
     });
   }
 

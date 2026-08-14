@@ -14,7 +14,7 @@ import { CitronPilotPanel } from "./CitronPilotPanel";
  * d'extraction (`/importer`). Séparée de `/visuels` (galerie normale) pour
  * ne jamais mélanger ce brief créatif ponctuel avec le preset générique.
  */
-export default function CitronVisualPilotPage() {
+export default async function CitronVisualPilotPage() {
   const realGenerationAvailable = Boolean(process.env.OPENAI_API_KEY?.trim());
   const description = describeRealImageGenerationRequest("draft");
   const framing = getSubjectFraming("ingredient");
@@ -22,7 +22,7 @@ export default function CitronVisualPilotPage() {
   const prompt = buildCitronPilotPrompt();
   const citron = getCanonicalIngredientBySlug("citron");
   const recipeCount = citron ? getRecipeCountForCanonicalIngredient(citron.slug) : 0;
-  const existingPrimary = citron ? (getPrimaryVisualAsset("ingredient", citron.id) ?? null) : null;
+  const existingPrimary = citron ? ((await getPrimaryVisualAsset("ingredient", citron.id)) ?? null) : null;
 
   return (
     <div className="flex flex-col gap-6">

@@ -20,7 +20,7 @@ export default async function MatierePremierePage({ params }: { params: Promise<
   if (!ingredient) notFound();
 
   const recipes = getRecipesForCanonicalIngredient(slug).map(toRecipeCardData);
-  const primaryVisual = getPrimaryVisualAsset("ingredient", ingredient.id);
+  const primaryVisual = await getPrimaryVisualAsset("ingredient", ingredient.id);
 
   return (
     <div className="flex flex-col gap-6">

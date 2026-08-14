@@ -32,7 +32,16 @@ export default async function VisuelsPage({
 
   const provider = getVisualsProvider();
   const subjects = getAllVisualSubjects();
-  const missingCount = subjects.filter((subject) => !hasAnyVisualAsset(subject.type, subject.id)).length;
+  const missingFlags = await Promise.all(subjects.map((subject) => hasAnyVisualAsset(subject.type, subject.id)));
+  const missingBySubjectId = new Map(subjects.map((subject, index) => [`${subject.type}-${subject.id}`, !missingFlags[index]]));
+  const missingCount = missingFlags.filter((hasAsset) => !hasAsset).length;
+  const assetsBySubjectId = new Map(
+    await Promise.all(
+      subjects.map(
+        async (subject) => [`${subject.type}-${subject.id}`, await listVisualAssets(subject.type, subject.id)] as const,
+      ),
+    ),
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -70,7 +79,7 @@ export default async function VisuelsPage({
       {KINDS.map((kind) => {
         const kindSubjects = subjects
           .filter((subject) => subject.type === kind)
-          .filter((subject) => !onlyMissing || !hasAnyVisualAsset(subject.type, subject.id));
+          .filter((subject) => !onlyMissing || missingBySubjectId.get(`${subject.type}-${subject.id}`));
 
         // Aucune section vide affichée (CLAUDE.md, principe 2) : ni un type sans
         // sujet en démo, ni un type entièrement filtré par « manquants uniquement ».
@@ -84,7 +93,7 @@ export default async function VisuelsPage({
                 <SubjectGallery
                   key={`${subject.type}-${subject.id}`}
                   subject={subject}
-                  assets={listVisualAssets(subject.type, subject.id)}
+                  assets={assetsBySubjectId.get(`${subject.type}-${subject.id}`) ?? []}
                 />
               ))}
             </div>

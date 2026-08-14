@@ -37,20 +37,20 @@ describe("generateRealVisualDraft — avec clé factice de test (fetch mocké, a
   it("RÈGLE NON NÉGOCIABLE : refuse si le sujet a déjà un visuel approuvé/principal, aucun nouvel asset créé", async () => {
     stubFetchSuccess();
     const draft = await service.generateVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
-    approveVisualAsset(draft.id);
+    await approveVisualAsset(draft.id);
 
-    const before = listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId).length;
+    const before = (await listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).length;
     const result = await generateRealVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("conflict");
-    expect(listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId).length).toBe(before);
+    expect((await listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).length).toBe(before);
   });
 
   it("correction versionnement (G3) : allowAdditionalVersion permet une génération malgré un visuel déjà approuvé, SANS le modifier", async () => {
     stubFetchSuccess();
     const draft = await service.generateVisualDraft({ ...SUBJECT, subjectLabel: "Citron" });
-    const approved = approveVisualAsset(draft.id);
+    const approved = await approveVisualAsset(draft.id);
 
     const result = await generateRealVisualDraft({ ...SUBJECT, subjectLabel: "Citron", allowAdditionalVersion: true });
 
@@ -60,11 +60,11 @@ describe("generateRealVisualDraft — avec clé factice de test (fetch mocké, a
       expect(result.data.status).toBe("draft");
       expect(result.data.isPrimary).toBe(false);
     }
-    const untouchedApproved = getVisualAssetById(approved.id)!;
+    const untouchedApproved = (await getVisualAssetById(approved.id))!;
     expect(untouchedApproved.status).toBe("approved");
     expect(untouchedApproved.isPrimary).toBe(true);
     expect(untouchedApproved.imageUrl).toBe(approved.imageUrl);
-    expect(listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).toHaveLength(2);
+    expect(await listVisualAssets(SUBJECT.subjectType, SUBJECT.subjectId)).toHaveLength(2);
   });
 
   it("anti-double-clic : deux appels avec le même identifiant de demande, le second est refusé pendant que le premier est en cours", async () => {

@@ -3,14 +3,19 @@
 import { useState } from "react";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/states/ErrorState";
 import type { SourceCategory } from "@/lib/domain/schemas";
 
 interface CategoryStepProps {
   categories: SourceCategory[];
   sourceCategoryId: string | null;
   onChange: (sourceCategoryId: string | null) => void;
-  /** L'appelant crée la catégorie (store) et sélectionne son id ; ce composant reste sans effet de bord sur le store. */
+  /** L'appelant crée la catégorie (Server Action, écriture Supabase réelle) et sélectionne son id ; ce composant reste sans effet de bord direct. */
   onCreateCategory: (name: string) => void;
+  /** Vrai pendant l'écriture réelle de la catégorie — désactive le bouton pour éviter un double envoi. */
+  creating?: boolean;
+  /** Échec explicite de la création (jamais un doublon silencieux ni une catégorie inventée localement). */
+  error?: string | null;
 }
 
 /**
@@ -19,7 +24,14 @@ interface CategoryStepProps {
  * défaut ambigu. Catégorie propre à `sourceId`, jamais globalisée (CLAUDE.md,
  * principe 6).
  */
-export function CategoryStep({ categories, sourceCategoryId, onChange, onCreateCategory }: CategoryStepProps) {
+export function CategoryStep({
+  categories,
+  sourceCategoryId,
+  onChange,
+  onCreateCategory,
+  creating = false,
+  error = null,
+}: CategoryStepProps) {
   const [newCategoryName, setNewCategoryName] = useState("");
 
   function handleCreate() {
@@ -80,10 +92,11 @@ export function CategoryStep({ categories, sourceCategoryId, onChange, onCreateC
             placeholder="Ex. Viennoiseries"
             className="min-h-11 min-w-0 flex-1 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
           />
-          <Button type="button" variant="secondary" onClick={handleCreate} disabled={!newCategoryName.trim()}>
-            Créer et sélectionner
+          <Button type="button" variant="secondary" onClick={handleCreate} disabled={!newCategoryName.trim() || creating}>
+            {creating ? "Création…" : "Créer et sélectionner"}
           </Button>
         </div>
+        {error && <ErrorState message={error} />}
       </div>
     </div>
   );
