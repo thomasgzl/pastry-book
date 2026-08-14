@@ -73,7 +73,7 @@ export default async function RecettePage({
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <Breadcrumb items={buildBreadcrumb(detail, from)} />
       <RecipeSheet
         title={detail.recipe.title}

@@ -6,13 +6,20 @@
  * Chaque bloc optionnel (photo, allergènes, matières premières clés,
  * informations complémentaires) ne se rend que si la donnée existe
  * (CLAUDE.md, principe 2 : aucune section vide).
+ *
+ * CBF4 (refonte visuelle) : présentation uniquement, aucun changement de
+ * logique (coefficient, QS, `needs_review`, sections conditionnelles).
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import type { RecipeIngredient } from "@/lib/domain/schemas";
 import { AllergenBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
+import { WarningIcon } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { CoefficientControl } from "@/components/ui/CoefficientControl";
+import { CulinaryFrame } from "@/components/ui/CulinaryFrame";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { getIngredientQuantityDisplay, isValidCoefficient } from "@/lib/recipes/coefficient";
 import type { RecipeKeyIngredient, RecipeSectionWithIngredients } from "@/lib/data/recipes";
 
@@ -38,12 +45,17 @@ function IngredientRow({ ingredient, coefficient }: { ingredient: RecipeIngredie
   const needsReview = display.primary === "À vérifier";
 
   return (
-    <li className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+    <li className="flex items-baseline justify-between gap-4 px-4 py-3">
       <span className="text-cacao">{ingredient.originalName}</span>
       <span className="shrink-0 text-right">
-        <span className={`font-medium tabular-nums ${needsReview ? "text-brunrouge" : "text-cacao"}`}>
-          {display.primary}
-        </span>
+        {needsReview ? (
+          <span className="inline-flex items-center gap-1 font-medium text-brunrouge">
+            <WarningIcon />
+            {display.primary}
+          </span>
+        ) : (
+          <span className="font-medium tabular-nums text-cacao">{display.primary}</span>
+        )}
         {display.original && (
           <span className="ml-2 text-sm tabular-nums text-cacao/60">({display.original})</span>
         )}
@@ -79,7 +91,7 @@ export function RecipeSheet({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{title}</h1>
+        <EditorialTitle>{title}</EditorialTitle>
         <p className="text-cacao/70">
           {sourceName}
           {categoryName ? ` · ${categoryName}` : ""}
@@ -87,23 +99,29 @@ export function RecipeSheet({
       </div>
 
       {photoUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- même choix que RecipeCard : pas de pipeline next/image dédié (lot E, non lancé).
-        <img src={photoUrl} alt="" className="h-56 w-full rounded-xl object-cover sm:h-72" />
+        // Visuel temporaire (contrat CBV1) : la recette a une photo source en
+        // base, mais aucun visuel IA approuvé n'existe encore (lot E non
+        // lancé) — le cadre culinaire affiche donc le repli, jamais la photo
+        // brute non maîtrisée.
+        <CulinaryFrame
+          src="/visuals/placeholders/placeholder-recipe-4x3.svg"
+          ratio="4:3"
+          className="mx-auto sm:max-w-xl lg:max-w-md"
+        />
       )}
 
-      <div className="flex flex-col gap-2">
+      <Card className="flex flex-col gap-3">
+        <EditorialTitle as="h2">Coefficient</EditorialTitle>
         <CoefficientControl value={coefficient} onChange={handleCoefficientChange} />
         <p className="text-sm text-cacao/70">
           Quantités recalculées à l&rsquo;affichage uniquement — les quantités enregistrées ne changent jamais.
         </p>
-      </div>
+      </Card>
 
-      <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         {sections.map((section) => (
           <div key={section.id} className="flex flex-col gap-2">
-            {section.name && (
-              <h2 className="font-serif text-lg font-semibold text-cacao">{section.name}</h2>
-            )}
+            {section.name && <EditorialTitle as="h2">{section.name}</EditorialTitle>}
             <ul className="flex flex-col divide-y divide-grise rounded-xl border border-grise bg-coquille">
               {section.ingredients.map((ingredient) => (
                 <IngredientRow key={ingredient.id} ingredient={ingredient} coefficient={coefficient} />
@@ -114,19 +132,19 @@ export function RecipeSheet({
       </div>
 
       {allergens.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="font-serif text-lg font-semibold text-cacao">Allergènes détectés</h2>
+        <Card className="flex flex-col gap-3">
+          <EditorialTitle as="h2">Allergènes détectés</EditorialTitle>
           <div className="flex flex-wrap gap-2">
             {allergens.map((allergen) => (
               <AllergenBadge key={allergen.id} name={allergen.name} status={allergen.status} />
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {keyIngredients.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="font-serif text-lg font-semibold text-cacao">Matières premières clés</h2>
+        <Card className="flex flex-col gap-3">
+          <EditorialTitle as="h2">Matières premières clés</EditorialTitle>
           <ul className="flex flex-wrap gap-2">
             {keyIngredients.map((ingredient) => (
               <li key={ingredient.slug}>
@@ -139,14 +157,14 @@ export function RecipeSheet({
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
 
       {hasAdditionalInformation && (
-        <div className="flex flex-col gap-2">
-          <h2 className="font-serif text-lg font-semibold text-cacao">Informations complémentaires</h2>
+        <Card className="flex flex-col gap-3">
+          <EditorialTitle as="h2">Informations complémentaires</EditorialTitle>
           <p className="whitespace-pre-line text-cacao">{additionalInformation}</p>
-        </div>
+        </Card>
       )}
     </div>
   );
