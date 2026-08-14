@@ -55,12 +55,12 @@ export function SiteHeader() {
           className="shrink-0 whitespace-nowrap rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
           onClick={() => setMenuOpen(false)}
         >
-          <span className="sm:hidden">Grand Livre</span>
-          <span className="hidden sm:inline">Le Grand Livre de Pâtisserie</span>
+          <span className="lg:hidden">Grand Livre</span>
+          <span className="hidden lg:inline">Le Grand Livre de Pâtisserie</span>
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden md:block">
-          <ul className="flex items-center gap-2">
+          <ul className="flex items-center gap-1 lg:gap-2">
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               return (
@@ -68,7 +68,7 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 items-center rounded-lg px-4 text-[0.95rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${
+                    className={`inline-flex min-h-11 items-center rounded-lg px-3 text-[0.95rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive lg:px-4 ${
                       active
                         ? "bg-avoine font-semibold text-olive"
                         : "text-cacao hover:bg-avoine/60"

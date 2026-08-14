@@ -17,6 +17,9 @@ interface RecipeCardProps {
    * l'appelant.
    */
   ingredientTags?: string[];
+  /** Réservé au lot E (visuels IA) : ignoré pour l'instant, voir contrat
+   * CBV1 — jamais de photo brute non maîtrisée tant qu'aucun visuel IA
+   * n'est approuvé (même règle que `RecipeSheet`, CBF4). */
   imageUrl?: string;
   href: string;
   className?: string;
@@ -31,7 +34,6 @@ export function RecipeCard({
   sourceName,
   categoryName,
   ingredientTags = [],
-  imageUrl,
   href,
   className = "",
 }: RecipeCardProps) {
@@ -40,12 +42,7 @@ export function RecipeCard({
   return (
     <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
       <Card className="flex flex-col gap-3 transition-colors hover:bg-avoine/40 sm:flex-row sm:items-start">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel démo/CMS, pas encore de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
-        ) : (
-          <PlaceholderIllustration label={title} className="h-16 w-16" />
-        )}
+        <PlaceholderIllustration label={title} className="h-16 w-16" />
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-serif text-base font-semibold text-cacao">{title}</p>
