@@ -98,6 +98,8 @@ export interface ExtractSourceFile {
   fileBase64?: string | null;
   /** Nombre de pages du document si connu (PDF) — permet de refuser un document trop long avant tout appel payant. */
   pageCount?: number | null;
+  /** Chemin Storage réel du fichier ORIGINAL une fois archivé côté navigateur (I6, `uploadSourceFile`) — jamais une URL fictive, `null` si l'archivage n'a pas (encore) réussi. Simple passager jusqu'à `ImportFileRef.sourceFileUrl` (`buildImportDraft`) : cette valeur n'est jamais utilisée pour l'extraction elle-même. */
+  sourceFileUrl?: string | null;
 }
 
 /** Un seul fichier (cas courant) ou plusieurs pages/captures ORDONNÉES d'UNE SEULE recette (correction lot G — regroupement en un seul appel, jamais une recette par fichier). */

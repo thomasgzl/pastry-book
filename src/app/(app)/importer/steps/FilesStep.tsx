@@ -8,6 +8,8 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { listDemoFixtures, type DemoFixtureId } from "@/lib/ai/import/fixtures";
 import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportFileRef } from "@/lib/import/schema";
+import { uploadSourceFile } from "@/lib/import/sourceUpload";
+import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { PilotExtractionPanel } from "./PilotExtractionPanel";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -24,16 +26,20 @@ interface FilesStepProps {
   /** Clé OpenAI présente côté serveur — affiche les 3 emplacements du pilote réel (lot G, G2). */
   realExtractionAvailable: boolean;
   extractionModel: string;
+  /** Lot d'import déjà créé côté serveur — préfixe du chemin Storage (I6). */
+  importBatchId: string;
 }
 
 /**
  * Étape 3 — fichiers, texte collé, ou exemple de démonstration (D1 + pont
- * D3). Aucun traitement réel du contenu des fichiers déposés par la
- * personne à cette tranche (pas d'OCR/extraction réelle branchée, aucun
- * appel payant) : seules les métadonnées sont conservées pour traçabilité,
- * la saisie reste manuelle à l'étape suivante. Les 3 exemples de
- * démonstration illustrent ce que l'extraction assistée produirait, mode
- * démonstration déterministe uniquement (aucune clé, aucun appel réseau).
+ * D3). Aucun traitement IA du contenu des fichiers déposés ici (pas d'OCR/
+ * extraction branchée sur ce champ, aucun appel payant) : la saisie reste
+ * manuelle à l'étape suivante. Le fichier ORIGINAL est en revanche archivé
+ * directement du navigateur vers le bucket privé `recipe-sources` dès la
+ * sélection (I6, `@/lib/import/sourceUpload`) — traçabilité de la source,
+ * jamais un traitement de son contenu. Les 3 exemples de démonstration
+ * illustrent ce que l'extraction assistée produirait, mode démonstration
+ * déterministe uniquement (aucune clé, aucun appel réseau).
  */
 export function FilesStep({
   files,
@@ -43,11 +49,21 @@ export function FilesStep({
   onDemoExampleLoaded,
   realExtractionAvailable,
   extractionModel,
+  importBatchId,
 }: FilesStepProps) {
   const [loadingFixture, setLoadingFixture] = useState<DemoFixtureId | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  function handleFileInput(event: React.ChangeEvent<HTMLInputElement>) {
+  /**
+   * Upload direct navigateur → bucket privé `recipe-sources` (I6) pour
+   * chaque fichier ajouté ici — le fichier ORIGINAL, jamais transformé. Sans
+   * effet en mode démonstration sans Supabase configuré (`sourceFileUrl`
+   * reste `null`, jamais une URL fictive). Un échec d'archivage n'empêche
+   * jamais d'ajouter le fichier à la liste : la saisie manuelle qui suit
+   * reste possible, seul le rappel de traçabilité est perdu pour ce fichier.
+   */
+  async function handleFileInput(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files ?? []);
     const tooMany = files.length + selected.length > MAX_FILES;
     const oversized = selected.filter((file) => file.size > MAX_FILE_SIZE_BYTES);
@@ -61,11 +77,36 @@ export function FilesStep({
       return;
     }
     setError(null);
-    onFilesChange([
-      ...files,
-      ...selected.map((file) => ({ name: file.name, type: file.type, sizeBytes: file.size })),
-    ]);
     event.target.value = "";
+
+    if (!hasSupabaseConfig()) {
+      onFilesChange([
+        ...files,
+        ...selected.map((file) => ({ name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: null })),
+      ]);
+      return;
+    }
+
+    setUploading(true);
+    const archiveFailures: string[] = [];
+    const uploaded: ImportFileRef[] = await Promise.all(
+      selected.map(async (file) => {
+        try {
+          const { path } = await uploadSourceFile(importBatchId, file);
+          return { name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: path };
+        } catch {
+          archiveFailures.push(file.name);
+          return { name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: null };
+        }
+      }),
+    );
+    setUploading(false);
+    onFilesChange([...files, ...uploaded]);
+    if (archiveFailures.length > 0) {
+      setError(
+        `Fichier ajouté mais archivage impossible pour : ${archiveFailures.join(", ")}. La saisie manuelle reste possible.`,
+      );
+    }
   }
 
   function removeFile(index: number) {
@@ -104,9 +145,10 @@ export function FilesStep({
           type="file"
           multiple
           accept={ACCEPTED_TYPES}
-          onChange={handleFileInput}
+          onChange={(event) => void handleFileInput(event)}
           className="min-h-11 w-full rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-avoine file:px-3 file:py-2 file:text-cacao"
         />
+        {uploading && <LoadingState message="Archivage du ou des fichiers…" />}
         {files.length > 0 && (
           <ul className="flex flex-col gap-1">
             {files.map((file, index) => (
@@ -160,7 +202,7 @@ export function FilesStep({
       </div>
 
       {realExtractionAvailable && (
-        <PilotExtractionPanel extractionModel={extractionModel} onExtracted={onDemoExampleLoaded} />
+        <PilotExtractionPanel extractionModel={extractionModel} onExtracted={onDemoExampleLoaded} importBatchId={importBatchId} />
       )}
 
       {error && <ErrorState message={error} />}

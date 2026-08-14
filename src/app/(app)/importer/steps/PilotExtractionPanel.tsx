@@ -12,6 +12,13 @@
  * Confirmation explicite affichant opération/modèle/fichiers/niveau de
  * détail/nombre d'appels, PUIS UN SEUL appel réel regroupant tous les
  * fichiers de l'emplacement (jamais automatique, jamais de relance).
+ *
+ * I6 : dès qu'un fichier est mis en attente (staged), le fichier ORIGINAL
+ * (jamais la copie optimisée) est archivé directement du navigateur vers le
+ * bucket privé `recipe-sources` (`@/lib/import/sourceUpload`) — automatique,
+ * sans coût, indépendant du clic de confirmation qui reste réservé au seul
+ * appel IA réel. Sans effet en mode démonstration sans Supabase configuré
+ * (`hasSupabaseConfig()`), jamais un échec silencieux sinon.
  */
 
 import { useState } from "react";
@@ -22,6 +29,8 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ExtractSourceFile } from "@/lib/ai/import/types";
 import { isImageFile, optimizeImageFile } from "@/lib/import/imageOptimize";
+import { uploadSourceFile } from "@/lib/import/sourceUpload";
+import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { runPilotExtraction } from "../pilotActions";
 
 interface PilotSlotDef {
@@ -38,11 +47,17 @@ const PILOT_SLOTS: PilotSlotDef[] = [
 
 type SlotStatus = "idle" | "optimizing" | "preview" | "confirming" | "calling" | "done" | "error";
 
+type ArchiveStatus = "skipped" | "uploading" | "done" | "error";
+
 interface StagedFile {
   id: string;
   file: File;
   /** `null` pour un fichier non-image (PDF/DOCX/texte) — envoyé tel quel. */
   optimized: { blob: Blob; width: number; height: number; quality: number; previewUrl: string } | null;
+  /** Chemin Storage réel une fois archivé (I6) — jamais une URL fictive, `null` tant que `archiveStatus` n'est pas `"done"`. */
+  sourceFileUrl: string | null;
+  archiveStatus: ArchiveStatus;
+  archiveErrorMessage: string | null;
 }
 
 interface SlotState {
@@ -90,15 +105,48 @@ function moveItem<T>(list: T[], index: number, direction: -1 | 1): T[] {
 interface PilotExtractionPanelProps {
   extractionModel: string;
   onExtracted: (draft: DemoExtractionDraft, providerName: string) => void;
+  /** Lot d'import déjà créé côté serveur — préfixe du chemin Storage (I6, `{importBatchId}/{uuid}.{ext}`). */
+  importBatchId: string;
 }
 
-export function PilotExtractionPanel({ extractionModel, onExtracted }: PilotExtractionPanelProps) {
+export function PilotExtractionPanel({ extractionModel, onExtracted, importBatchId }: PilotExtractionPanelProps) {
   const [slots, setSlots] = useState<Record<string, SlotState>>(() =>
     Object.fromEntries(PILOT_SLOTS.map((slot) => [slot.id, { ...EMPTY_SLOT }])),
   );
 
   function updateSlot(id: string, patch: Partial<SlotState>) {
     setSlots((current) => ({ ...current, [id]: { ...current[id], ...patch } }));
+  }
+
+  function updateStagedFile(slotId: string, fileId: string, patch: Partial<StagedFile>) {
+    setSlots((current) => ({
+      ...current,
+      [slotId]: {
+        ...current[slotId],
+        staged: current[slotId].staged.map((staged) => (staged.id === fileId ? { ...staged, ...patch } : staged)),
+      },
+    }));
+  }
+
+  /**
+   * Archive le fichier ORIGINAL (jamais la copie optimisée) directement du
+   * navigateur vers `recipe-sources` — automatique dès la mise en attente,
+   * aucun coût IA, indépendant du clic de confirmation. `ponytail` : aucun
+   * nettoyage du fichier déjà archivé si la personne retire la capture avant
+   * confirmation (orphelin sans conséquence, bucket privé) — à ajouter si le
+   * volume d'orphelins devient un problème réel.
+   */
+  function archiveStaged(slotId: string, fileId: string, file: File) {
+    if (!hasSupabaseConfig()) return; // mode démonstration sans Supabase configuré : jamais d'échec, jamais de fausse URL
+    updateStagedFile(slotId, fileId, { archiveStatus: "uploading", archiveErrorMessage: null });
+    uploadSourceFile(importBatchId, file)
+      .then(({ path }) => updateStagedFile(slotId, fileId, { archiveStatus: "done", sourceFileUrl: path }))
+      .catch((cause) =>
+        updateStagedFile(slotId, fileId, {
+          archiveStatus: "error",
+          archiveErrorMessage: cause instanceof Error ? cause.message : "Échec de l'archivage du fichier source.",
+        }),
+      );
   }
 
   function revokeStaged(staged: StagedFile[]) {
@@ -127,12 +175,21 @@ export function PilotExtractionPanel({ extractionModel, onExtracted }: PilotExtr
       if (single.size > MAX_FILE_SIZE_BYTES) {
         updateSlot(slotId, {
           status: "error",
-          errorMessage:
-            "Ce fichier dépasse la limite de 8 Mo. Réduisez sa taille avant de réessayer. La gestion des documents volumineux (PDF/DOCX) passera par le stockage direct dans une version future.",
+          // Limite partagée avec le bucket Storage `recipe-sources` (8 Mo, voir
+          // `supabase/migrations/20260814090300_storage_buckets.sql`) — l'upload
+          // direct (I6) ne lève pas cette limite, réduisez le fichier avant de réessayer.
+          errorMessage: "Ce fichier dépasse la limite de 8 Mo. Réduisez sa taille avant de réessayer.",
         });
         return;
       }
-      updateSlot(slotId, { staged: [{ id: crypto.randomUUID(), file: single, optimized: null }], status: "idle" });
+      const singleId = crypto.randomUUID();
+      updateSlot(slotId, {
+        staged: [
+          { id: singleId, file: single, optimized: null, sourceFileUrl: null, archiveStatus: "skipped", archiveErrorMessage: null },
+        ],
+        status: "idle",
+      });
+      archiveStaged(slotId, singleId, single);
       return;
     }
 
@@ -162,12 +219,19 @@ export function PilotExtractionPanel({ extractionModel, onExtracted }: PilotExtr
           quality: outcome.quality,
           previewUrl: URL.createObjectURL(outcome.blob),
         },
+        sourceFileUrl: null,
+        archiveStatus: "skipped",
+        archiveErrorMessage: null,
       });
     }
     setSlots((prev) => ({
       ...prev,
       [slotId]: { ...prev[slotId], staged: [...prev[slotId].staged, ...newlyStaged], status: "preview", errorMessage: null },
     }));
+    // Archivage du fichier ORIGINAL (jamais la copie WebP optimisée
+    // ci-dessus) — déclenché après le `setSlots` pour partir d'un état déjà
+    // affiché, jamais avant que la personne ne voie l'aperçu.
+    for (const staged of newlyStaged) archiveStaged(slotId, staged.id, staged.file);
   }
 
   function removeStaged(slotId: string, fileId: string) {
@@ -191,7 +255,7 @@ export function PilotExtractionPanel({ extractionModel, onExtracted }: PilotExtr
           const blob = staged.optimized?.blob ?? staged.file;
           const name = staged.optimized ? withOptimizedExtension(staged.file.name) : staged.file.name;
           const type = staged.optimized ? "image/webp" : staged.file.type;
-          return { name, type, fileBase64: await blobToBase64(blob) };
+          return { name, type, fileBase64: await blobToBase64(blob), sourceFileUrl: staged.sourceFileUrl };
         }),
       );
       const draft = await runPilotExtraction(files, {
@@ -263,6 +327,20 @@ export function PilotExtractionPanel({ extractionModel, onExtracted }: PilotExtr
                               </>
                             )}
                           </span>
+                          {staged.archiveStatus === "uploading" && <span>Archivage du fichier source…</span>}
+                          {staged.archiveStatus === "done" && <span>Fichier source archivé.</span>}
+                          {staged.archiveStatus === "error" && (
+                            <span className="text-brunrouge">
+                              {staged.archiveErrorMessage ?? "Échec de l'archivage du fichier source."}{" "}
+                              <button
+                                type="button"
+                                onClick={() => archiveStaged(slot.id, staged.id, staged.file)}
+                                className="underline"
+                              >
+                                Réessayer l&rsquo;archivage
+                              </button>
+                            </span>
+                          )}
                         </div>
                         <div className="flex shrink-0 gap-1">
                           <Button type="button" variant="secondary" disabled={index === 0} onClick={() => reorderStaged(slot.id, index, -1)} aria-label="Monter">

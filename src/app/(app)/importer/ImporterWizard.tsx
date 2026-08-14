@@ -337,6 +337,7 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
           onDemoExampleLoaded={handleDemoExampleLoaded}
           realExtractionAvailable={realExtractionAvailable}
           extractionModel={extractionModel}
+          importBatchId={batchId}
         />
       )}
 

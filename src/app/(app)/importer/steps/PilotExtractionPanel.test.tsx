@@ -14,9 +14,15 @@ function makeFile(name: string, sizeBytes: number, type = "application/pdf"): Fi
   return file;
 }
 
+// `importBatchId` factice : `hasSupabaseConfig()` est faux dans cet
+// environnement de test (aucune variable Supabase chargée par `vitest`,
+// voir `vitest.config.ts`) — l'archivage direct (I6) est donc sans effet
+// ici, jamais un vrai appel réseau Storage dans ces tests.
+const TEST_BATCH_ID = "batch-test";
+
 describe("PilotExtractionPanel — garde 8 Mo (document non-image)", () => {
   it("accepte un fichier inférieur à 1 Mo", () => {
-    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} />);
+    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} importBatchId={TEST_BATCH_ID} />);
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fireEvent.change(fileInputs[0]!, { target: { files: [makeFile("cap.pdf", 500 * 1024)] } });
     expect(screen.getAllByText(/Original 0\.5 Mo/)[0]).toBeInTheDocument();
@@ -24,7 +30,7 @@ describe("PilotExtractionPanel — garde 8 Mo (document non-image)", () => {
   });
 
   it("accepte un fichier entre 1 et 8 Mo", () => {
-    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} />);
+    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} importBatchId={TEST_BATCH_ID} />);
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fireEvent.change(fileInputs[1]!, { target: { files: [makeFile("hennessy.pdf", 5 * 1024 * 1024)] } });
     expect(screen.getAllByText(/Original 5\.0 Mo/)[0]).toBeInTheDocument();
@@ -32,7 +38,7 @@ describe("PilotExtractionPanel — garde 8 Mo (document non-image)", () => {
   });
 
   it("refuse un fichier supérieur à 8 Mo avant tout appel", () => {
-    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} />);
+    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} importBatchId={TEST_BATCH_ID} />);
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fireEvent.change(fileInputs[2]!, { target: { files: [makeFile("capture.pdf", 9 * 1024 * 1024)] } });
     expect(screen.getAllByText(/dépasse la limite de 8 Mo/)[0]).toBeInTheDocument();
@@ -41,7 +47,7 @@ describe("PilotExtractionPanel — garde 8 Mo (document non-image)", () => {
 
 describe("PilotExtractionPanel — plusieurs captures pour une seule recette", () => {
   it("mélanger image et document est refusé, jamais silencieusement", () => {
-    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} />);
+    render(<PilotExtractionPanel extractionModel="gpt-5-mini" onExtracted={() => {}} importBatchId={TEST_BATCH_ID} />);
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fireEvent.change(fileInputs[0]!, {
       target: { files: [makeFile("page1.jpg", 200 * 1024, "image/jpeg"), makeFile("dossier.pdf", 200 * 1024, "application/pdf")] },

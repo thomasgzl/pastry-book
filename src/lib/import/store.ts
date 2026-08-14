@@ -191,6 +191,18 @@ function sourceFileNameFor(draft: ImportRecipeDraft): string | null {
   return draft.originalFiles[0]?.name ?? null;
 }
 
+/**
+ * Chemin Storage réel du premier fichier source archivé (I6, upload direct
+ * navigateur → bucket privé `recipe-sources` déclenché depuis `FilesStep.tsx`/
+ * `PilotExtractionPanel.tsx`) — jamais une URL inventée. `null` tant qu'aucun
+ * fichier n'a été réellement archivé (texte collé, saisie manuelle, mode
+ * démonstration sans Supabase configuré, ou échec d'archivage non résolu par
+ * la personne avant l'enregistrement).
+ */
+function sourceFileUrlFor(draft: ImportRecipeDraft): string | null {
+  return draft.originalFiles[0]?.sourceFileUrl ?? null;
+}
+
 function findItemForDraftIdMemory(draftId: string): ImportItem | undefined {
   return memoryItems.find(
     (item) =>
@@ -231,7 +243,10 @@ function saveImportRecipeMemory(params: SaveImportRecipeParams): SaveImportRecip
     title: draft.title,
     slug: uniqueSlugMemory(draft.title),
     additionalInformation: combineAdditionalInformation(draft),
-    originalDocumentUrl: null,
+    // Chemin Storage réel du premier fichier archivé (I6) — `null` si aucun
+    // fichier n'a été uploadé (texte collé, saisie manuelle, ou archivage
+    // resté sans Supabase configuré), jamais une URL inventée.
+    originalDocumentUrl: sourceFileUrlFor(draft),
     photoUrl: null,
     illustrationUrl: null,
     // Ce clic est l'action de validation humaine explicite (CLAUDE.md) :
@@ -247,7 +262,7 @@ function saveImportRecipeMemory(params: SaveImportRecipeParams): SaveImportRecip
   const item: ImportItem = {
     id: crypto.randomUUID(),
     importBatchId: batchId,
-    sourceFileUrl: null,
+    sourceFileUrl: sourceFileUrlFor(draft),
     sourceFileName: sourceFileNameFor(draft),
     status: "done",
     rawExtraction,
@@ -408,7 +423,7 @@ async function saveImportRecipeSupabase(
       title: draft.title,
       slug,
       additional_information: combineAdditionalInformation(draft),
-      original_document_url: null,
+      original_document_url: sourceFileUrlFor(draft),
       photo_url: null,
       illustration_url: null,
       import_status: "validated",
@@ -455,7 +470,7 @@ async function saveImportRecipeSupabase(
       .from("import_items")
       .insert({
         import_batch_id: batchId,
-        source_file_url: null,
+        source_file_url: sourceFileUrlFor(draft),
         status: "done",
         raw_extraction: rawExtraction,
         proposed_recipe: draft,

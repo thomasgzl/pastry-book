@@ -86,6 +86,23 @@ describe("saveImportRecipe", () => {
     }
   });
 
+  it("fichier réellement archivé (I6) : le chemin Storage est repris tel quel comme sourceFileUrl et originalDocumentUrl", async () => {
+    const batch = await createImportBatch();
+    const result = await saveImportRecipe({
+      batchId: batch.id,
+      draft: draft({
+        originalFiles: [{ name: "recette.pdf", type: "application/pdf", sizeBytes: 12345, sourceFileUrl: `${batch.id}/abc.pdf` }],
+      }),
+      rawExtraction: null,
+      providerName: "manual",
+    });
+    expect(result.status).toBe("saved");
+    if (result.status === "saved") {
+      expect(result.item.sourceFileUrl).toBe(`${batch.id}/abc.pdf`);
+      expect(result.recipe.originalDocumentUrl).toBe(`${batch.id}/abc.pdf`);
+    }
+  });
+
   it("texte collé sans fichier : sourceFileUrl reste null, jamais une URL fictive", async () => {
     const batch = await createImportBatch();
     const result = await saveImportRecipe({

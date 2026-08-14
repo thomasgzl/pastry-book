@@ -80,11 +80,20 @@ export const importAllergenDraftSchema = z.object({
 });
 export type ImportAllergenDraft = z.infer<typeof importAllergenDraftSchema>;
 
-/** Métadonnées du fichier d'origine — aucun contenu ni upload réel à cette tranche (pas de service de stockage câblé). */
+/** Métadonnées du fichier d'origine, éventuellement archivé réellement (I6). */
 export const importFileRefSchema = z.object({
   name: z.string().min(1),
   type: z.string(),
   sizeBytes: z.number().int().nonnegative(),
+  /**
+   * Chemin Storage réel une fois le fichier archivé dans `recipe-sources`
+   * (I6, upload direct navigateur → bucket privé) — jamais une URL fictive.
+   * `null` tant que l'archivage n'a pas réussi : mode démonstration sans
+   * Supabase configuré, échec réseau, ou aucun fichier réel encore attaché
+   * (texte collé, saisie manuelle). Distinct d'une URL publique : le bucket
+   * est privé, ce chemin nécessite une URL signée pour être consulté.
+   */
+  sourceFileUrl: z.string().nullable().optional().default(null),
 });
 export type ImportFileRef = z.infer<typeof importFileRefSchema>;
 

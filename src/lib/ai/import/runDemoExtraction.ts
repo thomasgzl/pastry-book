@@ -126,7 +126,12 @@ export async function buildImportDraft(
     })
     .filter((entry): entry is ImportSpecificityDraft => entry !== null);
 
-  const originalFiles: ImportFileRef[] = fileList.map((file) => ({ name: file.name, type: file.type, sizeBytes: 0 }));
+  const originalFiles: ImportFileRef[] = fileList.map((file) => ({
+    name: file.name,
+    type: file.type,
+    sizeBytes: 0,
+    sourceFileUrl: file.sourceFileUrl ?? null,
+  }));
 
   return {
     // Titre absent de l'extraction → jamais inventé, placeholder explicite laissé à charge du formulaire (voir ImporterWizard).
