@@ -6,21 +6,31 @@
  */
 
 import { notFound } from "next/navigation";
+import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { getCanonicalIngredientBySlug, getRecipesForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
 import { toRecipeCardData } from "@/lib/data/recipes";
-import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function MatierePremierePage({ params }: { params: Promise<{ matiere: string }> }) {
   const { matiere: slug } = await params;
   const ingredient = getCanonicalIngredientBySlug(slug);
   if (!ingredient) notFound();
 
-  const recipes = getRecipesForCanonicalIngredient(slug).map(toRecipeCardData);
-  const primaryVisual = await getPrimaryVisualAsset("ingredient", ingredient.id);
+  const recipesRaw = getRecipesForCanonicalIngredient(slug);
+  // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
+  // approuvé si présent, repli placeholder botanique sinon — jamais absente.
+  const [portrait, recipeVisualUrls] = await Promise.all([
+    ApprovedVisual({ subjectType: "ingredient", subjectId: ingredient.id, alt: ingredient.name, ratio: "1:1" }),
+    Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+  ]);
+  const recipes = recipesRaw.map((recipe, index) => ({
+    ...toRecipeCardData(recipe),
+    imageUrl: recipeVisualUrls[index],
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,10 +43,7 @@ export default async function MatierePremierePage({ params }: { params: Promise<
       />
 
       <div className="flex items-center gap-4">
-        {primaryVisual && (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas de pipeline next/image dédié (lot E).
-          <img src={primaryVisual.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-lg border border-grise bg-ivoire object-contain" />
-        )}
+        <div className="w-20 shrink-0 sm:w-24">{portrait}</div>
         <EditorialTitle>{ingredient.name}</EditorialTitle>
       </div>
 

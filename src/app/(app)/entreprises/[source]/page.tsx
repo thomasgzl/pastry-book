@@ -16,18 +16,30 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { getCategoriesForSource, getRecipeCountForCategory } from "@/lib/data/categories";
 import { getRecipesWithoutCategoryForSource, toRecipeCardData } from "@/lib/data/recipes";
 import { getSourceBySlug } from "@/lib/data/sources";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function EntreprisePage({ params }: { params: Promise<{ source: string }> }) {
   const { source: sourceSlug } = await params;
   const source = getSourceBySlug(sourceSlug);
   if (!source) notFound();
 
-  const categories = getCategoriesForSource(source.id)
+  const categoriesRaw = getCategoriesForSource(source.id)
     .map((category) => ({ ...category, recipeCount: getRecipeCountForCategory(category.id) }))
     // Une catégorie sans recette ne s'affiche pas (CLAUDE.md, aucune section vide).
     .filter((category) => category.recipeCount > 0);
 
   const uncategorizedRecipes = getRecipesWithoutCategoryForSource(sourceSlug);
+  // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
+  // `RecipeCard`/`CategoryCard`/`recipes.ts` (modules aussi consommés par des
+  // pages client).
+  const [categoryVisualUrls, uncategorizedVisualUrls] = await Promise.all([
+    Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
+    Promise.all(uncategorizedRecipes.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+  ]);
+  const categories = categoriesRaw.map((category, index) => ({
+    ...category,
+    imageUrl: categoryVisualUrls[index],
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,6 +64,7 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
               key={category.id}
               name={category.name}
               recipeCount={category.recipeCount}
+              imageUrl={category.imageUrl}
               href={`/entreprises/${source.slug}/${category.slug}`}
             />
           ))}
@@ -62,8 +75,8 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
         <div className="flex flex-col gap-3">
           {categories.length > 0 && <EditorialTitle as="h2">Autres recettes</EditorialTitle>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {uncategorizedRecipes.map((recipe) => (
-              <RecipeCard key={recipe.id} {...toRecipeCardData(recipe)} />
+            {uncategorizedRecipes.map((recipe, index) => (
+              <RecipeCard key={recipe.id} {...toRecipeCardData(recipe)} imageUrl={uncategorizedVisualUrls[index]} />
             ))}
           </div>
         </div>

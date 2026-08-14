@@ -63,7 +63,11 @@ export interface RecipeCardData {
   sourceName: string;
   categoryName?: string;
   ingredientTags: string[];
-  imageUrl?: string;
+  /** Visuel IA approuvé (jamais la photo source brute) — absent tant que
+   * l'appelant ne l'a pas résolu explicitement via `getApprovedVisualUrl`
+   * (lot J7) ; `toRecipeCardData` ne le peuple jamais elle-même (fonction
+   * synchrone, lecture du visuel approuvé toujours asynchrone). */
+  imageUrl?: string | null;
   href: string;
 }
 
@@ -85,7 +89,6 @@ export function toRecipeCardData(recipe: Recipe): RecipeCardData {
     sourceName: source.name,
     categoryName: category?.name,
     ingredientTags: getIngredientTagsForRecipe(recipe.id),
-    imageUrl: recipe.photoUrl ?? undefined,
     href: `/recettes/${recipe.slug}`,
   };
 }

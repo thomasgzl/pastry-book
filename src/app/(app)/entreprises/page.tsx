@@ -7,9 +7,13 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SourceCard } from "@/components/cards/SourceCard";
 import { getRecipeCountForSource, getSources } from "@/lib/data/sources";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
-export default function EntreprisesPage() {
+export default async function EntreprisesPage() {
   const sources = getSources();
+  // Visuel IA approuvé (lot J7) plutôt que le champ démo `illustrationUrl`
+  // (toujours `null` dans le jeu de données actuel, voir `demo/data.ts`).
+  const visualUrls = await Promise.all(sources.map((source) => getApprovedVisualUrl("source", source.id)));
 
   return (
     <div className="flex flex-col gap-6">
@@ -18,12 +22,12 @@ export default function EntreprisesPage() {
       <EditorialTitle>Entreprises</EditorialTitle>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {sources.map((source) => (
+        {sources.map((source, index) => (
           <SourceCard
             key={source.id}
             name={source.name}
             recipeCount={getRecipeCountForSource(source.id)}
-            imageUrl={source.illustrationUrl ?? undefined}
+            imageUrl={visualUrls[index] ?? undefined}
             href={`/entreprises/${source.slug}`}
           />
         ))}

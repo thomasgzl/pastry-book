@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { getCategoryBySlug } from "@/lib/data/categories";
 import { getRecipesByCategory, toRecipeCardData } from "@/lib/data/recipes";
 import { getSourceBySlug } from "@/lib/data/sources";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function CategoriePage({
   params,
@@ -23,7 +24,11 @@ export default async function CategoriePage({
   const category = getCategoryBySlug(source.id, categorySlug);
   if (!category) notFound();
 
-  const recipes = getRecipesByCategory(sourceSlug, categorySlug).map(toRecipeCardData);
+  const recipesRaw = getRecipesByCategory(sourceSlug, categorySlug);
+  // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
+  // `RecipeCard`/`recipes.ts` (module aussi consommé par des pages client).
+  const visualUrls = await Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id)));
+  const recipes = recipesRaw.map((recipe, index) => ({ ...toRecipeCardData(recipe), imageUrl: visualUrls[index] }));
 
   return (
     <div className="flex flex-col gap-6">

@@ -6,12 +6,12 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { CanonicalIngredientCard } from "@/components/cards/CanonicalIngredientCard";
 import { getCanonicalIngredients, getRecipeCountForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
-import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function MatieresPremieresPage() {
   const ingredients = getCanonicalIngredients();
-  const primaryVisuals = await Promise.all(
-    ingredients.map((ingredient) => getPrimaryVisualAsset("ingredient", ingredient.id)),
+  const visualUrls = await Promise.all(
+    ingredients.map((ingredient) => getApprovedVisualUrl("ingredient", ingredient.id)),
   );
 
   return (
@@ -26,7 +26,7 @@ export default async function MatieresPremieresPage() {
             key={ingredient.id}
             name={ingredient.name}
             recipeCount={getRecipeCountForCanonicalIngredient(ingredient.slug)}
-            imageUrl={primaryVisuals[index]?.imageUrl}
+            imageUrl={visualUrls[index] ?? undefined}
             href={`/matieres-premieres/${ingredient.slug}`}
           />
         ))}

@@ -17,12 +17,34 @@ interface RecipeCardProps {
    * l'appelant.
    */
   ingredientTags?: string[];
-  /** Réservé au lot E (visuels IA) : ignoré pour l'instant, voir contrat
-   * CBV1 — jamais de photo brute non maîtrisée tant qu'aucun visuel IA
-   * n'est approuvé (même règle que `RecipeSheet`, CBF4). */
-  imageUrl?: string;
+  /** URL d'un visuel IA APPROUVÉ pour cette recette (résolue par l'appelant
+   * via `getApprovedVisualUrl`/`ApprovedVisual`, lot J7) — jamais une photo
+   * source brute non maîtrisée (même règle que `RecipeSheet`). Absente ou
+   * `null` : la carte affiche le cadre placeholder, jamais aucun cadre. */
+  imageUrl?: string | null;
   href: string;
   className?: string;
+}
+
+/**
+ * Cadre visuel de tête de carte : ratio maîtrisé, cohérent avec
+ * `CulinaryFrame` (fiche recette) sans reprendre sa brindille décorative —
+ * trop dense à l'échelle d'une grille de cartes (lot J7, correction P2 :
+ * la carte recette n'avait auparavant qu'un monogramme carré).
+ */
+function RecipeCardVisual({ imageUrl, title }: { imageUrl?: string | null; title: string }) {
+  return (
+    <div className="aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-grise bg-ivoire">
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas de pipeline next/image dédié (lot E).
+        <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <PlaceholderIllustration label={title} className="h-12 w-12" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -34,6 +56,7 @@ export function RecipeCard({
   sourceName,
   categoryName,
   ingredientTags = [],
+  imageUrl,
   href,
   className = "",
 }: RecipeCardProps) {
@@ -41,10 +64,10 @@ export function RecipeCard({
 
   return (
     <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
-      <Card className="flex flex-col gap-3 transition-colors hover:bg-avoine/40 sm:flex-row sm:items-start">
-        <PlaceholderIllustration label={title} className="h-16 w-16" />
+      <Card className="flex h-full flex-col gap-0 overflow-hidden p-0 transition-colors hover:bg-avoine/40">
+        <RecipeCardVisual imageUrl={imageUrl} title={title} />
 
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
           <p className="truncate font-serif text-base font-semibold text-cacao">{title}</p>
           <p className="truncate text-sm text-cacao/70">
             {sourceName}
@@ -52,7 +75,7 @@ export function RecipeCard({
           </p>
 
           {visibleTags.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5">
+            <ul className="mt-1 flex flex-wrap gap-1.5">
               {visibleTags.map((tag) => (
                 <li key={tag}>
                   <Tag>{tag}</Tag>
