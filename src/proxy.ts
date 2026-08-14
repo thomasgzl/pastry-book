@@ -1,22 +1,31 @@
 /**
- * Middleware d'authentification privée (B4).
+ * Proxy d'authentification privée (B4).
  *
- * Bloque l'accès aux pages métier pour un utilisateur non authentifié et
- * rafraîchit la session Supabase à chaque requête. `middleware.ts` est
- * l'ancien nom du fichier proxy dans Next.js 16 (renommé `proxy.ts`,
- * fonctionnalité identique — voir node_modules/next/dist/docs/.../proxy.md).
- * Conservé sous ce nom car verrouillé ainsi dans docs/11-TASK_BOARD.md et
- * toujours pleinement supporté ; à renommer en `proxy.ts` lors d'une tâche
- * dédiée si le projet veut suivre la nouvelle convention.
+ * Renommé depuis `middleware.ts` (correction lot C) : Next.js 16 a déprécié
+ * la convention `middleware.ts`/`export function middleware` au profit de
+ * `proxy.ts`/`export function proxy` — même fonctionnalité, mais l'ancien
+ * fichier n'est plus exécuté du tout (silencieusement, sans erreur). Constaté
+ * en testant le lot C : `/` répondait 200 sans redirection vers `/connexion`.
+ * Voir node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md.
+ *
+ * Mode démonstration : si aucun projet Supabase réel n'est configuré
+ * (`hasSupabaseConfig()` false — cas de cet environnement de développement),
+ * l'accès n'est pas bloqué : la démonstration doit fonctionner sans clé API
+ * (décision explicite du lot C). Dès qu'un vrai projet Supabase est
+ * configuré, la vérification d'authentification reprend automatiquement.
  */
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
+import { getSupabaseAnonKey, getSupabaseUrl, hasSupabaseConfig } from "@/lib/supabase/env";
 import { isPublicPath } from "@/lib/supabase/route-access";
 import type { Database } from "@/lib/supabase/types";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  if (!hasSupabaseConfig()) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(getSupabaseUrl(), getSupabaseAnonKey(), {
