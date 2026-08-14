@@ -15,7 +15,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { approveAsPrimaryAction, rejectAction } from "../actions";
-import { LOT_H_GROUP_LABELS, type LotHGroup, type LotHSubject } from "./subjects";
+import { LOT_H_GROUP_LABELS, type LotHGroup, type LotHSubject } from "./subjectTypes";
 import { runLotHGeneration, type LotHOutcome } from "./actions";
 
 type Status = "confirming" | "cancelled" | "calling" | "done" | "error";
