@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   getIngredientTagsForRecipe,
+  getRecipeBySlug,
+  getRecipeDetail,
   getRecipes,
   getRecipesByCategory,
   getRecipesBySource,
@@ -65,5 +67,64 @@ describe("toRecipeCardData", () => {
   it("n'affiche pas de catégorie pour une recette sans catégorie", () => {
     const pateSablee = getRecipes().find((r) => r.slug === "pate-sablee-cap")!;
     expect(toRecipeCardData(pateSablee).categoryName).toBeUndefined();
+  });
+});
+
+describe("getRecipeBySlug", () => {
+  it("retrouve une recette par son slug", () => {
+    expect(getRecipeBySlug("pate-sablee-cap")?.title).toBe("Pâte sablée (CAP)");
+  });
+
+  it("retourne undefined pour un slug inconnu", () => {
+    expect(getRecipeBySlug("inexistant")).toBeUndefined();
+  });
+});
+
+describe("getRecipeDetail", () => {
+  it("retourne undefined pour un slug inconnu", () => {
+    expect(getRecipeDetail("inexistant")).toBeUndefined();
+  });
+
+  it("assemble une fiche minimale (CAP) sans catégorie ni matière première clé", () => {
+    const detail = getRecipeDetail("pate-sablee-cap")!;
+    expect(detail.sourceName).toBe("CAP Pâtissier");
+    expect(detail.categoryName).toBeUndefined();
+    expect(detail.sections).toHaveLength(1);
+    expect(detail.sections[0].ingredients.map((i) => i.originalName)).toEqual([
+      "Farine T55",
+      "Beurre",
+      "Sucre glace",
+      "Œuf",
+      "Sel",
+    ]);
+    expect(detail.keyIngredients).toEqual([]);
+  });
+
+  it("assemble une fiche détaillée (Hennessy) avec catégorie, préparations ordonnées et matière première clé", () => {
+    const detail = getRecipeDetail("tarte-au-citron-hennessy")!;
+    expect(detail.categoryName).toBe("Desserts boutique");
+    expect(detail.sections.map((s) => s.name)).toEqual(["Pâte sablée", "Crème citron"]);
+    expect(detail.keyIngredients).toEqual([{ name: "Citron", slug: "citron" }]);
+  });
+
+  it("chaque « Crème pâtissière » (CAP/Hennessy) garde ses propres ingrédients, sans mélange", () => {
+    const cap = getRecipeDetail("creme-patissiere-cap")!;
+    const hennessy = getRecipeDetail("creme-patissiere-hennessy")!;
+
+    const capNames = cap.sections.flatMap((s) => s.ingredients.map((i) => i.originalName));
+    const hennessyNames = hennessy.sections.flatMap((s) => s.ingredients.map((i) => i.originalName));
+
+    expect(capNames).toEqual(["Lait", "Jaunes d'œufs", "Sucre", "Poudre à crème", "Vanille"]);
+    expect(hennessyNames).toEqual([
+      "Lait entier",
+      "Jaunes d'œufs",
+      "Sucre semoule",
+      "Poudre à crème",
+      "Gousse de vanille",
+    ]);
+    // Aucun id d'ingrédient partagé entre les deux préparations homonymes.
+    const capIds = new Set(cap.sections.flatMap((s) => s.ingredients.map((i) => i.id)));
+    const hennessyIds = hennessy.sections.flatMap((s) => s.ingredients.map((i) => i.id));
+    expect(hennessyIds.some((id) => capIds.has(id))).toBe(false);
   });
 });

@@ -4,12 +4,16 @@
  */
 
 import { canonicalIngredients, recipeIngredients, recipeSections, recipes, sourceCategories, sources } from "@/lib/demo/data";
-import type { Recipe } from "@/lib/domain/schemas";
+import type { Recipe, RecipeIngredient } from "@/lib/domain/schemas";
 import { getCategoryBySlug } from "@/lib/data/categories";
 import { getSourceBySlug } from "@/lib/data/sources";
 
 export function getRecipes(): Recipe[] {
   return recipes;
+}
+
+export function getRecipeBySlug(slug: string): Recipe | undefined {
+  return recipes.find((recipe) => recipe.slug === slug);
 }
 
 export function getRecipesBySource(sourceSlug: string): Recipe[] {
@@ -83,5 +87,86 @@ export function toRecipeCardData(recipe: Recipe): RecipeCardData {
     ingredientTags: getIngredientTagsForRecipe(recipe.id),
     imageUrl: recipe.photoUrl ?? undefined,
     href: `/recettes/${recipe.slug}`,
+  };
+}
+
+export interface RecipeSectionWithIngredients {
+  id: string;
+  name: string | null;
+  /** Ingrédients de la section, dans leur ordre `position` d'origine. */
+  ingredients: RecipeIngredient[];
+}
+
+export interface RecipeKeyIngredient {
+  name: string;
+  slug: string;
+}
+
+export interface RecipeDetail {
+  recipe: Recipe;
+  sourceName: string;
+  sourceSlug: string;
+  categoryName?: string;
+  categorySlug?: string;
+  /** Préparations dans leur ordre `position` d'origine, chacune avec ses
+   * propres ingrédients (CLAUDE.md, principe 7 : une préparation
+   * appartient à une recette précise, jamais globalisée entre entreprises). */
+  sections: RecipeSectionWithIngredients[];
+  /** Matières premières canoniques résolues pour cette recette,
+   * dédupliquées et dans l'ordre d'apparition — pour les liens vers
+   * `/matieres-premieres/[slug]`. Vide si aucun ingrédient n'est relié à une
+   * matière canonique. */
+  keyIngredients: RecipeKeyIngredient[];
+}
+
+/**
+ * Assemble la fiche recette complète (C5) : recette, source, catégorie
+ * locale (si présente), préparations ordonnées avec leurs ingrédients
+ * ordonnés, et matières premières clés. Ne construit aucune section vide —
+ * cette responsabilité reste dans la page, qui décide de rendre ou non
+ * chaque bloc selon ces données (CLAUDE.md, principe 2).
+ */
+export function getRecipeDetail(slug: string): RecipeDetail | undefined {
+  const recipe = getRecipeBySlug(slug);
+  if (!recipe) return undefined;
+
+  // Invariants garantis par le jeu de données démo (data.test.ts) : pas de
+  // repli défensif ici, voir `toRecipeCardData` ci-dessus pour le même choix.
+  const source = sources.find((candidate) => candidate.id === recipe.sourceId)!;
+  const category = recipe.sourceCategoryId
+    ? sourceCategories.find((candidate) => candidate.id === recipe.sourceCategoryId)
+    : undefined;
+
+  const sections = recipeSections
+    .filter((section) => section.recipeId === recipe.id)
+    .sort((a, b) => a.position - b.position)
+    .map((section) => ({
+      id: section.id,
+      name: section.name,
+      ingredients: recipeIngredients
+        .filter((ingredient) => ingredient.recipeSectionId === section.id)
+        .sort((a, b) => a.position - b.position),
+    }));
+
+  const canonicalById = new Map(canonicalIngredients.map((ingredient) => [ingredient.id, ingredient]));
+  const keyIngredients: RecipeKeyIngredient[] = [];
+  for (const section of sections) {
+    for (const ingredient of section.ingredients) {
+      if (!ingredient.canonicalIngredientId) continue;
+      const canonical = canonicalById.get(ingredient.canonicalIngredientId);
+      if (canonical && !keyIngredients.some((entry) => entry.slug === canonical.slug)) {
+        keyIngredients.push({ name: canonical.name, slug: canonical.slug });
+      }
+    }
+  }
+
+  return {
+    recipe,
+    sourceName: source.name,
+    sourceSlug: source.slug,
+    categoryName: category?.name,
+    categorySlug: category?.slug,
+    sections,
+    keyIngredients,
   };
 }
