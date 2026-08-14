@@ -34,11 +34,15 @@ describe("SiteHeader", () => {
     );
   });
 
-  it("le bouton Importer est visible mais désactivé, sans page /importer", () => {
+  it("le bouton Importer est visible et actif, il mène vers /importer (lot J2, ex-D1b)", () => {
     pathname = "/";
     render(<SiteHeader />);
-    const importButtons = screen.getAllByRole("button", { name: "Importer" });
-    importButtons.forEach((button) => expect(button).toBeDisabled());
+    const importLinks = screen.getAllByRole("link", { name: "Importer" });
+    expect(importLinks.length).toBeGreaterThan(0);
+    importLinks.forEach((link) => {
+      expect(link).toHaveAttribute("href", "/importer");
+      expect(within(link).getByRole("button", { name: "Importer" })).not.toBeDisabled();
+    });
   });
 
   it("le menu mobile s'ouvre et se ferme via le bouton hamburger", () => {
