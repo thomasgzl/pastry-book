@@ -10,7 +10,7 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| `src/app/(app)/recettes/[slug]/`, `src/lib/recipes/coefficient*` | `recipe-search-agent` | Lot C — batch 3 (C5, C6) | 2026-08-14 |
+| — | — | — | — |
 
 ## Lot A — Audit
 
@@ -52,8 +52,8 @@ Renumérotation 2026-08-14 pour correspondre exactement à la spécification dé
 | C2 | Page d'accueil (titre, sous-titre, recherche globale, 4 cartes égales, illustration démo, Importer secondaire) | C1 | Terminée | Aucun widget hors périmètre, 4 cartes poids visuel identique | page d'accueil |
 | C3 | Entreprises : `/entreprises`, `/entreprises/:entreprise`, `/entreprises/:entreprise/:categorie` | C1 | Terminée | Hennessy accessible uniquement depuis Entreprises, catégories propres à Hennessy absentes ailleurs, catégorie vide jamais affichée | pages Entreprises |
 | C4 | Répertoire des recettes `/recettes` (recherche titre, filtres, état sans résultat, conservation filtres au retour) | C1 | Terminée | Deux recettes homonymes distinguables par source, aucun champ hors périmètre (durée/difficulté/etc.) | page Recettes |
-| C5 | Fiche recette adaptative `/recettes/:id` | C3, C4 | À faire | CAP minimale sans bloc vide, Hennessy détaillée avec informations complémentaires, préparation jamais globalisée | fiche recette |
-| C6 | Coefficient multiplicateur (`× 0,5/1/1,5/2` + personnalisé) | C5 | À faire | `QS`/absent/`needs_review` jamais inventés, × 1 restitue l'original, calcul pur testé unitairement | logique + UI coefficient |
+| C5 | Fiche recette adaptative `/recettes/:id` | C3, C4 | Terminée | CAP minimale sans bloc vide, Hennessy détaillée avec informations complémentaires, préparation jamais globalisée — validé QA finale (checklist 15 points) | fiche recette |
+| C6 | Coefficient multiplicateur (`× 0,5/1/1,5/2` + personnalisé) | C5 | Terminée | `QS`/absent/`needs_review` jamais inventés, × 1 restitue l'original, calcul pur testé unitairement (17 cas) — validé QA finale | logique + UI coefficient |
 | C7 | Matières premières `/matieres-premieres` + fiche matière | C1 | Terminée | Alias citron (jus/zeste/purée) retrouvent Citron sans modifier les libellés source — validé QA | pages Matières premières |
 | C8 | Spécificités et allergènes `/specificites`, séparés | C1 | Terminée | `confirmed`/`proposed` visuellement distincts, aucune confirmation par absence d'ingrédient — validé QA | page Spécificités |
 | C9 | Recherche globale groupée (Entreprises/Recettes/Matières premières/Catégories) | C3, C4, C7 | Terminée | État vide/erreur, clavier, aucun appel IA, catégorie indique son entreprise parente — validé QA | recherche globale |
@@ -90,8 +90,9 @@ Propriétaire : `qa-integration-agent`
 
 ## Tâches prêtes
 
-Fondations techniques complètes (B1 à B10) terminées et validées le 2026-08-14 (dont QA sur B5/B8/B9/B10). En attente d'une nouvelle validation avant lancement :
+Lot C complet (C1 à C9) terminé et validé QA le 2026-08-14 (validation par tranche C1, puis C2/C3/C4/C7/C8/C9, puis validation finale complète sur les 9 tranches — 280 tests unitaires, tests e2e sur 5 profils, checklist de 15 points, tous PASS). En attente d'une nouvelle validation avant lancement :
 
-1. **Lot C** — Navigation métier (`recipe-search-agent`) : Entreprises, Hennessy imbriqué, catégories locales, recettes, fiche adaptative, coefficient, matières premières, spécificités/allergènes, recherche globale. Toutes les dépendances (schéma, auth, tokens, composants, données démo) sont `Terminée`.
+1. **Lot D** — Import (`ai-import-agent`), en commençant par l'import structuré sans IA (D1) avant l'extraction assistée (D3/D4).
+2. **Lot E** — Visuels IA (`ai-visuals-agent`), preset commun puis 5 exemples de référence avant tout lot.
 
-`ai-import-agent` et `ai-visuals-agent` restent non lancés (lot D/E, hors périmètre tant que le lot C n'est pas validé).
+`ai-import-agent` et `ai-visuals-agent` restent non lancés — attente explicite de validation utilisateur.
