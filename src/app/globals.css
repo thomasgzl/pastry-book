@@ -20,7 +20,12 @@
   --color-sauge: #828c6c; /* accent secondaire — ajusté, voir note ci-dessus */
   --color-laiton: #a68040; /* accent rare — ajusté, voir note ci-dessus */
   --color-grise: #d8cdbd; /* bordures */
-  --color-brunrouge: #8a4f45; /* erreur / à vérifier */
+  --color-brunrouge: #8a4f45; /* erreur / à vérifier — JAMAIS pour une légende ou un texte neutre */
+  /* légende/placeholder (lot J1) : ton neutre chaleureux distinct de
+     `--color-brunrouge` (réservé erreur/à vérifier) et du cacao de corps de
+     texte — utilisé pour les mentions discrètes « visuel à générer »,
+     « manquant », etc. */
+  --color-legende: #7a6a58;
 }
 
 @theme inline {

@@ -17,5 +17,5 @@
   <ellipse cx="880" cy="605" rx="12" ry="7" fill="#B38A45" opacity="0.4" />
 
   <rect x="1200" y="740" width="330" height="60" rx="6" fill="#FFFCF6" stroke="#D8CDBD" />
-  <text x="1215" y="778" font-family="sans-serif" font-size="26" fill="#3B291F" opacity="0.55">Visuel à générer — héro éditorial</text>
+  <text x="1215" y="778" font-family="sans-serif" font-size="26" fill="#7A6A58">Visuel à générer — héro éditorial</text>
 </svg>
