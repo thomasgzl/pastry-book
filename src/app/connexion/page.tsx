@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 
 const inputClassName =
   "min-h-11 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao placeholder:text-cacao/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
@@ -106,11 +107,11 @@ function ConnexionForm() {
 export default function ConnexionPage() {
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <div className="flex flex-col gap-1 text-center">
-        <h1 className="font-serif text-2xl font-semibold text-cacao">Connexion</h1>
-        <p className="text-sm text-cacao/70">
-          Accès réservé aux personnes autorisées.
-        </p>
+      <div className="flex flex-col items-center gap-2 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- emblème SVG statique, taille fixe (contrat CBV1). */}
+        <img src="/visuals/placeholders/emblem.svg" alt="" className="h-14 w-14" />
+        <EditorialTitle>Le Grand Livre de Pâtisserie</EditorialTitle>
+        <p className="text-sm text-cacao/70">Archive privée de recettes professionnelles</p>
       </div>
       {/* useSearchParams impose une frontière Suspense (App Router). */}
       <Suspense fallback={null}>

@@ -15,6 +15,11 @@
  * l'autre à partir de `lg` (tablette paysage/desktop) ; empilé en une seule
  * colonne en dessous, illustration masquée sous `sm` (mobile étroit) pour ne
  * jamais gêner la lecture.
+ *
+ * Tablette portrait (lot J3) : sous `lg`, l'illustration reste empilée mais
+ * sa largeur est plafonnée (`max-w-sm`/`max-w-md`) plutôt que de s'étirer
+ * sur toute la largeur du conteneur — un placeholder encore vide ne doit
+ * pas dominer visuellement la moitié de la hauteur utile de l'écran.
  */
 
 import { useState } from "react";
@@ -113,7 +118,7 @@ export default function HomePage() {
         <CulinaryFrame
           src="/visuals/placeholders/placeholder-hero.svg"
           ratio="16:9"
-          className="hidden sm:block"
+          className="mx-auto hidden w-full max-w-sm sm:block sm:max-w-md lg:max-w-none"
         />
       </section>
 
