@@ -49,17 +49,18 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-grise bg-ivoire/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
+          className="shrink-0 whitespace-nowrap rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
           onClick={() => setMenuOpen(false)}
         >
-          Le Grand Livre de Pâtisserie
+          <span className="sm:hidden">Grand Livre</span>
+          <span className="hidden sm:inline">Le Grand Livre de Pâtisserie</span>
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden md:block">
-          <ul className="flex items-center gap-1">
+          <ul className="flex items-center gap-2">
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               return (
@@ -67,8 +68,10 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 items-center rounded-lg px-3 text-base font-medium transition-colors hover:bg-avoine focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${
-                      active ? "text-olive" : "text-cacao"
+                    className={`inline-flex min-h-11 items-center rounded-lg px-4 text-[0.95rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${
+                      active
+                        ? "bg-avoine font-semibold text-olive"
+                        : "text-cacao hover:bg-avoine/60"
                     }`}
                   >
                     {item.label}
@@ -112,8 +115,8 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
-                    className={`flex min-h-11 items-center rounded-lg px-2 text-base font-medium ${
-                      active ? "text-olive" : "text-cacao"
+                    className={`flex min-h-11 items-center rounded-lg px-3 text-base font-medium ${
+                      active ? "bg-avoine font-semibold text-olive" : "text-cacao hover:bg-avoine/60"
                     }`}
                   >
                     {item.label}
