@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { AllergenBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { toRecipeCardData } from "@/lib/data/recipes";
@@ -44,12 +45,12 @@ export default async function AllergenePage({ params }: { params: Promise<{ alle
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{allergen.name}</h1>
+      <EditorialTitle>{allergen.name}</EditorialTitle>
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette avec cet allergène pour le moment." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map(({ recipe, status }) => (
             <div key={recipe.id} className="flex flex-col gap-2">
               <RecipeCard {...toRecipeCardData(recipe)} />

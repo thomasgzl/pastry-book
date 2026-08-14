@@ -14,6 +14,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -24,8 +25,8 @@ function ResultGroup({ title, items }: { title: string; items: { href: string; l
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="font-serif text-lg font-semibold text-cacao">{title}</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <EditorialTitle as="h2">{title}</EditorialTitle>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
           <Link
             key={item.href}
@@ -72,14 +73,14 @@ function RechercheContent() {
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Recherche" }]} />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">Recherche</h1>
+      <EditorialTitle>Recherche</EditorialTitle>
 
       <SearchInput
         value={q}
         onChange={updateQuery}
         label="Recherche globale"
         placeholder="Rechercher une recette, une entreprise, une matière première…"
-        className="w-full max-w-lg"
+        className="w-full max-w-lg sm:max-w-xl"
       />
 
       {hasError && <ErrorState message="La recherche a échoué. Merci de réessayer." />}

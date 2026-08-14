@@ -13,6 +13,7 @@ import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -53,14 +54,14 @@ function RecettesContent() {
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Recettes" }]} />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">Recettes</h1>
+      <EditorialTitle>Recettes</EditorialTitle>
 
       <SearchInput
         value={q}
         onChange={(value) => updateParams({ q: value })}
         label="Rechercher une recette par titre"
         placeholder="Rechercher une recette…"
-        className="w-full max-w-md"
+        className="w-full max-w-md sm:max-w-lg lg:max-w-xl"
       />
 
       {showSourceFilter && (
@@ -88,7 +89,7 @@ function RecettesContent() {
       {filteredRecipes.length === 0 ? (
         <EmptyState message="Aucune recette ne correspond à cette recherche." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRecipes.map((recipe) => (
             <RecipeCard key={recipe.id} {...toRecipeCardData(recipe)} />
           ))}

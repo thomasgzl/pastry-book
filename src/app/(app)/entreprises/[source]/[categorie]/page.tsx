@@ -4,6 +4,7 @@
 
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { getCategoryBySlug } from "@/lib/data/categories";
@@ -35,12 +36,12 @@ export default async function CategoriePage({
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{category.name}</h1>
+      <EditorialTitle>{category.name}</EditorialTitle>
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette pour cette catégorie pour le moment." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
             <RecipeCard key={recipe.href} {...recipe} />
           ))}

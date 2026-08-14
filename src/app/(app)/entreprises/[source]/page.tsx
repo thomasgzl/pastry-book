@@ -9,6 +9,7 @@
 
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { CategoryCard } from "@/components/cards/CategoryCard";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -38,14 +39,14 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{source.name}</h1>
+      <EditorialTitle>{source.name}</EditorialTitle>
 
       {categories.length === 0 && uncategorizedRecipes.length === 0 && (
         <EmptyState message="Aucune recette pour cette entreprise pour le moment." />
       )}
 
       {categories.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => (
             <CategoryCard
               key={category.id}
@@ -59,10 +60,8 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
 
       {uncategorizedRecipes.length > 0 && (
         <div className="flex flex-col gap-3">
-          {categories.length > 0 && (
-            <h2 className="font-serif text-lg font-semibold text-cacao">Autres recettes</h2>
-          )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {categories.length > 0 && <EditorialTitle as="h2">Autres recettes</EditorialTitle>}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {uncategorizedRecipes.map((recipe) => (
               <RecipeCard key={recipe.id} {...toRecipeCardData(recipe)} />
             ))}

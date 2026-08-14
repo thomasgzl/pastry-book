@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { getAllergens, getRecipesForAllergen, getRecipesForSpecificity, getSpecificities } from "@/lib/data/specificities";
 
 function EntryCard({ name, recipeCount, href }: { name: string; recipeCount: number; href: string }) {
@@ -29,12 +30,12 @@ export default function SpecificitesPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
         <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Spécificités" }]} />
-        <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">Spécificités et allergènes</h1>
+        <EditorialTitle>Spécificités et allergènes</EditorialTitle>
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-lg font-semibold text-cacao">Spécificités</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <EditorialTitle as="h2">Spécificités</EditorialTitle>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {specificities.map((specificity) => (
             <EntryCard
               key={specificity.id}
@@ -47,8 +48,8 @@ export default function SpecificitesPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-lg font-semibold text-cacao">Allergènes</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <EditorialTitle as="h2">Allergènes</EditorialTitle>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {allergens.map((allergen) => (
             <EntryCard
               key={allergen.id}

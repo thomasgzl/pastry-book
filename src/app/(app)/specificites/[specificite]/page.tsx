@@ -8,6 +8,7 @@
 
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SpecificityBadge } from "@/components/ui/StatusBadge";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -37,14 +38,14 @@ export default async function SpecificitePage({ params }: { params: Promise<{ sp
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{specificity.name}</h1>
+      <EditorialTitle>{specificity.name}</EditorialTitle>
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette pour cette spécificité pour le moment." />
       ) : (
         <>
           {confirmed.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {confirmed.map(({ recipe, status }) => (
                 <div key={recipe.id} className="flex flex-col gap-2">
                   <RecipeCard {...toRecipeCardData(recipe)} />
@@ -56,8 +57,8 @@ export default async function SpecificitePage({ params }: { params: Promise<{ sp
 
           {proposed.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h2 className="font-serif text-lg font-semibold text-cacao">Proposées, à vérifier</h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <EditorialTitle as="h2">Proposées, à vérifier</EditorialTitle>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {proposed.map(({ recipe, status }) => (
                   <div key={recipe.id} className="flex flex-col gap-2">
                     <RecipeCard {...toRecipeCardData(recipe)} />
