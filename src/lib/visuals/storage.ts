@@ -1,4 +1,5 @@
 import type { VisualAsset } from "@/lib/domain/schemas";
+import { DEMO_VISUAL_ASSETS } from "./fixtures/demo-examples";
 
 type SubjectType = VisualAsset["subjectType"];
 
@@ -10,8 +11,11 @@ type SubjectType = VisualAsset["subjectType"];
  * niveau : remplacer ces fonctions par de vraies requêtes sur la table
  * `visual_assets` (contrat déjà gelé, migration déjà écrite) sans changer
  * cette API — les appelants (`service.ts`, `actions.ts`) n'ont pas à changer.
+ *
+ * Amorcé avec les cinq exemples de référence (E4, mode démonstration
+ * uniquement) : jamais régénérés automatiquement, jamais écrasés par un lot.
  */
-let store: VisualAsset[] = [];
+let store: VisualAsset[] = [...DEMO_VISUAL_ASSETS];
 
 /** Réservé aux tests et à l'amorçage des exemples de démonstration (E4) — jamais appelé par l'UI. */
 export function seedVisualAssetsStore(initial: VisualAsset[]): void {
