@@ -10,7 +10,14 @@ Mis à jour par `project-orchestrator` à chaque changement de statut. Vide tant
 
 | Fichiers verrouillés | Agent | Tâche | Depuis |
 |---|---|---|---|
-| — | — | — | — |
+| `src/app/(app)/importer/**`, `src/lib/import/**`, `src/lib/ai/import/**` | `ai-import-agent` | Lot D (D1→D3) | 2026-08-14 |
+| `src/app/(app)/visuels/**`, `src/lib/visuals/**`, `src/lib/ai/visuals/**` | `ai-visuals-agent` | Lot E (E1→E4) | 2026-08-14 |
+
+Réservations à la demande (non encore actives, à inscrire au démarrage de la tâche) :
+
+- `src/components/layout/SiteHeader.tsx` → `frontend-design-agent` pour **D1b** uniquement (branchement du bouton Importer). À ne verrouiller qu'au démarrage de D1b, une fois la route `/importer` créée par D1.
+
+**Contrats gelés, lecture seule pour D et E :** `src/lib/domain/schemas.ts`, `src/lib/supabase/types.ts`, `supabase/migrations/*`. Ils contiennent déjà `import_batches`/`import_items`/`importItemSchema`, `visual_assets`/`visualAssetSchema` (prompt, presetVersion, createdAt, statut `draft`/`approved`/`rejected`, invariant `isPrimary`), et les statuts IA `proposed`/`confirmed`/`rejected`/`needs_review`. Aucun lot ne les modifie. Si D ou E découvre une lacune, il s'arrête et la signale à `project-orchestrator` : `data-security-agent` fera une passe unique consolidée sur le contrat concerné **avant** que D et E ne reprennent, pour éviter tout conflit d'écriture croisé.
 
 ## Lot A — Audit
 
@@ -73,26 +80,31 @@ Propriétaires : `frontend-design-agent` (implémentation), `ai-visuals-agent` (
 | CBF4 | Fiche recette éditoriale : header (titre/source/catégorie/fil d'Ariane réduit mobile), retrait de l'image de désert + visuel remplacé (ratio ~4:3 desktop/paysage, pleine largeur arrondie mobile/portrait, décor botanique léger), coefficient présentation seule, ingrédients plus lisibles | CBF1 | Terminée | Image de désert retirée (`RecipeSheet.tsx` et `RecipeCard.tsx`) ; « Coefficient » libellé visible, raccourcis+perso groupés, état actif clair, texte « les quantités ne changent jamais » conservé, AUCUNE modif logique ; quantités alignées droite chiffres tabulaires, « À vérifier » et « QS » inchangés ; largeur fiche plus étroite — validé QA finale | `src/app/(app)/recettes/[slug]/RecipeSheet.tsx`, `src/components/cards/RecipeCard.tsx` |
 | CBF5 | Largeurs et langage botanique transverses : max ~1180-1320px desktop (fiche plus étroite), tablette portrait/paysage optimisées spécifiquement, mobile 1col sans scroll horizontal, décor botanique fin masquable mobile jamais sous texte important | CBF2, CBF3, CBF4 | Terminée | Aucun défilement horizontal sur les 4 profils ; décor jamais sous texte long ; largeurs respectées ; tablette non traitée comme un desktop réduit — validé QA finale | `src/app/globals.css`, pages concernées |
 
-## Lot D — Import
+## Lot D — Import assisté
 
-Propriétaire : `ai-import-agent`
+Propriétaire : `ai-import-agent`. UI sur demande explicite : `frontend-design-agent`. Contrats/validation/stockage seulement : `data-security-agent`. Un seul checkpoint QA (niveau 2) en fin de lot.
 
-| ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
-|---|---|---|---|---|---|
-| D1 | Import structuré sans IA (upload, lot, saisie/correction manuelle) | B3, B4, B8 | À faire | Lot traité sans IA ni clé payante, import possible depuis fichiers et appareil photo téléphone/tablette, lot interrompu par coupure réseau reprend sans doublon | pipeline import manuel |
-| D2 | Écran de vérification (original + proposition) | D1 | À faire | Comparaison visuelle possible, validation recette par recette, utilisable sur tablette portrait et paysage | écran de vérification |
-| D3 | Extraction IA (texte local PDF/Word d'abord, IA pour structurer ; OCR/vision réservé aux scans/photos) derrière une interface indépendante du fournisseur (OpenAI en premier) | D1, D2 | À faire | Schéma strict, valeurs `null` si incertain, aucune invention, mode démonstration sans clé API | pipeline extraction |
-| D4 | Normalisation des ingrédients + détection allergènes/spécificités | D3 | À faire | Règles déterministes d'abord, IA pour ambigus, aucune trace déduite | normalisation, allergènes |
-
-## Lot E — Visuels IA
-
-Propriétaire : `ai-visuals-agent`
+Refonte 2026-08-14 : remplace l'ancien découpage D1–D4 par le périmètre validé (import manuel fonctionnel d'abord, abstraction IA en mode démonstration ensuite, aucun appel payant). L'ancien D4 (normalisation/allergènes/spécificités) est fusionné dans D3, qui l'inclut explicitement.
 
 | ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
 |---|---|---|---|---|---|
-| E1 | Preset versionné « Botanique éditorial » + interface serveur indépendante du fournisseur (OpenAI Images en premier) | B3 (table `visual_assets`) | À faire | Prompt stocké une seule fois, versionné, aucune génération automatique en masse | preset |
-| E2 | 5 exemples de référence (Citron, Pistache, une recette, une entreprise, une catégorie) | E1 | À faire | Cohérence visuelle validée manuellement avant tout lot | génération unitaire |
-| E3 | Génération en lot | E2 (validée par l'utilisateur) | À faire | Ignore les objets déjà approuvés, galerie de validation groupée | génération en lot |
+| D1 | Parcours d'import manuel fonctionnel (assistant). Bouton Importer → choisir entreprise/source → choisir ou créer une catégorie locale à cette entreprise → ajouter un ou plusieurs fichiers (image, capture, PDF, DOCX, texte collé) → afficher les informations reconnues → correction manuelle → écran de vérification (original + proposition, champs incertains mis en évidence) → **enregistrement uniquement après confirmation humaine**. | B3, B4, B8 | Prête | Aucune sauvegarde auto avant validation ; formulaire pleinement utilisable **sans fournisseur IA** (aucune dépendance dure à une clé API) ; catégorie propre à l'entreprise choisie, jamais globalisée ; création contrôlée d'une nouvelle catégorie locale ; import possible depuis fichiers et appareil photo tablette/téléphone ; validation recette par recette ; utilisable clavier virtuel ouvert, tablette portrait et paysage, sans défilement horizontal ; états chargement/erreur/aucun résultat présents | `src/app/(app)/importer/**`, `src/lib/import/**` (hors `schema.ts` géré en D2) |
+| D1b | Branchement du bouton « Importer » du shell vers la route `/importer` (retrait de l'état désactivé). **Micro-tâche `frontend-design-agent`**, sur demande explicite de `ai-import-agent`, une fois `/importer` créée. | D1 | Bloquée | Bouton actif aux deux formats (mobile/desktop), cible ≥ 44×44 px, aucune régression du header, aucune modification de logique métier | `src/components/layout/SiteHeader.tsx` |
+| D2 | Modèle d'import + validation stricte (Zod, spécifique à l'import, concrétise `proposedRecipe` laissé `unknown` dans le contrat gelé — **ne modifie pas `src/lib/domain/schemas.ts`**). Champs conditionnels : titre, source/entreprise, catégorie locale facultative, préparations, ingrédients, quantité originale, unité originale, procédé/température/informations complémentaires/spécificités/allergènes facultatifs, image d'origine. | D1 | Prête | Aucune information inventée ; quantité illisible → `null` + `À vérifier` ; `QS` conservé tel quel ; libellé original de l'ingrédient conservé ; ingrédient canonique **proposé séparément**, jamais fusionné dans la donnée source ; préparation attachée à sa recette, jamais globalisée (principe 7) ; aucune section vide affichée ; import idempotent ou détection claire de doublon | `src/lib/import/schema.ts`, `src/lib/import/model.ts`, tests colocalisés |
+| D3 | Abstraction serveur IA d'import **indépendante du fournisseur** (port + adaptateur), couvrant OCR, extraction structurée, normalisation des ingrédients, proposition d'allergènes, proposition de spécificités (OpenAI = premier fournisseur cible). **Aucun appel payant : mode démonstration déterministe uniquement.** Ne pas traiter les 600 recettes : créer **3 exemples démo contrôlés** — (a) recette CAP ingrédients seuls, (b) recette Hennessy détaillée, (c) capture avec quantité illisible. | D1, D2 | À faire | Chaque résultat IA porte un état `proposed`/`confirmed`/`rejected`/`needs_review` — jamais certain automatiquement ; texte local PDF/DOCX d'abord, OCR/vision réservé scans/photos/captures ; l'exemple (c) produit `null` + `À vérifier`, **jamais une valeur inventée** ; règles déterministes d'abord pour allergènes/spécificités, IA pour les ambigus, aucune trace ni contamination déduite ; aucun secret côté client ; le code métier n'appelle jamais le SDK du fournisseur directement | `src/lib/ai/import/**` (port, adaptateur démo, fixtures des 3 exemples) |
+
+## Lot E — Illustrations IA
+
+Propriétaire : `ai-visuals-agent`. UI sur demande explicite : `frontend-design-agent`. Contrats/stockage seulement : `data-security-agent`. Un seul checkpoint QA (niveau 2) en fin de lot.
+
+Refonte 2026-08-14 : remplace l'ancien découpage E1–E3 par le périmètre validé (preset versionné, infrastructure interchangeable, quatre usages + galerie de validation, 5 exemples en mode démonstration, aucune génération en masse ni appel payant sans autorisation explicite).
+
+| ID | Tâche | Dépendances | Statut | Critères de validation | Fichiers concernés |
+|---|---|---|---|---|---|
+| E2 | Preset visuel unique « Botanique éditorial — v1 », **versionné** (constante de données). Direction : illustration culinaire fine, encre olive, aquarelle très légère, fond ivoire/transparent, composition aérée, cohérent Bodoni Moda/Karla/cacao/olive/sauge. Exclusions : aucun texte intégré, aucun logo inventé, aucune personne, pas de photoréalisme, pas de rose/terracotta, pas de végétation excessive. | B6 (design system) | Terminée | Preset stocké une seule fois, identifié par version (`v1`) ; exclusions explicites présentes ; aucune génération, aucun appel IA — 10 tests unitaires | `src/lib/visuals/preset.ts` |
+| E1 | Infrastructure : fournisseur d'images **interchangeable** (port + adaptateur), mode démonstration **sans clé**, appel serveur uniquement, **aucun secret côté client**. Stockage via le contrat gelé `visual_assets` : image + prompt + version du preset + date de génération + statut `draft`/`approved`/`rejected`. | E2, B3 (table `visual_assets`) | Prête | **Ne remplace jamais automatiquement un visuel déjà `approved`** ; consomme le preset E2 ; le code métier n'appelle jamais le SDK du fournisseur directement ; aucune clé consommée en mode démo ; date de génération et prompt persistés | `src/lib/ai/visuals/**`, `src/lib/visuals/provider.ts`, `src/lib/visuals/storage.ts`, tests colocalisés |
+| E3 | Quatre types d'illustrations (matière première, recette, entreprise, catégorie d'entreprise) + **galerie de validation**. Fonctions : génération individuelle, régénération d'un brouillon, validation ou rejet, génération **uniquement pour les visuels manquants**, prévention des générations accidentelles en masse (confirmation explicite requise avant tout lot). | E1 | À faire | Cycle `draft`/`approved`/`rejected` complet et visible ; un visuel `approved` jamais écrasé par régénération ; aucun lot déclenché sans confirmation explicite ; galerie utilisable tablette portrait/paysage sans scroll horizontal ; UI via `frontend-design-agent` sur demande explicite | `src/app/(app)/visuels/**`, logique dans `src/lib/visuals/**` |
+| E4 | **5 exemples maximum, mode démonstration UNIQUEMENT** : Citron, Pistache, Tarte au citron, ambiance Hennessy (sans logo reproduit), catégorie « Recettes de base ». Passerelle coût : avant tout appel payant réel, afficher fournisseur, modèle, nombre exact d'images, estimation de coût si disponible, et **attendre l'autorisation explicite de l'utilisateur**. | E2, E3 | À faire | Sans autorisation utilisateur : aucun appel réel, aucune clé consommée ; les 5 exemples cohérents avec le preset v1 ; ambiance Hennessy sans logo reproduit ; validation manuelle avant toute publication | `src/lib/visuals/fixtures/**` (5 exemples démo) |
 
 ## Lot F — Validation
 
@@ -105,9 +117,17 @@ Propriétaire : `qa-integration-agent`
 
 ## Tâches prêtes
 
-Lot C complet (C1 à C9) terminé et validé QA le 2026-08-14 (validation par tranche C1, puis C2/C3/C4/C7/C8/C9, puis validation finale complète sur les 9 tranches — 280 tests unitaires, tests e2e sur 5 profils, checklist de 15 points, tous PASS). En attente d'une nouvelle validation avant lancement :
+Lot C / C-bis terminés et validés (C-bis validé définitivement par l'utilisateur le 2026-08-14). **Lots D et E lancés en parallèle** (territoires de fichiers disjoints, verrous inscrits au ledger). Mode économie de tokens permanent (niveaux 1/2, §9 du protocole).
 
-1. **Lot D** — Import (`ai-import-agent`), en commençant par l'import structuré sans IA (D1) avant l'extraction assistée (D3/D4).
-2. **Lot E** — Visuels IA (`ai-visuals-agent`), preset commun puis 5 exemples de référence avant tout lot.
+Tâches immédiatement `Prête` :
 
-`ai-import-agent` et `ai-visuals-agent` restent non lancés — attente explicite de validation utilisateur.
+1. **D1** — Parcours d'import manuel fonctionnel (`ai-import-agent`). Puis **D2** (modèle + validation stricte, `Prête` en parallèle car fichiers disjoints de D1) ; **D3** débloquée après D1+D2 ; **D1b** (frontend) débloquée après création de `/importer`.
+2. **E2** — Preset « Botanique éditorial — v1 » (`ai-visuals-agent`). Puis **E1** (infra fournisseur) après E2 ; **E3** après E1 ; **E4** après E2+E3.
+
+Garde-fous de cette phase :
+
+- Aucune modification des fonctionnalités validées du lot C (recherche, coefficient, fiche recette, données démo, contrats).
+- Aucun appel IA payant (D et E) sans autorisation explicite de l'utilisateur ; passerelle coût obligatoire avant tout appel réel (E4), et avant le passage import manuel → import assisté (protocole §8).
+- Contrats `src/lib/domain/schemas.ts` / `src/lib/supabase/types.ts` gelés : toute lacune passe par `data-security-agent` en passe unique avant reprise.
+- Un seul checkpoint QA niveau 2 par lot (D et E), périmètre annoncé à l'avance.
+- Hygiène serveur : un seul `next dev` actif avant toute capture, captures nommées lot + date, aucune galerie réutilisée d'une session précédente.
