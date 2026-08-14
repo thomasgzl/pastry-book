@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recipeIngredientSchema } from "./schemas";
+import { importItemSchema, recipeIngredientSchema } from "./schemas";
 import { err, ok } from "./errors";
 
 describe("recipeIngredientSchema", () => {
@@ -38,6 +38,28 @@ describe("recipeIngredientSchema", () => {
       quantityDecimal: "beaucoup",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("importItemSchema", () => {
+  const base = {
+    id: "b3b6b1d0-0000-4000-8000-000000000002",
+    importBatchId: "b3b6b1d0-0000-4000-8000-000000000003",
+    status: "done" as const,
+    rawExtraction: null,
+    proposedRecipe: null,
+    errors: [],
+    recipeId: null,
+  };
+
+  it("accepte sourceFileUrl null (saisie manuelle sans fichier) — jamais d'URL fictive requise", () => {
+    const result = importItemSchema.safeParse({ ...base, sourceFileUrl: null, sourceFileName: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepte sourceFileUrl absent", () => {
+    const result = importItemSchema.safeParse(base);
+    expect(result.success).toBe(true);
   });
 });
 

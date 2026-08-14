@@ -9,14 +9,10 @@
  * (`src/lib/domain/schemas.ts`). À remplacer par de vraies écritures
  * Supabase quand ce câblage existera (hors périmètre D1-D3).
  *
- * Lacune de contrat identifiée (à signaler à `data-security-agent`) :
- * `importItemSchema.sourceFileUrl` est un `z.url()` obligatoire, mais D1
- * autorise explicitement la saisie manuelle sans aucun fichier (« saisie
- * manuelle pour les exceptions », docs/05-AI_IMPORT.md). En l'absence de
- * service de stockage câblé, on utilise un repère `about:blank#…` — une URL
- * valide au sens strict, mais qui ne pointe vers aucun document réel. Le
- * jour où le stockage réel existera, `sourceFileUrl` devrait sans doute
- * devenir nullable pour les imports sans fichier.
+ * `sourceFileUrl` reste `null` tant qu'aucun fichier n'a été réellement
+ * enregistré (persistance pas encore câblée) — cas normal pour la saisie
+ * manuelle sans fichier. `sourceFileName` porte le nom du fichier local
+ * choisi par la personne, le cas échéant (voir `src/lib/domain/schemas.ts`).
  */
 
 import { getCategoriesForSource } from "@/lib/data/categories";
@@ -98,10 +94,9 @@ function uniqueSlug(title: string): string {
   return `${base}-${suffix}`;
 }
 
-/** URL de repère pour `sourceFileUrl` (voir la lacune de contrat documentée en tête de fichier) — jamais présentée comme un vrai document accessible. */
-function sourceFileUrlFor(draft: ImportRecipeDraft): string {
-  const file = draft.originalFiles[0];
-  return file ? `about:blank#fichier=${encodeURIComponent(file.name)}` : "about:blank#saisie-manuelle";
+/** Nom du fichier local choisi, le cas échéant — aucun fichier n'étant réellement stocké, jamais une URL. */
+function sourceFileNameFor(draft: ImportRecipeDraft): string | null {
+  return draft.originalFiles[0]?.name ?? null;
 }
 
 function findItemForDraftId(draftId: string): ImportItem | undefined {
@@ -192,7 +187,8 @@ export function saveImportRecipe(params: {
   const item: ImportItem = {
     id: crypto.randomUUID(),
     importBatchId: batchId,
-    sourceFileUrl: sourceFileUrlFor(draft),
+    sourceFileUrl: null,
+    sourceFileName: sourceFileNameFor(draft),
     status: "done",
     rawExtraction,
     proposedRecipe: draft,

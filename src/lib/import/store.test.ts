@@ -79,6 +79,21 @@ describe("saveImportRecipe", () => {
     }
   });
 
+  it("texte collé sans fichier : sourceFileUrl reste null, jamais une URL fictive", () => {
+    const batch = createImportBatch();
+    const result = saveImportRecipe({
+      batchId: batch.id,
+      draft: draft({ pastedText: "Farine 200g...", originalFiles: [] }),
+      rawExtraction: null,
+      providerName: "manual",
+    });
+    expect(result.status).toBe("saved");
+    if (result.status === "saved") {
+      expect(result.item.sourceFileUrl).toBeNull();
+      expect(result.item.sourceFileName).toBeNull();
+    }
+  });
+
   it("signale un doublon (même titre + même source) sans enregistrer, tant qu'il n'est pas explicitement reconnu", () => {
     const batch = createImportBatch();
     saveImportRecipe({ batchId: batch.id, draft: draft({ id: "draft-1" }), rawExtraction: null, providerName: "manual" });
