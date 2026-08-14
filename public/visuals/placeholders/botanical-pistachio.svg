@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img">
+  <title>Pistache — étude botanique temporaire (à remplacer par le visuel IA validé)</title>
+  <rect x="8" y="8" width="184" height="184" rx="14" stroke="#556043" stroke-width="1" stroke-dasharray="6 6" opacity="0.3" />
+  <path d="M78 70 C60 90 60 120 78 138 C88 148 112 148 122 138 C104 130 96 110 96 90 C96 78 88 70 78 70 Z" stroke="#556043" stroke-width="2" fill="#FFFCF6" opacity="0.8" />
+  <path d="M122 70 C140 90 140 120 122 138 C112 148 100 138 96 122 C112 118 122 100 122 70 Z" stroke="#556043" stroke-width="2" fill="#8C9774" opacity="0.35" />
+  <path d="M100 68 L106 54" stroke="#556043" stroke-width="1.8" stroke-linecap="round" />
+  <ellipse cx="108" cy="50" rx="10" ry="6" transform="rotate(-25 108 50)" fill="#8C9774" opacity="0.3" />
+</svg>

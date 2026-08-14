@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none" role="img">
+  <title>Emplacement héro temporaire — illustration éditoriale culinaire/botanique à générer avec le preset « Botanique éditorial »</title>
+  <rect width="1600" height="900" fill="#F7F3EA" />
+  <rect x="1" y="1" width="1598" height="898" stroke="#D8CDBD" stroke-width="2" />
+  <rect x="60" y="60" width="1480" height="780" stroke="#556043" stroke-width="1.5" stroke-dasharray="10 10" opacity="0.3" />
+
+  <!-- branche botanique centrale, esquisse schématique -->
+  <path d="M420 700 C520 560 560 420 760 300" stroke="#556043" stroke-width="3" stroke-linecap="round" fill="none" />
+  <path d="M760 300 C820 260 900 250 960 200" stroke="#556043" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <ellipse cx="960" cy="200" rx="26" ry="14" transform="rotate(-25 960 200)" fill="#8C9774" opacity="0.35" />
+  <ellipse cx="600" cy="470" rx="22" ry="12" transform="rotate(-40 600 470)" fill="#8C9774" opacity="0.3" />
+  <ellipse cx="680" cy="380" rx="20" ry="11" transform="rotate(-35 680 380)" fill="#8C9774" opacity="0.28" />
+
+  <!-- silhouette pâtisserie schématique -->
+  <path d="M760 700 C760 640 820 610 880 610 C940 610 1000 640 1000 700 L1000 720 L760 720 Z" stroke="#556043" stroke-width="2.5" fill="#FFFCF6" opacity="0.6" />
+  <path d="M780 610 C800 560 960 560 980 610" stroke="#556043" stroke-width="2" fill="none" opacity="0.8" />
+  <ellipse cx="880" cy="605" rx="12" ry="7" fill="#B38A45" opacity="0.4" />
+
+  <rect x="1200" y="740" width="330" height="60" rx="6" fill="#FFFCF6" stroke="#D8CDBD" />
+  <text x="1215" y="778" font-family="sans-serif" font-size="26" fill="#3B291F" opacity="0.55">Visuel à générer — héro éditorial</text>
+</svg>

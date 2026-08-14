@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" fill="none" role="img">
+  <title>Ornement décoratif temporaire — branche botanique fine, réutilisable en bordure (peut être pivotée/reflétée en CSS)</title>
+  <path d="M10 190 C90 170 150 140 190 100 C230 60 290 40 390 10" stroke="#556043" stroke-width="2" stroke-linecap="round" fill="none" />
+  <ellipse cx="130" cy="150" rx="20" ry="10" transform="rotate(-25 130 150)" fill="#8C9774" opacity="0.3" />
+  <ellipse cx="210" cy="88" rx="18" ry="9" transform="rotate(-30 210 88)" fill="#8C9774" opacity="0.3" />
+  <ellipse cx="290" cy="52" rx="16" ry="8" transform="rotate(-22 290 52)" fill="#8C9774" opacity="0.28" />
+  <ellipse cx="350" cy="24" rx="14" ry="7" transform="rotate(-18 350 24)" fill="#8C9774" opacity="0.25" />
+</svg>

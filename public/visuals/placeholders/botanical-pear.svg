@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img">
+  <title>Poire — étude botanique temporaire (à remplacer par le visuel IA validé)</title>
+  <rect x="8" y="8" width="184" height="184" rx="14" stroke="#556043" stroke-width="1" stroke-dasharray="6 6" opacity="0.3" />
+  <path d="M100 60 C86 64 82 78 86 90 C68 100 60 122 66 140 C72 158 128 158 134 140 C140 122 132 100 114 90 C118 78 114 64 100 60 Z" stroke="#556043" stroke-width="2.2" fill="#8C9774" opacity="0.25" />
+  <path d="M100 60 L102 42" stroke="#556043" stroke-width="2" stroke-linecap="round" />
+  <path d="M102 42 C110 36 118 40 122 32" stroke="#556043" stroke-width="1.6" stroke-linecap="round" fill="none" />
+  <ellipse cx="122" cy="32" rx="10" ry="6" transform="rotate(-30 122 32)" fill="#8C9774" opacity="0.35" />
+</svg>
