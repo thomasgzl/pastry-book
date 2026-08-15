@@ -59,4 +59,41 @@ describe("preset Botanique éditorial (E2)", () => {
     expect(PRESET_EXCLUSIONS.join(" ")).toMatch(/logo/);
     expect(PRESET_EXCLUSIONS.join(" ")).toMatch(/photoréalisme/);
   });
+
+  it("liste les exclusions graphiques impératives complètes (K7)", () => {
+    const joined = PRESET_EXCLUSIONS.join(" ");
+    for (const pattern of [/main/, /marque/, /vaisselle/, /ombre lourde/, /cadre/, /terracotta/, /rose/, /décor/]) {
+      expect(joined).toMatch(pattern);
+    }
+  });
+
+  it("sous-preset matière première : petite échelle, pas d'ingrédient voisin inventé (K7)", () => {
+    const prompt = buildVisualPrompt({ kind: "ingredient", subjectLabel: "Vanille" });
+    expect(prompt).toContain("petite échelle");
+    expect(prompt).toContain("jamais un ingrédient voisin ou une variante absente inventée");
+  });
+
+  it("sous-preset recette : jamais présentée comme photo contractuelle (K7)", () => {
+    const prompt = buildVisualPrompt({ kind: "recipe", subjectLabel: "Tarte au citron", recipeMode: "description" });
+    expect(prompt).toContain("jamais une photo contractuelle exacte de la composition du dessert réel");
+  });
+
+  it("sous-preset recette : exploite préparations/ingrédients validés/infos complémentaires réels (K6→K7), sans rien inventer si absents", () => {
+    const withData = buildVisualPrompt({
+      kind: "recipe",
+      subjectLabel: "Riz au lait Vanille Caramel",
+      recipeMode: "description",
+      preparationNames: ["Riz au lait", "Caramel", "Opaline"],
+      validatedKeyIngredientNames: ["Vanille", "Lait"],
+      additionalInformation: "Servi bien frais.",
+    });
+    expect(withData).toContain("Riz au lait, Caramel, Opaline");
+    expect(withData).toContain("Vanille, Lait");
+    expect(withData).toContain("Servi bien frais.");
+
+    const withoutData = buildVisualPrompt({ kind: "recipe", subjectLabel: "Tarte au citron", recipeMode: "description" });
+    expect(withoutData).not.toContain("Préparations réellement présentes");
+    expect(withoutData).not.toContain("Matières premières validées");
+    expect(withoutData).not.toContain("information complémentaire réelle");
+  });
 });

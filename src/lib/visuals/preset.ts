@@ -28,9 +28,14 @@ export const PRESET_EXCLUSIONS = [
   "aucun texte intégré à l'image",
   "aucune lettre ni logo inventé",
   "aucune personne représentée",
+  "aucune main représentée",
   "pas de photoréalisme",
   "pas de rose ni de terracotta",
   "pas de décor encombré ni de végétation excessive",
+  "aucune marque ni packaging identifiable",
+  "aucune vaisselle inutile",
+  "aucune ombre lourde",
+  "aucun cadre dessiné dans l'image",
   "aucun filigrane",
 ] as const;
 
@@ -47,12 +52,13 @@ const FRAMING: Record<VisualSubjectKind, SubjectFraming> = {
     ratio: "1:1",
     background: "transparent",
     instruction:
-      "Étude botanique isolée de {subject} : la plante, le fruit ou la graine entière, et une coupe discrète si pertinent. Aucun ustensile, aucun décor de table.",
+      "Étude botanique isolée de {subject} : la plante, le fruit, la graine, la cabosse ou la gousse entière selon la matière, et une coupe discrète si pertinent. Composition propre à petite échelle, cadrée comme une vignette de carte. Quelques éléments secondaires (feuille, fleur, écorce) tolérés uniquement s'ils facilitent la reconnaissance de {subject} ; jamais un ingrédient voisin ou une variante absente inventée. Aucun ustensile, aucun décor de table.",
   },
   recipe: {
     ratio: "4:3",
     background: "ivoire",
-    instruction: "Illustration de la réalisation « {subject} », sujet centré, marge d'environ 8 %.",
+    instruction:
+      "Illustration pâtissière éditoriale de la réalisation « {subject} », sujet centré, marge d'environ 8 %. Composition crédible construite uniquement à partir des informations réellement présentes ; cette illustration est une interprétation éditoriale, jamais une photo contractuelle exacte de la composition du dessert réel.",
   },
   source: {
     ratio: "16:9",
@@ -86,6 +92,12 @@ export interface BuildVisualPromptInput {
   categorySlug?: string;
   /** Recette uniquement : photo fournie (préserver la réalisation) ou description seule. */
   recipeMode?: RecipeVisualMode;
+  /** Recette uniquement (K7, données `VisualSubject` de K6) : titres de préparation réellement présents. */
+  preparationNames?: string[];
+  /** Recette uniquement (K7, données `VisualSubject` de K6) : matières premières canoniques dont un ingrédient source est validé (`confirmed`) — jamais les propositions non validées. */
+  validatedKeyIngredientNames?: string[];
+  /** Recette uniquement (K7, données `VisualSubject` de K6) : information complémentaire réellement saisie, `null`/absente si aucune — jamais inventée. */
+  additionalInformation?: string | null;
 }
 
 /**
@@ -107,6 +119,20 @@ export function buildVisualPrompt(input: BuildVisualPromptInput): string {
       input.recipeMode === "photo"
         ? " S'appuyer sur la photo fournie : préserver la forme, le montage et les volumes de la réalisation, sans inventer de décor absent."
         : " Représenter uniquement les éléments décrits ; ne pas inventer de décoration complexe absente de la description.";
+
+    const preparations = input.preparationNames?.filter((name) => name.trim().length > 0) ?? [];
+    if (preparations.length > 0) {
+      instruction += ` Préparations réellement présentes dans la recette, à évoquer si visuellement pertinent : ${preparations.join(", ")}.`;
+    }
+
+    const keyIngredients = input.validatedKeyIngredientNames?.filter((name) => name.trim().length > 0) ?? [];
+    if (keyIngredients.length > 0) {
+      instruction += ` Matières premières validées à représenter fidèlement si elles apparaissent naturellement : ${keyIngredients.join(", ")}. Aucune autre matière première ne doit être suggérée.`;
+    }
+
+    if (input.additionalInformation?.trim()) {
+      instruction += ` Tenir compte de cette information complémentaire réelle sans en inventer d'autre : « ${input.additionalInformation.trim()} ».`;
+    }
   }
 
   const formatLine = `Format : ratio ${framing.ratio}, fond ${framing.background === "ivoire" ? "ivoire" : "transparent"}.`;
