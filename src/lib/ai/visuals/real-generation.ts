@@ -4,7 +4,12 @@ import { beginAiRequest, completeAiRequest } from "@/lib/domain/aiCostGuard";
 import type { VisualAsset } from "@/lib/domain/schemas";
 import { buildVisualPrompt, getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
 import type { RecipeVisualMode, VisualBackground, VisualRatio, VisualSubjectKind } from "@/lib/visuals/preset";
-import { createDraftVisualAsset, getPrimaryVisualAsset } from "@/lib/visuals/storage";
+import {
+  getPrimaryVisualAsset,
+  persistGeneratedVisual,
+  VisualAssetPersistenceError,
+  VisualGenerationValidationError,
+} from "@/lib/visuals/storage";
 import { RealImageGenerationError, type ImageQuality } from "./openai-provider";
 import { getRealVisualsProvider } from "./registry";
 
@@ -97,10 +102,13 @@ export async function generateRealVisualDraft(
     const background = input.backgroundOverride ?? framing.background;
     const generated = await provider.generate({ prompt, ratio, background });
 
-    const asset = await createDraftVisualAsset({
+    // Persistance (K10) : n'annonce un succès qu'après validation + stockage
+    // Storage + écriture base réellement confirmés — jamais avant (voir
+    // `persistGeneratedVisual`, mécanisme partagé avec le mode démonstration).
+    const asset = await persistGeneratedVisual({
       subjectType: input.subjectType,
       subjectId: input.subjectId,
-      imageUrl: generated.imageUrl,
+      generatedImageUrl: generated.imageUrl,
       sourcePhotoUrl: input.sourcePhotoUrl ?? null,
       prompt,
       presetVersion: VISUAL_PRESET_VERSION,
@@ -108,7 +116,11 @@ export async function generateRealVisualDraft(
     return ok(asset);
   } catch (cause) {
     // Message classifié (correction lot G, diagnostic pilote Citron) si disponible — jamais la clé, jamais le corps brut de la réponse fournisseur, jamais un « 500 » générique quand la cause est connue.
-    if (cause instanceof RealImageGenerationError) {
+    if (
+      cause instanceof RealImageGenerationError ||
+      cause instanceof VisualGenerationValidationError ||
+      cause instanceof VisualAssetPersistenceError
+    ) {
       return err("unknown", cause.message, cause);
     }
     return err("unknown", "Échec de la génération réelle — voir journal serveur.", cause);

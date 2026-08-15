@@ -162,6 +162,139 @@ export async function createDraftVisualAsset(input: CreateDraftInput): Promise<V
   return fromRow(data);
 }
 
+/** Bucket privé confirmé par K-S1 (`20260814090300_storage_buckets.sql`) — `public = false`, PNG/WebP uniquement. */
+export const VISUAL_ASSETS_BUCKET = "visual-assets";
+
+/** Reflet en lecture seule des `allowed_mime_types` du bucket ci-dessus — la migration reste la seule source de vérité, jamais redéfinie ici. */
+const BUCKET_EXTENSION_BY_MIME: Record<string, string> = {
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** Échec de validation du fichier reçu du fournisseur (K10, étape 1) — distinct d'un échec de stockage : aucun octet n'a encore été écrit nulle part, aucun nettoyage nécessaire. */
+export class VisualGenerationValidationError extends Error {}
+
+const DATA_URI_PATTERN = /^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=]+)$/;
+
+/**
+ * Valide le fichier réellement reçu du fournisseur (K10, étape 1) : doit être
+ * une data URI base64 bien formée, de type image, dont le contenu décodé est
+ * non vide. Le type MIME est celui déclaré par la data URI du fournisseur —
+ * pas de vérification de signature binaire des octets décodés.
+ * ponytail: fournisseur unique et contrôlé (OpenAI/démo interne, jamais une
+ * entrée tierce non fiable) ; ajouter un sniff de signature si une source
+ * moins fiable est branchée un jour.
+ */
+function decodeGeneratedImage(dataUri: string): { mimeType: string; bytes: Buffer } {
+  const match = DATA_URI_PATTERN.exec(dataUri.trim());
+  if (!match) {
+    throw new VisualGenerationValidationError("Réponse du fournisseur invalide : aucune image reconnue dans la réponse.");
+  }
+  const [, mimeType, base64] = match;
+  if (!mimeType.startsWith("image/")) {
+    throw new VisualGenerationValidationError(`Réponse du fournisseur invalide : type "${mimeType}" n'est pas une image.`);
+  }
+  const bytes = Buffer.from(base64, "base64");
+  if (bytes.length === 0) {
+    throw new VisualGenerationValidationError("Réponse du fournisseur invalide : image vide.");
+  }
+  return { mimeType, bytes };
+}
+
+function visualAssetStoragePath(subjectType: SubjectType, subjectId: string, mimeType: string): string {
+  return `${toDbSubjectType(subjectType)}/${subjectId}/${crypto.randomUUID()}.${BUCKET_EXTENSION_BY_MIME[mimeType]}`;
+}
+
+/**
+ * Journal structuré, jamais silencieux, jamais de contenu sensible (ni le
+ * prompt, ni les octets) — juste de quoi retrouver et traiter l'incident :
+ * bucket, chemin, sujet, message d'erreur base, résultat du nettoyage tenté.
+ */
+function logVisualAssetOrphanIncident(
+  path: string,
+  subjectType: SubjectType,
+  subjectId: string,
+  dbErrorMessage: string,
+  cleanup: "removed" | "cleanup_failed",
+): void {
+  console.warn(
+    cleanup === "removed"
+      ? "[visuals] écriture base échouée après stockage réussi d'une image générée — fichier nettoyé avec succès, aucune image orpheline restante"
+      : "[visuals] écriture base échouée après stockage réussi d'une image générée — ÉCHEC DU NETTOYAGE, fichier potentiellement orphelin (image possiblement payante), à vérifier/supprimer manuellement",
+    { bucket: VISUAL_ASSETS_BUCKET, path, subjectType, subjectId, dbErrorMessage, cleanup },
+  );
+}
+
+export type PersistGeneratedVisualInput = Omit<CreateDraftInput, "imageUrl"> & {
+  /** Data URI brute renvoyée par `ImageGenerationProvider.generate()` (démo ou réelle) — jamais une URL déjà stockée. */
+  generatedImageUrl: string;
+};
+
+/**
+ * Mécanisme UNIQUE de persistance après une réponse réussie du fournisseur
+ * d'images (K10) — commun au mode démonstration (`service.ts`) et à
+ * l'adaptateur réel OpenAI (`real-generation.ts`), jamais dupliqué entre les
+ * deux. Séquence imposée, jamais réordonnée : 1) valider le fichier
+ * réellement reçu (`decodeGeneratedImage`) ; 2) le stocker immédiatement dans
+ * le bucket privé `visual-assets` — uniquement pour les formats que ce bucket
+ * accepte réellement (PNG/WebP) ; 3) enregistrer les métadonnées dans
+ * `visual_assets` (`createDraftVisualAsset`, inchangé) ; 4) toujours en statut
+ * `draft` (jamais approuvé automatiquement). Le visuel n'est retourné à
+ * l'appelant — donc jamais affiché comme un succès — qu'une fois ces étapes
+ * réellement confirmées : toute exception interrompt la fonction avant de
+ * renvoyer quoi que ce soit.
+ *
+ * Le mode démonstration (`demo-provider.ts`) produit un SVG, format que ce
+ * bucket refuse (contenu gratuit et déterministe, jamais payant) : dans ce
+ * cas précis — et chaque fois que Supabase n'est pas configuré (dev local,
+ * tests) — la data URI continue d'être écrite directement dans la colonne
+ * texte `image_url`, comportement inchangé et déjà couvert par les tests
+ * existants (`service.test.ts`, `storage.test.ts`). Seule une image
+ * réellement reçue dans un format accepté par le bucket (l'adaptateur OpenAI
+ * réel renvoie toujours du PNG) déclenche un vrai upload Storage — c'est la
+ * seule situation où un octet potentiellement payant existe.
+ *
+ * Échec après stockage réussi (uniquement atteignable sur le chemin réel/
+ * payant, `real-generation.ts`) : un nettoyage du fichier orphelin est tenté
+ * immédiatement ; qu'il réussisse ou échoue, l'incident est journalisé
+ * explicitement (`logVisualAssetOrphanIncident`, jamais silencieux) — ne
+ * jamais perdre silencieusement la trace d'une image potentiellement payante
+ * est la règle la plus importante de cette tâche.
+ */
+export async function persistGeneratedVisual(input: PersistGeneratedVisualInput): Promise<VisualAsset> {
+  const { mimeType, bytes } = decodeGeneratedImage(input.generatedImageUrl);
+
+  const bucketExtension = BUCKET_EXTENSION_BY_MIME[mimeType];
+  const canUploadToBucket = hasSupabaseConfig() && Boolean(bucketExtension);
+
+  if (!canUploadToBucket) {
+    return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
+  }
+
+  const path = visualAssetStoragePath(input.subjectType, input.subjectId, mimeType);
+  const supabase = await createSupabaseServerClient();
+
+  const { error: uploadError } = await supabase.storage
+    .from(VISUAL_ASSETS_BUCKET)
+    .upload(path, bytes, { contentType: mimeType });
+  if (uploadError) {
+    // Rien n'a encore été écrit en base ni conservé ailleurs : aucun nettoyage nécessaire, échec propre.
+    throw new VisualAssetPersistenceError(`Stockage de l'image impossible : ${uploadError.message}`);
+  }
+
+  try {
+    return await createDraftVisualAsset({ ...input, imageUrl: path });
+  } catch (dbError) {
+    const { error: removeError } = await supabase.storage.from(VISUAL_ASSETS_BUCKET).remove([path]);
+    const dbErrorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+    const cleanup = removeError ? "cleanup_failed" : "removed";
+    logVisualAssetOrphanIncident(path, input.subjectType, input.subjectId, dbErrorMessage, cleanup);
+    throw new VisualAssetPersistenceError(
+      `Enregistrement du visuel impossible après stockage réussi (fichier ${cleanup === "removed" ? "nettoyé" : "potentiellement orphelin, voir journal serveur"}) : ${dbErrorMessage}`,
+    );
+  }
+}
+
 function updateInMemory(id: string, changes: Partial<VisualAsset>): VisualAsset {
   const existing = store.find((asset) => asset.id === id);
   if (!existing) throw new VisualAssetActionError("Visuel introuvable.");

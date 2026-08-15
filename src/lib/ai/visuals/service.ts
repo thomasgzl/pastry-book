@@ -1,7 +1,7 @@
 import type { VisualAsset } from "@/lib/domain/schemas";
 import { buildVisualPrompt, getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
 import type { RecipeVisualMode, VisualSubjectKind } from "@/lib/visuals/preset";
-import { createDraftVisualAsset, getVisualAssetById } from "@/lib/visuals/storage";
+import { persistGeneratedVisual, getVisualAssetById } from "@/lib/visuals/storage";
 import { getVisualsProvider } from "./registry";
 
 export interface GenerateVisualInput {
@@ -37,10 +37,13 @@ export async function generateVisualDraft(input: GenerateVisualInput): Promise<V
   const framing = getSubjectFraming(input.subjectType);
   const generated = await provider.generate({ prompt, ratio: framing.ratio, background: framing.background });
 
-  return await createDraftVisualAsset({
+  // Persistance (K10) : valide le fichier reçu, le stocke immédiatement si le
+  // format le permet, enregistre les métadonnées, statut `draft` — mécanisme
+  // partagé avec `real-generation.ts`, voir `persistGeneratedVisual`.
+  return await persistGeneratedVisual({
     subjectType: input.subjectType,
     subjectId: input.subjectId,
-    imageUrl: generated.imageUrl,
+    generatedImageUrl: generated.imageUrl,
     sourcePhotoUrl: input.sourcePhotoUrl ?? null,
     prompt,
     presetVersion: VISUAL_PRESET_VERSION,
