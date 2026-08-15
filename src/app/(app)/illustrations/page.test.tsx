@@ -140,17 +140,17 @@ describe("IllustrationsBrowser", () => {
     expect(replace).toHaveBeenCalledWith("/illustrations?q=citron", { scroll: false });
   });
 
-  it("affiche un renvoi vers la génération des visuels manquants quand des sujets manquent", () => {
+  it("affiche un renvoi vers la file des illustrations manquantes (K8) quand des sujets manquent", () => {
     renderBrowser([tarteAuCitron]);
-    expect(screen.getByRole("link", { name: /visuels manquants/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /file des illustrations manquantes/i })).toHaveAttribute(
       "href",
-      "/visuels?manquants=1",
+      "/illustrations/manquantes",
     );
   });
 
   it("n'affiche aucun renvoi manquants quand tous les sujets sont illustrés", () => {
     renderBrowser([citron]);
-    expect(screen.queryByRole("link", { name: /visuels manquants/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /file des illustrations manquantes/i })).not.toBeInTheDocument();
   });
 
   it("affiche un état vide quand aucun sujet ne correspond aux filtres", () => {

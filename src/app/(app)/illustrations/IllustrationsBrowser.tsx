@@ -135,11 +135,11 @@ function IllustrationsContent({ entries }: IllustrationsBrowserProps) {
 
       {missingCount > 0 && (
         <p className="text-sm text-cacao/70">
-          {missingCount} sujet{missingCount > 1 ? "s" : ""} sans illustration. La génération se fait depuis{" "}
-          <a href="/visuels?manquants=1" className="underline underline-offset-2 hover:text-cacao">
-            Visuels IA — visuels manquants
-          </a>
-          .
+          {missingCount} sujet{missingCount > 1 ? "s" : ""} sans illustration.{" "}
+          <a href="/illustrations/manquantes" className="underline underline-offset-2 hover:text-cacao">
+            Voir la file des illustrations manquantes
+          </a>{" "}
+          (sélection, lot plafonné, K8).
         </p>
       )}
 
