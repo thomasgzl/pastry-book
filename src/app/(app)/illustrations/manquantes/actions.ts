@@ -1,13 +1,22 @@
 "use server";
 
 /**
- * Actions serveur de la file des illustrations manquantes (K8). Seul point
+ * Actions serveur de la file des illustrations manquantes (K8/K9). Seul point
  * d'entrée appelable depuis le navigateur pour cette page. Exécution
  * DÉMONSTRATION uniquement dans ce lot (`generateVisualDraft`, gratuit,
  * aucun réseau, aucune clé) — le moteur de file (`runVisualGenerationQueue`,
  * `src/lib/visuals/queue.ts`) est générique : brancher `generateRealVisualDraft`
- * (F-IA2) derrière un écran de confirmation de coût revient à K9, sans
- * réécrire ce fichier ni le moteur lui-même.
+ * (F-IA2, déjà prêt à recevoir les mêmes champs de prompt, voir
+ * `real-generation.ts`) derrière ce même écran de confirmation revient à K10,
+ * sans réécrire ce fichier ni le moteur lui-même.
+ *
+ * K9 : la génération d'un SEUL sujet passait auparavant par
+ * `generateSingleMissingAction`, un bouton immédiat sans aucune phrase de
+ * confirmation (même patron que `/visuels`, mais non conforme au contrat K9
+ * qui exige l'écran de confirmation complet AUSSI pour un sujet unique).
+ * Cette action est supprimée : un sujet unique est désormais un lot de
+ * taille 1, il passe par `runMissingQueueAction` comme tout autre lot — une
+ * seule action, un seul chemin de confirmation, jamais de raccourci silencieux.
  */
 
 import { revalidatePath } from "next/cache";
@@ -16,7 +25,6 @@ import { visualAssetSchema } from "@/lib/domain/schemas";
 import { beginAiRequest, completeAiRequest } from "@/lib/domain/aiCostGuard";
 import { generateVisualDraft } from "@/lib/ai/visuals/service";
 import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
-import { getVisualSubject } from "@/lib/visuals/subjects";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
 import {
   MAX_QUEUE_BATCH_SIZE,
@@ -37,28 +45,6 @@ function revalidateAll(): void {
   revalidatePath("/illustrations");
   revalidatePath("/illustrations/manquantes");
   revalidatePath("/visuels");
-}
-
-/** Génération d'un seul sujet, immédiate, sans phrase de confirmation (même patron que `generateAction` de `/visuels`). */
-export async function generateSingleMissingAction(formData: FormData): Promise<void> {
-  const parsed = targetSchema.safeParse({ type: formData.get("type"), id: formData.get("id") });
-  if (!parsed.success) return;
-
-  // Revérifié juste avant l'appel (idempotence) : un sujet déjà pourvu entre-temps n'est jamais régénéré ici.
-  if (await getPrimaryVisualAsset(parsed.data.type, parsed.data.id)) return;
-
-  const subject = await getVisualSubject(parsed.data.type, parsed.data.id);
-  if (!subject) return;
-
-  await generateVisualDraft({
-    subjectType: subject.type,
-    subjectId: subject.id,
-    subjectLabel: subject.label,
-    sourcePhotoUrl: subject.photoUrl,
-    categorySlug: subject.categorySlug,
-    recipeMode: subject.type === "recipe" ? recipeModeFor(subject.photoUrl) : undefined,
-  });
-  revalidateAll();
 }
 
 export interface QueueActionState {
@@ -140,6 +126,10 @@ export async function runMissingQueueAction(
               sourcePhotoUrl: subject.photoUrl,
               categorySlug: subject.categorySlug,
               recipeMode: subject.type === "recipe" ? recipeModeFor(subject.photoUrl) : undefined,
+              // Mêmes champs que ceux affichés dans le prompt repliable de l'écran de confirmation (K9, `MissingQueueBrowser`) — le prompt réellement envoyé est identique à celui montré avant confirmation.
+              preparationNames: subject.preparationNames,
+              validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
+              additionalInformation: subject.additionalInformation,
             });
             return { ok: true, data: undefined };
           } catch (cause) {

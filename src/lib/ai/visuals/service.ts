@@ -11,6 +11,10 @@ export interface GenerateVisualInput {
   sourcePhotoUrl?: string | null;
   categorySlug?: string;
   recipeMode?: RecipeVisualMode;
+  /** Recette uniquement (K6/K7) : mêmes champs que `VisualSubject`, transmis tels quels à `buildVisualPrompt` — jamais recalculés ici, pour que le prompt affiché en confirmation (K9) et le prompt réellement utilisé soient identiques. */
+  preparationNames?: string[];
+  validatedKeyIngredientNames?: string[];
+  additionalInformation?: string | null;
 }
 
 /**
@@ -26,6 +30,9 @@ export async function generateVisualDraft(input: GenerateVisualInput): Promise<V
     subjectLabel: input.subjectLabel,
     categorySlug: input.categorySlug,
     recipeMode: input.recipeMode,
+    preparationNames: input.preparationNames,
+    validatedKeyIngredientNames: input.validatedKeyIngredientNames,
+    additionalInformation: input.additionalInformation,
   });
   const framing = getSubjectFraming(input.subjectType);
   const generated = await provider.generate({ prompt, ratio: framing.ratio, background: framing.background });

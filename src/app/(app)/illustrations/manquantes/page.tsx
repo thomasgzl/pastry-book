@@ -16,7 +16,7 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { ErrorState } from "@/components/states/ErrorState";
 import { EmptyState } from "@/components/states/EmptyState";
-import { describeRealImageGenerationRequest, SIZE_BY_RATIO } from "@/lib/ai/visuals/openai-provider";
+import { describeRealImageGenerationRequest, OPENAI_PRICING_DOC_URL, SIZE_BY_RATIO } from "@/lib/ai/visuals/openai-provider";
 import { getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
 import type { VisualSubjectKind } from "@/lib/visuals/preset";
 import { getMissingVisualSubjects } from "@/lib/visuals/queue";
@@ -43,6 +43,11 @@ export default async function MissingIllustrationsPage() {
       id: subject.id,
       label: subject.label,
       parentLabel: subject.parentLabel,
+      photoUrl: subject.photoUrl,
+      categorySlug: subject.categorySlug,
+      preparationNames: subject.preparationNames,
+      validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
+      additionalInformation: subject.additionalInformation,
     }));
   } catch {
     // Lecture Supabase/données indisponible : état d'erreur explicite plutôt qu'un plantage.
@@ -80,6 +85,7 @@ export default async function MissingIllustrationsPage() {
           providerModel={description.model}
           quality={description.quality}
           costPerImageEstimateEur={description.costPerImageEstimateEur}
+          costDocUrl={OPENAI_PRICING_DOC_URL}
           dimensionsByType={buildDimensionsByType()}
         />
       )}

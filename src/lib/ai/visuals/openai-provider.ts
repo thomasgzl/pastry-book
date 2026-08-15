@@ -46,6 +46,9 @@ export const SIZE_BY_RATIO: Record<ImageGenerationRequest["ratio"], string> = {
 /** Aucune estimation vérifiée disponible : jamais inventer un prix (CLAUDE.md). */
 export const OPENAI_COST_PER_IMAGE_ESTIMATE_EUR: number | null = null;
 
+/** Lien documentaire officiel à afficher partout où le coût est « Estimation indisponible » (K9) — jamais un chiffre inventé à la place. */
+export const OPENAI_PRICING_DOC_URL = "https://openai.com/api/pricing/";
+
 /** Décrit la demande (fournisseur, modèle, nombre d'images, qualité) SANS l'exécuter — à afficher avant tout appel réel. */
 export interface RealImageGenerationDescription {
   providerName: string;

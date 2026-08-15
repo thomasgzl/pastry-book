@@ -1,29 +1,38 @@
 "use client";
 
 /**
- * Partie interactive de la file des illustrations manquantes (K8) :
+ * Partie interactive de la file des illustrations manquantes (K8/K9) :
  * sélection individuelle/par type/désélection, recherche locale, taille de
- * lot plafonnée (5 ou 10, jamais plus), génération d'un seul sujet (bouton
- * immédiat par ligne) et génération en lot (formulaire séparé, phrase de
- * confirmation nommée obligatoire — même patron que `BatchGenerateMissing`
- * de `/visuels`, E3/E4).
+ * lot plafonnée (5 ou 10, jamais plus), et un ÉCRAN DE CONFIRMATION UNIQUE
+ * avant toute génération — individuelle ou groupée (K9). Un sujet unique
+ * n'est qu'un lot de taille 1 : cliquer « Générer ce sujet » sur une ligne ne
+ * lance plus rien immédiatement, il présélectionne ce seul sujet et ramène
+ * vers l'écran de confirmation ci-dessous (même formulaire, même phrase de
+ * confirmation nommée que pour un lot de plusieurs sujets — même patron que
+ * `BatchGenerateMissing` de `/visuels`, E3/E4, étendu ici au cas à 1 sujet).
  */
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/states/EmptyState";
 import { normalizeText } from "@/lib/recipes/search";
 import { VISUAL_KIND_LABELS } from "@/lib/visuals/kindLabels";
-import type { VisualSubjectKind } from "@/lib/visuals/preset";
+import { buildVisualPrompt, PRESET_EXCLUSIONS, VISUAL_PRESET_VERSION, type VisualSubjectKind } from "@/lib/visuals/preset";
 import { QUEUE_BATCH_SIZE_OPTIONS, QUEUE_CONFIRMATION_PREFIX, type QueueBatchSize } from "@/lib/visuals/queueConstants";
-import { generateSingleMissingAction, runMissingQueueAction, type QueueActionState } from "./actions";
+import { runMissingQueueAction, type QueueActionState } from "./actions";
 
 export interface MissingSubjectEntry {
   type: VisualSubjectKind;
   id: string;
   label: string;
   parentLabel?: string;
+  /** Recette uniquement : présence d'une photo -> mode « photo vers illustration » (K7/K9, mêmes champs que `VisualSubject`). */
+  photoUrl?: string | null;
+  categorySlug?: string;
+  preparationNames?: string[];
+  validatedKeyIngredientNames?: string[];
+  additionalInformation?: string | null;
 }
 
 interface MissingQueueBrowserProps {
@@ -32,7 +41,22 @@ interface MissingQueueBrowserProps {
   providerModel: string;
   quality: string;
   costPerImageEstimateEur: number | null;
+  /** Lien documentaire officiel affiché à la place d'un prix inventé quand l'estimation n'est pas fiable (K9). */
+  costDocUrl: string;
   dimensionsByType: Record<VisualSubjectKind, { ratio: string; size: string }>;
+}
+
+/** Prompt final EXACT tel qu'il sera envoyé au fournisseur — même appel que `generateVisualDraft`/`buildVisualPrompt` côté serveur (`service.ts`), jamais un exemple générique (K9). */
+function promptFor(entry: MissingSubjectEntry): string {
+  return buildVisualPrompt({
+    kind: entry.type,
+    subjectLabel: entry.label,
+    categorySlug: entry.categorySlug,
+    recipeMode: entry.type === "recipe" ? (entry.photoUrl ? "photo" : "description") : undefined,
+    preparationNames: entry.preparationNames,
+    validatedKeyIngredientNames: entry.validatedKeyIngredientNames,
+    additionalInformation: entry.additionalInformation,
+  });
 }
 
 const TYPE_ORDER: VisualSubjectKind[] = ["ingredient", "recipe", "source", "sourceCategory"];
@@ -56,12 +80,14 @@ export function MissingQueueBrowser({
   providerModel,
   quality,
   costPerImageEstimateEur,
+  costDocUrl,
   dimensionsByType,
 }: MissingQueueBrowserProps) {
   const [query, setQuery] = useState("");
   const [batchSize, setBatchSize] = useState<QueueBatchSize>(QUEUE_BATCH_SIZE_OPTIONS[0]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState(runMissingQueueAction, INITIAL_STATE);
+  const confirmationPanelRef = useRef<HTMLFormElement>(null);
 
   const totalByType = useMemo(() => {
     const counts = new Map<VisualSubjectKind, number>();
@@ -120,6 +146,17 @@ export function MissingQueueBrowser({
   function clearSelection() {
     setSelected(new Set());
   }
+
+  /** Sujet unique (K9) : présélectionne CE sujet et ramène vers l'écran de confirmation partagé — jamais de génération immédiate. */
+  function selectOnlyAndConfirm(entry: MissingSubjectEntry) {
+    setSelected(new Set([keyOf(entry)]));
+    confirmationPanelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }
+
+  const selectedEntries = useMemo(
+    () => entries.filter((entry) => selected.has(keyOf(entry))),
+    [entries, selected],
+  );
 
   const expectedPhrase = `${QUEUE_CONFIRMATION_PREFIX} ${selectedCount}`;
   const costLabel =
@@ -214,13 +251,9 @@ export function MissingQueueBrowser({
                           {entry.label}
                           {entry.parentLabel && <span className="text-xs text-cacao/60">({entry.parentLabel})</span>}
                         </label>
-                        <form action={generateSingleMissingAction}>
-                          <input type="hidden" name="type" value={entry.type} />
-                          <input type="hidden" name="id" value={entry.id} />
-                          <Button type="submit" variant="secondary">
-                            Générer ce sujet
-                          </Button>
-                        </form>
+                        <Button type="button" variant="secondary" onClick={() => selectOnlyAndConfirm(entry)}>
+                          Générer ce sujet…
+                        </Button>
                       </li>
                     );
                   })}
@@ -230,34 +263,97 @@ export function MissingQueueBrowser({
         </div>
       )}
 
-      <form action={formAction} className="flex flex-col gap-3 rounded-xl border border-dashed border-grise p-4">
+      <form
+        ref={confirmationPanelRef}
+        action={formAction}
+        aria-label="Confirmation avant génération"
+        className="flex flex-col gap-3 rounded-xl border border-dashed border-grise p-4"
+      >
         {[...selected].map((key) => (
           <input key={key} type="hidden" name="target" value={key} />
         ))}
-        <p className="text-sm text-cacao">
-          Fournisseur cible : <strong>{providerName}</strong> · Modèle : <strong>{providerModel}</strong> · Qualité :{" "}
-          <strong>{quality}</strong>
-        </p>
-        <ul className="text-xs text-cacao/70">
-          {TYPE_ORDER.map((type) => (
-            <li key={type}>
-              {VISUAL_KIND_LABELS[type]} : ratio {dimensionsByType[type].ratio}, {dimensionsByType[type].size}
-            </li>
-          ))}
-        </ul>
-        <p className="text-sm text-cacao">
-          <strong>{selectedCount}</strong> sujet{selectedCount > 1 ? "s" : ""} sélectionné
-          {selectedCount > 1 ? "s" : ""} · <strong>{selectedCount}</strong> appel{selectedCount > 1 ? "s" : ""} exact
-          {selectedCount > 1 ? "s" : ""}
-          {costLabel && <> · Coût : {costLabel}</>}
-        </p>
-        <p className="text-xs text-cacao/60">
-          Exécution disponible dans cet écran : mode démonstration (gratuit, aucun appel OpenAI). L&rsquo;écran de
-          confirmation avant un appel réel payant, avec ce même nombre d&rsquo;appels et ce même coût, est une étape
-          séparée à venir.
-        </p>
-        {selectedCount > 0 && (
+
+        {selectedCount === 0 ? (
+          <p className="text-sm text-cacao/70">
+            Sélectionnez un ou plusieurs sujets ci-dessus (individuellement, par type, ou « Générer ce sujet… ») pour
+            afficher l&rsquo;écran de confirmation avant génération.
+          </p>
+        ) : (
           <>
+            <p className="text-sm text-cacao">
+              <strong>Opération :</strong> génération de {selectedCount} brouillon{selectedCount > 1 ? "s" : ""}
+              d&rsquo;illustration, preset « Botanique éditorial — {VISUAL_PRESET_VERSION} ».
+            </p>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-cacao">
+                Sujet{selectedCount > 1 ? "s" : ""} concerné{selectedCount > 1 ? "s" : ""} :
+              </span>
+              <ul className="flex flex-col gap-1 text-sm text-cacao/80">
+                {selectedEntries.map((entry) => (
+                  <li key={keyOf(entry)}>
+                    {entry.label} — {VISUAL_KIND_LABELS[entry.type]}
+                    {entry.parentLabel && <span className="text-cacao/60"> ({entry.parentLabel})</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <p className="text-sm text-cacao">
+              Fournisseur : <strong>{providerName}</strong> · Modèle : <strong>{providerModel}</strong> · Qualité :{" "}
+              <strong>{quality}</strong>
+            </p>
+            <ul className="text-xs text-cacao/70">
+              {TYPE_ORDER.filter((type) => selectedEntries.some((entry) => entry.type === type)).map((type) => (
+                <li key={type}>
+                  {VISUAL_KIND_LABELS[type]} : ratio {dimensionsByType[type].ratio}, {dimensionsByType[type].size}
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-cacao">
+              Nombre d&rsquo;images : <strong>{selectedCount}</strong> · Nombre d&rsquo;appels :{" "}
+              <strong>{selectedCount}</strong> (un appel par sujet, jamais de lot réel groupé) · Coût estimé :{" "}
+              {costPerImageEstimateEur === null ? (
+                <>
+                  <strong>Estimation indisponible</strong> — voir le{" "}
+                  <a href={costDocUrl} target="_blank" rel="noreferrer" className="underline">
+                    barème tarifaire officiel du fournisseur
+                  </a>
+                  , jamais un prix inventé.
+                </>
+              ) : (
+                <strong>{costLabel}</strong>
+              )}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-cacao">Prompt final par sujet (tel qu&rsquo;envoyé au fournisseur) :</span>
+              {selectedEntries.map((entry) => (
+                <details key={keyOf(entry)} className="rounded-lg border border-grise bg-coquille p-3">
+                  <summary className="cursor-pointer text-sm text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive">
+                    {entry.label} — {VISUAL_KIND_LABELS[entry.type]}
+                  </summary>
+                  <pre className="mt-2 whitespace-pre-wrap text-xs text-cacao/80">{promptFor(entry)}</pre>
+                </details>
+              ))}
+            </div>
+
+            <details className="rounded-lg border border-grise bg-coquille p-3">
+              <summary className="cursor-pointer text-sm text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive">
+                Exclusions du preset « Botanique éditorial — {VISUAL_PRESET_VERSION} »
+              </summary>
+              <ul className="mt-2 flex flex-col gap-1 text-xs text-cacao/80">
+                {PRESET_EXCLUSIONS.map((exclusion) => (
+                  <li key={exclusion}>{exclusion}</li>
+                ))}
+              </ul>
+            </details>
+
+            <p className="text-xs text-cacao/60">
+              Exécution disponible dans cet écran : mode démonstration (gratuit, aucun appel OpenAI). Cet écran est
+              celui qui précédera tout futur appel réel payant, avec ce même nombre d&rsquo;appels et ce même coût.
+            </p>
+
             <label htmlFor="queue-confirmation" className="text-sm text-cacao/80">
               Pour confirmer, tapez exactement « {expectedPhrase} »
             </label>
@@ -271,6 +367,7 @@ export function MissingQueueBrowser({
             />
           </>
         )}
+
         {state.error && (
           <p role="alert" className="text-sm text-brunrouge">
             {state.error}
@@ -287,7 +384,11 @@ export function MissingQueueBrowser({
           </ul>
         )}
         <Button type="submit" variant="secondary" disabled={pending || selectedCount === 0} className="self-start">
-          {pending ? "Génération en cours…" : `Générer le lot (${selectedCount})`}
+          {pending
+            ? "Génération en cours…"
+            : selectedCount <= 1
+              ? "Générer ce sujet"
+              : `Générer le lot (${selectedCount})`}
         </Button>
       </form>
     </div>

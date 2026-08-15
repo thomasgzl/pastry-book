@@ -22,6 +22,10 @@ export interface RealVisualGenerationInput {
   sourcePhotoUrl?: string | null;
   categorySlug?: string;
   recipeMode?: RecipeVisualMode;
+  /** Recette uniquement (K6/K7, prêt pour K10) : mêmes champs que `VisualSubject`/`GenerateVisualInput` (service.ts) — transmis tels quels à `buildVisualPrompt` pour que le prompt réellement envoyé au fournisseur réel corresponde exactement à celui affiché à l'écran de confirmation (K9). */
+  preparationNames?: string[];
+  validatedKeyIngredientNames?: string[];
+  additionalInformation?: string | null;
   /** Identifiant d'idempotence (ex. nonce de formulaire) — protège contre le double-clic. Défaut stable par sujet+qualité. */
   requestId?: string;
   /** `"final"` uniquement sur demande explicite de l'appelant, jamais par défaut. */
@@ -84,6 +88,9 @@ export async function generateRealVisualDraft(
         subjectLabel: input.subjectLabel,
         categorySlug: input.categorySlug,
         recipeMode: input.recipeMode,
+        preparationNames: input.preparationNames,
+        validatedKeyIngredientNames: input.validatedKeyIngredientNames,
+        additionalInformation: input.additionalInformation,
       });
     const framing = getSubjectFraming(input.subjectType);
     const ratio = input.ratioOverride ?? framing.ratio;
