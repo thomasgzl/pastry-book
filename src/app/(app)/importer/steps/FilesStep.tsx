@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -8,13 +8,23 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { listDemoFixtures, type DemoFixtureId } from "@/lib/ai/import/fixtures";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportFileRef } from "@/lib/import/schema";
-import { uploadSourceFile } from "@/lib/import/sourceUpload";
+import { MAX_SOURCE_FILE_SIZE_BYTES, uploadSourceFile } from "@/lib/import/sourceUpload";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { runDemoExtractionAction } from "../importActions";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_FILES = 10;
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+/** Alignée sur la vraie limite du bucket Storage (`recipe-sources`, K3-DATA) — jamais une valeur locale divergente qui laisserait passer un fichier rejeté ensuite à l'upload. */
+const MAX_FILE_SIZE_BYTES = MAX_SOURCE_FILE_SIZE_BYTES;
+const MAX_FILE_SIZE_MB = MAX_FILE_SIZE_BYTES / (1024 * 1024);
+
+/** Étiquette courte sans aperçu image (PDF/DOCX/type non reconnu) — jamais un aperçu visuel inventé. */
+function fileKindLabel(type: string): string {
+  if (type === "application/pdf") return "PDF";
+  if (type.includes("wordprocessingml")) return "DOCX";
+  if (type.startsWith("image/")) return "Image";
+  return "Fichier";
+}
 
 interface FilesStepProps {
   files: ImportFileRef[];
@@ -49,6 +59,27 @@ export function FilesStep({
   const [loadingFixture, setLoadingFixture] = useState<DemoFixtureId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  /**
+   * Aperçu local (objets URL navigateur, images uniquement) — jamais
+   * persisté ni envoyé au serveur, toujours dans le même ordre que `files`
+   * (réordonné/retiré en même temps que la liste réelle). `null` pour les
+   * fichiers sans aperçu visuel possible (PDF, DOCX).
+   * ponytail: reconstruit à partir de l'objet `File` réel au moment de
+   * l'ajout, donc perdu si ce composant démonte/remonte (retour à une étape
+   * précédente puis retour ici) — `ImportFileRef` ne conserve pas l'objet
+   * `File` binaire. Repli sur l'étiquette de type (PDF/DOCX/Image) dans ce
+   * cas, jamais une erreur ; à revoir seulement si ça gêne réellement en usage.
+   */
+  const [previewUrls, setPreviewUrls] = useState<(string | null)[]>([]);
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- révocation à la destruction du composant uniquement, pas à chaque changement d'aperçu.
+  }, []);
 
   /**
    * Upload direct navigateur → bucket privé `recipe-sources` (I6) pour
@@ -68,17 +99,23 @@ export function FilesStep({
       return;
     }
     if (oversized.length > 0) {
-      setError(`Fichier trop volumineux : ${oversized.map((file) => file.name).join(", ")} (limite 20 Mo).`);
+      setError(
+        `Fichier trop volumineux : ${oversized.map((file) => file.name).join(", ")} (limite ${MAX_FILE_SIZE_MB} Mo).`,
+      );
       return;
     }
     setError(null);
     event.target.value = "";
+
+    // Aperçu local avant tout envoi réseau — images uniquement, jamais un aperçu inventé pour PDF/DOCX.
+    const newPreviews = selected.map((file) => (file.type.startsWith("image/") ? URL.createObjectURL(file) : null));
 
     if (!hasSupabaseConfig()) {
       onFilesChange([
         ...files,
         ...selected.map((file) => ({ name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: null })),
       ]);
+      setPreviewUrls((prev) => [...prev, ...newPreviews]);
       return;
     }
 
@@ -89,14 +126,15 @@ export function FilesStep({
         try {
           const { path } = await uploadSourceFile(importBatchId, file);
           return { name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: path };
-        } catch {
-          archiveFailures.push(file.name);
+        } catch (err) {
+          archiveFailures.push(err instanceof Error ? `${file.name} (${err.message})` : file.name);
           return { name: file.name, type: file.type, sizeBytes: file.size, sourceFileUrl: null };
         }
       }),
     );
     setUploading(false);
     onFilesChange([...files, ...uploaded]);
+    setPreviewUrls((prev) => [...prev, ...newPreviews]);
     if (archiveFailures.length > 0) {
       setError(
         `Fichier ajouté mais archivage impossible pour : ${archiveFailures.join(", ")}. La saisie manuelle reste possible.`,
@@ -105,7 +143,24 @@ export function FilesStep({
   }
 
   function removeFile(index: number) {
+    const removedPreview = previewUrls[index];
+    if (removedPreview) URL.revokeObjectURL(removedPreview);
     onFilesChange(files.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  /** Réorganisation simple monter/descendre — suffisant pour ordonner plusieurs pages/captures d'une même recette, sans librairie de glisser-déposer. */
+  function moveFile(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= files.length) return;
+    const nextFiles = [...files];
+    [nextFiles[index], nextFiles[target]] = [nextFiles[target], nextFiles[index]];
+    onFilesChange(nextFiles);
+    setPreviewUrls((prev) => {
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   async function loadDemoExample(fixtureId: DemoFixtureId) {
@@ -144,18 +199,59 @@ export function FilesStep({
           className="min-h-11 w-full rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-avoine file:px-3 file:py-2 file:text-cacao"
         />
         {uploading && <LoadingState message="Archivage du ou des fichiers…" />}
+        {files.length > 1 && (
+          <p className="text-xs text-cacao/60">
+            Plusieurs fichiers = pages/captures d&rsquo;une seule recette, dans l&rsquo;ordre ci-dessous — utilisez « Monter »/« Descendre » pour
+            les réordonner.
+          </p>
+        )}
         {files.length > 0 && (
           <ul className="flex flex-col gap-1">
             {files.map((file, index) => (
-              <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2 rounded-lg border border-grise bg-coquille px-3 py-2 text-sm text-cacao">
-                <span className="truncate">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="min-h-11 min-w-11 shrink-0 rounded-lg text-brunrouge underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
-                >
-                  Retirer
-                </button>
+              <li
+                key={`${file.name}-${index}`}
+                className="flex items-center gap-3 rounded-lg border border-grise bg-coquille px-3 py-2 text-sm text-cacao"
+              >
+                {previewUrls[index] ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- aperçu local (objet URL navigateur), jamais un fichier distant, pas de pipeline next/image.
+                  <img
+                    src={previewUrls[index]!}
+                    alt={`Aperçu de ${file.name}`}
+                    className="h-12 w-12 shrink-0 rounded-md border border-grise object-cover"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-avoine text-xs font-medium text-cacao/70">
+                    {fileKindLabel(file.type)}
+                  </span>
+                )}
+                <span className="flex-1 truncate">{file.name}</span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveFile(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`Monter ${file.name}`}
+                    className="min-h-11 min-w-11 rounded-lg text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveFile(index, 1)}
+                    disabled={index === files.length - 1}
+                    aria-label={`Descendre ${file.name}`}
+                    className="min-h-11 min-w-11 rounded-lg text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="min-h-11 min-w-11 rounded-lg text-brunrouge underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+                  >
+                    Retirer
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

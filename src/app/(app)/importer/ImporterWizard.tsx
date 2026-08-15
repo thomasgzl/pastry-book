@@ -25,8 +25,10 @@ import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
+import type { ImportDuplicateMatch } from "@/lib/import/store";
 import {
   checkDuplicateAction,
+  checkImportDuplicatesAction,
   createCategoryAction,
   createImportBatchAction,
   getCategoriesAction,
@@ -87,6 +89,9 @@ export function ImporterWizard() {
   const [duplicate, setDuplicate] = useState<{ title: string; sourceId: string } | null>(null);
   const [duplicateChecking, setDuplicateChecking] = useState(false);
   const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null);
+  /** Différences K4 (titre autre entreprise, hash identique, préparation homonyme) — informatif uniquement, jamais bloquant. */
+  const [importDuplicates, setImportDuplicates] = useState<ImportDuplicateMatch[]>([]);
+  const [importDuplicatesError, setImportDuplicatesError] = useState<string | null>(null);
 
   const selectedSource = reference?.sources.find((source) => source.id === sourceId) ?? null;
   const selectedCategory = categories.find((category) => category.id === sourceCategoryId) ?? null;
@@ -194,6 +199,24 @@ export function ImporterWizard() {
     } finally {
       setDuplicateChecking(false);
     }
+
+    // K4 — différences purement informatives (titre autre entreprise, hash
+    // de fichier identique, préparation homonyme) : jamais bloquantes,
+    // jamais de fusion automatique. Un échec ici n'empêche pas
+    // l'enregistrement (le blocage réel reste `checkDuplicateAction`
+    // ci-dessus), mais reste affiché explicitement, jamais tu.
+    try {
+      const matches = await checkImportDuplicatesAction({
+        title: current.title,
+        sourceId: current.sourceId,
+        sectionNames: current.sections.map((section) => section.name).filter((name): name is string => Boolean(name)),
+      });
+      setImportDuplicates(matches);
+      setImportDuplicatesError(null);
+    } catch {
+      setImportDuplicates([]);
+      setImportDuplicatesError("Impossible de vérifier les différences avec des recettes déjà enregistrées (titre autre entreprise, fichier déjà importé, préparation homonyme).");
+    }
   }
 
   /** Seul point d'entrée vers l'étape 4 (vérification) : déclenche la vérification de doublon réelle à cet instant précis. */
@@ -255,6 +278,8 @@ export function ImporterWizard() {
     setSaveResult(null);
     setDuplicate(null);
     setDuplicateCheckError(null);
+    setImportDuplicates([]);
+    setImportDuplicatesError(null);
     // Le lot précédent est déjà marqué « terminé » côté serveur — un nouveau
     // lot est requis pour le prochain import, jamais réutilisé silencieusement.
     setBatchId(null);
@@ -274,7 +299,10 @@ export function ImporterWizard() {
             reste marquée « à vérifier » sur les champs proposés tant qu&rsquo;ils ne sont pas confirmés.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={handleImportAnother}>
+            <Link href={`/recettes/${saveResult.recipe.slug}`}>
+              <Button type="button">Voir la fiche recette</Button>
+            </Link>
+            <Button type="button" variant="secondary" onClick={handleImportAnother}>
               Importer une autre recette
             </Button>
             <Link href="/recettes">
@@ -402,6 +430,8 @@ export function ImporterWizard() {
           duplicateChecking={duplicateChecking}
           duplicateCheckError={duplicateCheckError}
           onRetryDuplicateCheck={() => checkForDuplicate(draft)}
+          importDuplicates={importDuplicates}
+          importDuplicatesError={importDuplicatesError}
           completeness={completeness}
           acknowledgeIncomplete={acknowledgeIncomplete}
           onAcknowledgeIncompleteChange={setAcknowledgeIncomplete}

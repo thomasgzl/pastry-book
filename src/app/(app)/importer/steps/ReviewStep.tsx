@@ -8,6 +8,15 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
+import type { ImportDuplicateMatch } from "@/lib/import/store";
+
+/** Libellé humain par nature de différence K4 — jamais un identifiant technique affiché tel quel. */
+const IMPORT_DUPLICATE_LABEL: Record<ImportDuplicateMatch["kind"], string> = {
+  same_title_same_source: "Même titre, même entreprise",
+  same_title_other_source: "Même titre dans une autre entreprise",
+  same_file_hash: "Fichier source déjà importé (contenu identique)",
+  homonymous_preparation: "Préparation du même nom déjà utilisée ailleurs",
+};
 
 interface ReviewStepProps {
   draft: ImportRecipeDraft;
@@ -26,6 +35,10 @@ interface ReviewStepProps {
   duplicateCheckError: string | null;
   /** Relance la vérification de doublon après un échec (action utilisatrice explicite, jamais une relance automatique). */
   onRetryDuplicateCheck: () => void;
+  /** Différences K4 au-delà du cas déjà bloquant ci-dessus — jamais bloquantes, jamais de fusion automatique, purement informatives. */
+  importDuplicates: ImportDuplicateMatch[];
+  /** Échec explicite de la vérification étendue (K4) — n'empêche pas l'enregistrement (déjà décidé par `duplicate` ci-dessus), affiché tout de même, jamais tu. */
+  importDuplicatesError: string | null;
   /** Contrôle de complétude de l'extraction IA réelle (lot G) — `null` en saisie manuelle ou en mode démonstration classique. */
   completeness: ExtractionCompleteness | null;
   acknowledgeIncomplete: boolean;
@@ -54,6 +67,8 @@ export function ReviewStep({
   duplicateChecking,
   duplicateCheckError,
   onRetryDuplicateCheck,
+  importDuplicates,
+  importDuplicatesError,
   completeness,
   acknowledgeIncomplete,
   onAcknowledgeIncompleteChange,
@@ -94,6 +109,25 @@ export function ReviewStep({
             />
             Je confirme vouloir enregistrer quand même, en connaissance de ce doublon probable.
           </label>
+        </Card>
+      )}
+
+      {importDuplicatesError && <ErrorState message={importDuplicatesError} />}
+
+      {importDuplicates.length > 0 && (
+        <Card className="flex flex-col gap-2 border-avoine bg-avoine/30">
+          <p className="text-sm font-medium text-cacao">
+            Différences trouvées avec des recettes déjà enregistrées — à vérifier, aucune fusion automatique.
+          </p>
+          <ul className="flex flex-col gap-1">
+            {importDuplicates.map((match, index) => (
+              <li key={index} className="text-sm text-cacao">
+                {IMPORT_DUPLICATE_LABEL[match.kind]}
+                {match.recipeTitle ? ` — « ${match.recipeTitle} »` : ""}
+                {match.sectionName ? ` (préparation « ${match.sectionName} »)` : ""}
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

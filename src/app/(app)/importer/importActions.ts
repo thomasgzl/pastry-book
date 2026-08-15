@@ -13,10 +13,13 @@
 
 import {
   checkDuplicate,
+  checkImportDuplicates,
   createImportBatch,
   createLocalCategory,
   getCategoriesForSourceIncludingSession,
   saveImportRecipe,
+  type CheckImportDuplicatesParams,
+  type ImportDuplicateMatch,
   type SaveImportRecipeResult,
 } from "@/lib/import/store";
 import { getSources } from "@/lib/data/sources";
@@ -69,6 +72,18 @@ export async function checkDuplicateAction(
   sourceId: string,
 ): Promise<{ title: string; sourceId: string } | null> {
   return checkDuplicate(title, sourceId);
+}
+
+/**
+ * Différences K4 au-delà du cas déjà bloquant (`checkDuplicateAction`, même
+ * titre + même entreprise) : même titre dans une AUTRE entreprise, hash de
+ * fichier source identique, préparation homonyme. Purement informatif —
+ * n'empêche jamais l'enregistrement, jamais de fusion automatique.
+ */
+export async function checkImportDuplicatesAction(
+  params: CheckImportDuplicatesParams,
+): Promise<ImportDuplicateMatch[]> {
+  return checkImportDuplicates(params);
 }
 
 export async function saveImportRecipeAction(params: {
