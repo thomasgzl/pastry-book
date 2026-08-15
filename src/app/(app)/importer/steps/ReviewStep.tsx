@@ -5,13 +5,15 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { getAllergens, getSpecificities } from "@/lib/data/specificities";
-import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
 interface ReviewStepProps {
   draft: ImportRecipeDraft;
+  canonicalIngredients: CanonicalIngredient[];
+  specificities: Specificity[];
+  allergens: Allergen[];
   sourceName: string;
   categoryName: string | null;
   validationErrors: string[];
@@ -40,6 +42,9 @@ interface ReviewStepProps {
  */
 export function ReviewStep({
   draft,
+  canonicalIngredients,
+  specificities,
+  allergens,
   sourceName,
   categoryName,
   validationErrors,
@@ -54,9 +59,7 @@ export function ReviewStep({
   onAcknowledgeIncompleteChange,
   saveError,
 }: ReviewStepProps) {
-  const canonicalById = new Map(getCanonicalIngredients().map((c) => [c.id, c]));
-  const specificities = getSpecificities();
-  const allergens = getAllergens();
+  const canonicalById = new Map(canonicalIngredients.map((c) => [c.id, c]));
   const hasAdditional = Boolean(draft.additionalInformation || draft.procedure || draft.temperature);
 
   return (

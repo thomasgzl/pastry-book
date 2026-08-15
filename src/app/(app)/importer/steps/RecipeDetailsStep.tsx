@@ -3,14 +3,16 @@
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
-import { getAllergens, getSpecificities } from "@/lib/data/specificities";
+import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
 import { deriveQuantity } from "@/lib/import/model";
 import { TITLE_PLACEHOLDER, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { createEmptyIngredient, createEmptySection } from "../draftFactory";
 
 interface RecipeDetailsStepProps {
   draft: ImportRecipeDraft;
+  canonicalIngredients: CanonicalIngredient[];
+  specificities: Specificity[];
+  allergens: Allergen[];
   onChange: (updater: (draft: ImportRecipeDraft) => ImportRecipeDraft) => void;
 }
 
@@ -28,11 +30,7 @@ function updateSection(draft: ImportRecipeDraft, sectionId: string, update: (sec
  * modifiable, pas d'écran séparé purement en lecture). Aucune section
  * n'impose de préparation nommée (liste simple valide, CAP minimale).
  */
-export function RecipeDetailsStep({ draft, onChange }: RecipeDetailsStepProps) {
-  const canonicalIngredients = getCanonicalIngredients();
-  const specificities = getSpecificities();
-  const allergens = getAllergens();
-
+export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, allergens, onChange }: RecipeDetailsStepProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>

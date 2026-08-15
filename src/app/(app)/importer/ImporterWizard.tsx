@@ -21,7 +21,9 @@ import { Card } from "@/components/ui/Card";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getSources } from "@/lib/data/sources";
-import type { SourceCategory } from "@/lib/domain/schemas";
+import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import { getAllergens, getSpecificities } from "@/lib/data/specificities";
+import type { Allergen, CanonicalIngredient, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
@@ -59,10 +61,18 @@ function applyDemoExtraction(draft: ImportRecipeDraft, extracted: DemoExtraction
   };
 }
 
-export function ImporterWizard() {
-  const sources = getSources();
+interface ReferenceData {
+  sources: Source[];
+  canonicalIngredients: CanonicalIngredient[];
+  specificities: Specificity[];
+  allergens: Allergen[];
+}
 
+export function ImporterWizard() {
   const [step, setStep] = useState<Step>(0);
+  const [reference, setReference] = useState<ReferenceData | null>(null);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [referenceAttempt, setReferenceAttempt] = useState(0);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchAttempt, setBatchAttempt] = useState(0);
@@ -86,11 +96,28 @@ export function ImporterWizard() {
   const [duplicateChecking, setDuplicateChecking] = useState(false);
   const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null);
 
-  const selectedSource = sources.find((source) => source.id === sourceId) ?? null;
+  const selectedSource = reference?.sources.find((source) => source.id === sourceId) ?? null;
   const selectedCategory = categories.find((category) => category.id === sourceCategoryId) ?? null;
 
   const validation = useMemo(() => (draft ? importRecipeDraftSchema.safeParse(draft) : null), [draft]);
   const validationErrors = validation && !validation.success ? [...new Set(validation.error.issues.map((i) => i.message))] : [];
+
+  // Référentiels (sources, matières premières canoniques, spécificités,
+  // allergènes) chargés une seule fois au montage — jamais un repli
+  // silencieux vers la démo si Supabase est configuré et échoue (K1).
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getSources(), getCanonicalIngredients(), getSpecificities(), getAllergens()])
+      .then(([sourcesList, canonicalIngredients, specificities, allergens]) => {
+        if (!cancelled) setReference({ sources: sourcesList, canonicalIngredients, specificities, allergens });
+      })
+      .catch(() => {
+        if (!cancelled) setReferenceError("Impossible de charger les référentiels (entreprises, matières premières, spécificités, allergènes). Réessayez.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [referenceAttempt]);
 
   // Le lot d'import doit exister côté serveur avant tout enregistrement —
   // créé une seule fois au montage, jamais recréé silencieusement (un échec
@@ -269,6 +296,30 @@ export function ImporterWizard() {
     );
   }
 
+  if (referenceError) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Importer" }]} />
+        <ErrorState
+          message={referenceError}
+          onRetry={() => {
+            setReferenceError(null);
+            setReferenceAttempt((n) => n + 1);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!reference) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Importer" }]} />
+        <LoadingState message="Chargement des référentiels…" />
+      </div>
+    );
+  }
+
   if (batchError) {
     return (
       <div className="flex flex-col gap-6">
@@ -304,7 +355,7 @@ export function ImporterWizard() {
         </p>
       </div>
 
-      {step === 0 && <SourceStep sourceId={sourceId} onChange={handleSourceChange} />}
+      {step === 0 && <SourceStep sources={reference.sources} sourceId={sourceId} onChange={handleSourceChange} />}
 
       {step === 1 && sourceId && (
         <>
@@ -335,12 +386,21 @@ export function ImporterWizard() {
       )}
 
       {step === 3 && draft && (
-        <RecipeDetailsStep draft={draft} onChange={(updater) => setDraft((d) => (d ? updater(d) : d))} />
+        <RecipeDetailsStep
+          draft={draft}
+          canonicalIngredients={reference.canonicalIngredients}
+          specificities={reference.specificities}
+          allergens={reference.allergens}
+          onChange={(updater) => setDraft((d) => (d ? updater(d) : d))}
+        />
       )}
 
       {step === 4 && draft && (
         <ReviewStep
           draft={draft}
+          canonicalIngredients={reference.canonicalIngredients}
+          specificities={reference.specificities}
+          allergens={reference.allergens}
           sourceName={selectedSource?.name ?? "À vérifier"}
           categoryName={selectedCategory?.name ?? null}
           validationErrors={validationErrors}

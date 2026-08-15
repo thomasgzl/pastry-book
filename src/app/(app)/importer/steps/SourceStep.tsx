@@ -1,9 +1,10 @@
 "use client";
 
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
-import { getSources } from "@/lib/data/sources";
+import type { Source } from "@/lib/domain/schemas";
 
 interface SourceStepProps {
+  sources: Source[];
   sourceId: string | null;
   onChange: (sourceId: string) => void;
 }
@@ -14,9 +15,7 @@ interface SourceStepProps {
  * l'étape suivante, jamais une entreprise (hors périmètre du formulaire
  * d'import, CLAUDE.md § Architecture fonctionnelle).
  */
-export function SourceStep({ sourceId, onChange }: SourceStepProps) {
-  const sources = getSources();
-
+export function SourceStep({ sources, sourceId, onChange }: SourceStepProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
