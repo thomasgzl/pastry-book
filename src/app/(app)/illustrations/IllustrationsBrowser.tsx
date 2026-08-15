@@ -37,6 +37,16 @@ export interface IllustrationEntry {
   thumbnailUrl: string | null;
   /** Historique complet des versions, la plus ancienne en premier (ordre déjà garanti par `listVisualAssets`). */
   versions: IllustrationVersion[];
+  /**
+   * Champs du sujet (K11) nécessaires à « Générer une nouvelle version » —
+   * même prompt EXACT que celui réellement envoyé au fournisseur
+   * (`buildVisualPrompt`, K9), jamais reconstruit approximativement.
+   */
+  photoUrl?: string | null;
+  categorySlug?: string;
+  preparationNames?: string[];
+  validatedKeyIngredientNames?: string[];
+  additionalInformation?: string | null;
 }
 
 const TYPE_FILTERS: { value: "" | VisualSubjectKind; label: string }[] = [
@@ -55,11 +65,22 @@ const STATUS_FILTERS: { value: "" | VisualDisplayStatus; label: string }[] = [
   { value: "missing", label: "Sans illustration" },
 ];
 
-interface IllustrationsBrowserProps {
-  entries: IllustrationEntry[];
+/** Informations affichées par l'écran de confirmation « Générer une nouvelle version » (K11, `RegenerateVersionForm`) — mêmes champs que `MissingQueueBrowser` (K9), calculés une fois côté serveur. */
+export interface RegenerateProviderInfo {
+  providerName: string;
+  providerModel: string;
+  quality: string;
+  costPerImageEstimateEur: number | null;
+  costDocUrl: string;
+  dimensionsByType: Record<VisualSubjectKind, { ratio: string; size: string }>;
 }
 
-function IllustrationsContent({ entries }: IllustrationsBrowserProps) {
+interface IllustrationsBrowserProps {
+  entries: IllustrationEntry[];
+  regenerateInfo: RegenerateProviderInfo;
+}
+
+function IllustrationsContent({ entries, regenerateInfo }: IllustrationsBrowserProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -149,7 +170,7 @@ function IllustrationsContent({ entries }: IllustrationsBrowserProps) {
         <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {filtered.map((entry) => (
             <li key={`${entry.type}-${entry.id}`}>
-              <IllustrationEntryCard entry={entry} />
+              <IllustrationEntryCard entry={entry} regenerateInfo={regenerateInfo} />
             </li>
           ))}
         </ul>

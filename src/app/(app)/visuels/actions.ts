@@ -39,8 +39,19 @@ function recipeModeFor(photoUrl: string | null | undefined): RecipeVisualMode {
   return photoUrl ? "photo" : "description";
 }
 
-/** Matière première : les pages publiques (`/matieres-premieres`) affichent le visuel PRINCIPAL — jamais un brouillon — donc revalidées à chaque changement de statut/principal (lot G, G3). Aucun effet pour les autres types de sujet (pas encore affichés hors `/visuels`). */
+/**
+ * Matière première : les pages publiques (`/matieres-premieres`) affichent le
+ * visuel PRINCIPAL — jamais un brouillon — donc revalidées à chaque
+ * changement de statut/principal (lot G, G3). Aucun effet pour les autres
+ * types de sujet (pas encore affichés hors `/visuels`/`/illustrations`).
+ *
+ * `/illustrations` (K5) et `/illustrations/manquantes` (K8) lisent les mêmes
+ * `visual_assets` que `/visuels` — revalidées systématiquement (K11 : ces
+ * actions sont désormais aussi déclenchées depuis `/illustrations`).
+ */
 async function revalidatePublicPages(asset: VisualAsset): Promise<void> {
+  revalidatePath("/illustrations");
+  revalidatePath("/illustrations/manquantes");
   if (asset.subjectType !== "ingredient") return;
   const subject = await getVisualSubject(asset.subjectType, asset.subjectId);
   if (!subject) return;

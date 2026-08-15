@@ -1,7 +1,21 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { IllustrationsBrowser, type IllustrationEntry } from "./IllustrationsBrowser";
+import { IllustrationsBrowser, type IllustrationEntry, type RegenerateProviderInfo } from "./IllustrationsBrowser";
 import IllustrationsPage from "./page";
+
+const REGENERATE_INFO: RegenerateProviderInfo = {
+  providerName: "OpenAI Images",
+  providerModel: "gpt-image-2",
+  quality: "draft",
+  costPerImageEstimateEur: null,
+  costDocUrl: "https://openai.com/api/pricing/",
+  dimensionsByType: {
+    ingredient: { ratio: "1:1", size: "1024x1024" },
+    recipe: { ratio: "4:3", size: "1536x1024" },
+    source: { ratio: "16:9", size: "1536x1024" },
+    sourceCategory: { ratio: "4:3", size: "1536x1024" },
+  },
+};
 
 const replace = vi.fn();
 let searchParams = new URLSearchParams();
@@ -72,7 +86,7 @@ const tarteAuCitron = entry({
 });
 
 function renderBrowser(entries: IllustrationEntry[]) {
-  return render(<IllustrationsBrowser entries={entries} />);
+  return render(<IllustrationsBrowser entries={entries} regenerateInfo={REGENERATE_INFO} />);
 }
 
 beforeEach(() => {

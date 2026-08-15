@@ -1,28 +1,50 @@
 /**
  * Centre définitif des illustrations (K5) — remplace les pages pilotes
- * supprimées en K2 (`/visuels/pilote*`). Espace SECONDAIRE de CONSULTATION
- * uniquement : visuels approuvés, brouillons à vérifier, rejetés, sujets
- * sans illustration, historique complet des versions par sujet. Filtres
- * (type de sujet, statut, recherche par nom) portés par l'URL et traités
- * dans `IllustrationsBrowser` (Client Component), même patron que
- * `/recettes` (K1, `RecettesBrowser`).
+ * supprimées en K2 (`/visuels/pilote*`). Consultation : visuels approuvés,
+ * brouillons à vérifier, rejetés, sujets sans illustration, historique
+ * complet des versions par sujet. Filtres (type de sujet, statut, recherche
+ * par nom) portés par l'URL et traités dans `IllustrationsBrowser` (Client
+ * Component), même patron que `/recettes` (K1, `RecettesBrowser`).
  *
- * Aucune génération, aucune approbation, aucun rejet ici : ces actions
- * mutent déjà `visual_assets` depuis `/visuels` (E3) et seront intégrées à
- * ce centre par K8-K12 (file des manquants, confirmation de coût,
- * persistance, approbation). Tant que ces tâches ne sont pas livrées, ce
- * centre ne fait que lire — jamais un bouton qui prétend agir sans effet
- * réel.
+ * K11 : chaque brouillon propose désormais « Approuver et utiliser »/
+ * « Rejeter »/« Générer une nouvelle version » directement ici
+ * (`IllustrationEntryCard`, formulaires réutilisant les Server Actions de
+ * `/visuels/actions.ts` — même logique, jamais dupliquée). `/visuels` (E3)
+ * reste fonctionnel en parallèle (mêmes données, mêmes actions).
  */
 
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { ErrorState } from "@/components/states/ErrorState";
-import { VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
+import { describeRealImageGenerationRequest, OPENAI_PRICING_DOC_URL, SIZE_BY_RATIO } from "@/lib/ai/visuals/openai-provider";
+import { getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
+import type { VisualSubjectKind } from "@/lib/visuals/preset";
 import { listVisualAssets } from "@/lib/visuals/storage";
 import { getAllVisualSubjects } from "@/lib/visuals/subjects";
 import { bestVisualStatus } from "@/lib/visuals/status";
-import { IllustrationsBrowser, type IllustrationEntry } from "./IllustrationsBrowser";
+import { IllustrationsBrowser, type IllustrationEntry, type RegenerateProviderInfo } from "./IllustrationsBrowser";
+
+const KINDS: VisualSubjectKind[] = ["ingredient", "recipe", "source", "sourceCategory"];
+
+/** Mêmes informations que celles affichées par la file des manquants (K9, `manquantes/page.tsx`) — réutilisées ici pour « Générer une nouvelle version » (K11), jamais recalculées différemment. */
+function buildRegenerateInfo(): RegenerateProviderInfo {
+  const description = describeRealImageGenerationRequest("draft");
+  const dimensionsByType = Object.fromEntries(
+    KINDS.map((kind) => {
+      const framing = getSubjectFraming(kind);
+      return [kind, { ratio: framing.ratio, size: SIZE_BY_RATIO[framing.ratio] }];
+    }),
+  ) as Record<VisualSubjectKind, { ratio: string; size: string }>;
+
+  return {
+    providerName: description.providerName,
+    providerModel: description.model,
+    quality: description.quality,
+    costPerImageEstimateEur: description.costPerImageEstimateEur,
+    costDocUrl: OPENAI_PRICING_DOC_URL,
+    dimensionsByType,
+  };
+}
 
 async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
   const subjects = await getAllVisualSubjects();
@@ -45,6 +67,11 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
       parentLabel: subject.parentLabel,
       status: bestVisualStatus(assets),
       thumbnailUrl: primary?.imageUrl ?? null,
+      photoUrl: subject.photoUrl,
+      categorySlug: subject.categorySlug,
+      preparationNames: subject.preparationNames,
+      validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
+      additionalInformation: subject.additionalInformation,
       versions: assets.map((asset) => ({
         id: asset.id,
         status: asset.status,
@@ -76,16 +103,16 @@ export default async function IllustrationsPage() {
       <div className="flex flex-col gap-2">
         <EditorialTitle>Illustrations</EditorialTitle>
         <p className="text-sm text-cacao/70">
-          Centre de consultation des visuels IA : approuvés, brouillons à vérifier, rejetés, sujets sans
-          illustration, historique des versions. Preset « Botanique éditorial — {VISUAL_PRESET_VERSION} ».
-          La génération et la validation se font depuis « Visuels IA ».
+          Centre de consultation et de validation des visuels IA : approuvés, brouillons à vérifier, rejetés,
+          sujets sans illustration, historique des versions. Preset « Botanique éditorial —{" "}
+          {VISUAL_PRESET_VERSION} ».
         </p>
       </div>
 
       {loadError || !entries ? (
         <ErrorState message="Les illustrations n'ont pas pu être chargées. Merci de réessayer." />
       ) : (
-        <IllustrationsBrowser entries={entries} />
+        <IllustrationsBrowser entries={entries} regenerateInfo={buildRegenerateInfo()} />
       )}
     </div>
   );

@@ -1,7 +1,10 @@
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import { VisualStatusPill } from "@/components/ui/VisualStatusPill";
-import type { IllustrationEntry } from "./IllustrationsBrowser";
+import { approveAsPrimaryAction, rejectAction, setPrimaryAction } from "../visuels/actions";
+import { RegenerateVersionForm } from "./RegenerateVersionForm";
+import type { IllustrationEntry, RegenerateProviderInfo } from "./IllustrationsBrowser";
 
 const STATUS_CLASSES = {
   draft: "border-grise bg-avoine text-cacao",
@@ -14,10 +17,17 @@ function formatDate(iso: string): string {
 }
 
 /**
- * Une ligne de l'historique des versions d'un sujet — purement informative
- * (aucune action : approuver/rejeter/régénérer restent dans `/visuels`
- * jusqu'à leur intégration par K8-K12). Aucune donnée technique affichée
- * (pas d'identifiant Supabase visible en texte).
+ * Une ligne de l'historique des versions d'un sujet (K11) : actions
+ * conditionnées par son statut, jamais toutes proposées à la fois — même
+ * logique que `SubjectGallery` (`/visuels`), réutilisée ici via les mêmes
+ * Server Actions plutôt que dupliquée. Aucune donnée technique affichée
+ * (pas d'identifiant Supabase visible en texte, l'`assetId` ne circule que
+ * dans un champ caché de formulaire).
+ *
+ * « Conserver en brouillon » n'est pas un bouton séparé : ne rien
+ * approuver/rejeter EST la façon de conserver un brouillon (un brouillon
+ * n'est jamais approuvé automatiquement, CLAUDE.md) — une phrase l'explique
+ * plutôt qu'un contrôle qui n'aurait aucun effet à cliquer.
  */
 function VersionRow({ version }: { version: IllustrationEntry["versions"][number] }) {
   return (
@@ -28,7 +38,7 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
         alt=""
         className="h-16 w-16 shrink-0 self-center rounded-lg border border-grise bg-ivoire object-contain sm:self-start"
       />
-      <div className="flex flex-1 flex-col gap-1">
+      <div className="flex flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span
             role="status"
@@ -45,6 +55,37 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
         <span className="text-xs text-cacao/60">
           preset {version.presetVersion} · {formatDate(version.createdAt)}
         </span>
+
+        {version.status === "draft" && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <form action={approveAsPrimaryAction}>
+              <input type="hidden" name="assetId" value={version.id} />
+              <Button type="submit" variant="primary" className="text-sm">
+                Approuver et utiliser
+              </Button>
+            </form>
+            <form action={rejectAction}>
+              <input type="hidden" name="assetId" value={version.id} />
+              <Button type="submit" variant="secondary" className="text-sm">
+                Rejeter
+              </Button>
+            </form>
+            <span className="text-xs text-cacao/60">
+              Ni approuvé ni rejeté : reste en brouillon, à vérifier plus tard.
+            </span>
+          </div>
+        )}
+
+        {version.status === "approved" && !version.isPrimary && (
+          <div className="pt-1">
+            <form action={setPrimaryAction}>
+              <input type="hidden" name="assetId" value={version.id} />
+              <Button type="submit" variant="secondary" className="text-sm">
+                Définir comme principal
+              </Button>
+            </form>
+          </div>
+        )}
       </div>
     </li>
   );
@@ -52,6 +93,7 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
 
 interface IllustrationEntryCardProps {
   entry: IllustrationEntry;
+  regenerateInfo: RegenerateProviderInfo;
 }
 
 function EntryHeader({ entry }: { entry: IllustrationEntry }) {
@@ -93,13 +135,15 @@ function EntryHeader({ entry }: { entry: IllustrationEntry }) {
 /**
  * Entrée « sujet » de la liste de consultation. Un sujet sans aucune version
  * n'a rien à déplier : rendu comme un simple bloc statique (aucune rubrique
- * vide, aucun `<details>` qui s'ouvrirait sur du vide). Un sujet avec au
- * moins une version se replie/déplie (`<details>` natif — aucun état client
- * requis) sur son historique complet. Lecture seule : aucune action ici
- * (approuver/rejeter/régénérer restent dans `/visuels` jusqu'à leur
- * intégration par K8-K12).
+ * vide, aucun `<details>` qui s'ouvrirait sur du vide, aucune régénération —
+ * ce sujet est « manquant », géré par `/illustrations/manquantes`, K8). Un
+ * sujet avec au moins une version se replie/déplie (`<details>` natif —
+ * aucun état client requis) sur son historique complet et ses actions
+ * (K11) : Approuver et utiliser / Rejeter / Définir comme principal par
+ * version, et « Générer une nouvelle version » au niveau du sujet (une
+ * nouvelle version s'ajoute au sujet, pas à une version précise).
  */
-export function IllustrationEntryCard({ entry }: IllustrationEntryCardProps) {
+export function IllustrationEntryCard({ entry, regenerateInfo }: IllustrationEntryCardProps) {
   if (entry.versions.length === 0) {
     return (
       <Card className="flex items-center gap-3 p-4">
@@ -107,6 +151,8 @@ export function IllustrationEntryCard({ entry }: IllustrationEntryCardProps) {
       </Card>
     );
   }
+
+  const dimensions = regenerateInfo.dimensionsByType[entry.type];
 
   return (
     <Card className="p-0">
@@ -121,6 +167,24 @@ export function IllustrationEntryCard({ entry }: IllustrationEntryCardProps) {
               <VersionRow key={version.id} version={version} />
             ))}
           </ul>
+
+          <RegenerateVersionForm
+            subjectType={entry.type}
+            subjectId={entry.id}
+            subjectLabel={entry.label}
+            photoUrl={entry.photoUrl}
+            categorySlug={entry.categorySlug}
+            preparationNames={entry.preparationNames}
+            validatedKeyIngredientNames={entry.validatedKeyIngredientNames}
+            additionalInformation={entry.additionalInformation}
+            providerName={regenerateInfo.providerName}
+            providerModel={regenerateInfo.providerModel}
+            quality={regenerateInfo.quality}
+            costPerImageEstimateEur={regenerateInfo.costPerImageEstimateEur}
+            costDocUrl={regenerateInfo.costDocUrl}
+            ratio={dimensions.ratio}
+            size={dimensions.size}
+          />
         </div>
       </details>
     </Card>
