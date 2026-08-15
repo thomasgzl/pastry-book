@@ -2,17 +2,14 @@ import type { VisualAsset } from "@/lib/domain/schemas";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
+import { bestVisualStatus, VISUAL_STATUS_LABEL, type VisualDisplayStatus } from "@/lib/visuals/status";
 import type { VisualSubject } from "@/lib/visuals/subjects";
 import { approveAction, generateAction, regenerateAction, rejectAction, setPrimaryAction } from "./actions";
 
 type AssetStatus = VisualAsset["status"];
-type DisplayStatus = AssetStatus | "missing";
+type DisplayStatus = VisualDisplayStatus;
 
-const STATUS_LABEL: Record<AssetStatus, string> = {
-  draft: "Brouillon",
-  approved: "Approuvé",
-  rejected: "Rejeté",
-};
+const STATUS_LABEL = VISUAL_STATUS_LABEL;
 
 const STATUS_CLASSES: Record<AssetStatus, string> = {
   draft: "border-grise bg-avoine text-cacao",
@@ -36,14 +33,6 @@ function StatusPill({ status }: { status: DisplayStatus }) {
       {STATUS_LABEL[status]}
     </span>
   );
-}
-
-/** Statut représentatif affiché replié : le plus « avancé » parmi toutes les variantes. */
-function bestStatus(assets: VisualAsset[]): DisplayStatus {
-  if (assets.length === 0) return "missing";
-  if (assets.some((asset) => asset.status === "approved")) return "approved";
-  if (assets.some((asset) => asset.status === "draft")) return "draft";
-  return "rejected";
 }
 
 function formatDate(iso: string): string {
@@ -157,7 +146,7 @@ export function SubjectGallery({ subject, assets }: SubjectGalleryProps) {
               {subject.parentLabel && <span className="ml-1 font-sans text-xs font-normal text-cacao/60">({subject.parentLabel})</span>}
             </span>
             <span className="flex flex-wrap items-center gap-2">
-              <StatusPill status={bestStatus(assets)} />
+              <StatusPill status={bestVisualStatus(assets)} />
               {assets.length > 1 && <span className="text-xs text-cacao/60">{assets.length} variantes</span>}
               {sourceLabel && <span className="text-xs text-cacao/60">{sourceLabel}</span>}
             </span>

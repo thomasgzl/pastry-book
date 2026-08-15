@@ -37,12 +37,8 @@ function dedupeById<T extends { id: string }>(subjects: T[]): T[] {
   return [...new Map(subjects.map((subject) => [subject.id, subject])).values()];
 }
 
-export const VISUAL_KIND_LABELS: Record<VisualSubjectKind, string> = {
-  ingredient: "Matières premières",
-  recipe: "Recettes",
-  source: "Entreprises",
-  sourceCategory: "Catégories d'entreprise",
-};
+/** Ré-exporté depuis `kindLabels.ts` (module client-safe, sans dépendance à `src/lib/data/*`) — voir ce fichier pour la raison de la séparation (K5). */
+export { VISUAL_KIND_LABELS } from "./kindLabels";
 
 /**
  * Univers des sujets illustrables (E3), toutes sources en lecture seule
