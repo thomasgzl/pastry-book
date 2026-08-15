@@ -1,11 +1,36 @@
 /**
- * Persistance de l'import (I5) — écritures réelles Supabase
- * (`import_batches`/`import_items`/`recipes`/`recipe_sections`/
- * `recipe_ingredients`/`source_categories`) quand `hasSupabaseConfig()` est
- * vrai, repli en mémoire process sinon (dev local sans Supabase, tests
- * unitaires — jamais de vrai appel réseau dans ces deux cas). Aucun repli
- * silencieux vers la mémoire quand Supabase EST configuré : un échec
- * d'écriture Supabase lève une erreur explicite (CLAUDE.md, règle I5).
+ * Persistance de l'import (I5, durcie en K3-DATA) — écritures réelles
+ * Supabase (`import_batches`/`import_items`/`recipes`/`recipe_sections`/
+ * `recipe_ingredients`/`recipe_allergens`/`recipe_specificities`/
+ * `source_categories`) quand `hasSupabaseConfig()` est vrai, repli en mémoire
+ * process sinon (dev local sans Supabase, tests unitaires — jamais de vrai
+ * appel réseau dans ces deux cas). Aucun repli silencieux vers la mémoire
+ * quand Supabase EST configuré : un échec d'écriture Supabase lève une
+ * erreur explicite (CLAUDE.md, règle I5).
+ *
+ * Atomicité réelle (K3-DATA) : l'écriture multi-tables passe par UNE seule
+ * fonction Postgres (`save_import_recipe`, voir
+ * `supabase/migrations/20260815110000_save_import_recipe_rpc.sql`), appelée
+ * via `client.rpc(...)`. L'API REST de PostgREST ne permet pas de faire
+ * tenir plusieurs écritures sur des tables différentes dans une seule
+ * transaction ACID (chaque appel REST est sa propre transaction) — une
+ * fonction PL/pgSQL, elle, s'exécute dans une seule transaction implicite :
+ * toute exception annule automatiquement TOUTES les écritures déjà faites
+ * (recette, préparations, ingrédients, allergènes, spécificités, suivi
+ * d'import), sans code de compensation côté JS ni demi-recette possible.
+ * L'idempotence par `draft.id` (double clic, nouvelle tentative après
+ * coupure réseau) est vérifiée À L'INTÉRIEUR de cette même fonction — jamais
+ * par un aller-retour séparé avant l'insertion, qui laisserait une fenêtre de
+ * compétition entre la vérification et l'écriture.
+ *
+ * Fichier Storage orphelin après échec (K3-DATA) : si `save_import_recipe`
+ * échoue après qu'un fichier source a été réellement archivé (I6), ce
+ * fichier n'est **jamais supprimé automatiquement** ici — la correction reste
+ * reprenable côté formulaire (même `draft`, même `sourceFileUrl`) et une
+ * suppression immédiate casserait cette reprise. Un avertissement structuré
+ * (jamais silencieux) est journalisé pour un traitement différé
+ * (vérification/suppression manuelle) plutôt qu'une suppression automatique
+ * non sûre — voir `logPossiblyOrphanedSourceFile`.
  *
  * Toutes les fonctions exportées sont asynchrones (même le repli mémoire) :
  * appelées uniquement depuis les Server Actions de
@@ -16,9 +41,12 @@
  * Écritures via `createSupabaseAdminClient()` (service_role, contourne RLS) :
  * même convention que documentée dans
  * `supabase/migrations/20260814090100_rls_policies.sql` (« écritures
- * privilégiées de l'import »).
+ * privilégiées de l'import »). `save_import_recipe` n'est d'ailleurs
+ * exécutable QUE par `service_role` (revoke/grant en fin de migration),
+ * jamais par `authenticated` depuis le navigateur.
  */
 
+import { createHash } from "node:crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
 import type { RecipeRow, SourceCategoryRow } from "@/lib/supabase/types";
@@ -30,8 +58,10 @@ import type {
   Recipe,
   SourceCategory,
 } from "@/lib/domain/schemas";
-import { combineAdditionalInformation, IMPORT_SCHEMA_VERSION, type ImportRecipeDraft } from "@/lib/import/schema";
+import { combineAdditionalInformation, IMPORT_SCHEMA_VERSION, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { findDuplicateRecipe, slugify } from "@/lib/import/model";
+import { normalizeText } from "@/lib/recipes/search";
+import { SOURCE_BUCKET } from "@/lib/import/sourceUpload";
 
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -117,6 +147,35 @@ interface SaveImportRecipeParams {
   acknowledgeDuplicate?: boolean;
 }
 
+/**
+ * Rapport de doublons potentiels (K4) — ne bloque jamais, ne fusionne jamais
+ * automatiquement deux recettes : chaque entrée est une différence à
+ * présenter à la personne, la décision reste toujours humaine. Complète
+ * `checkDuplicate` (même titre + même source, seul cas déjà branché à
+ * l'écran de vérification existant) avec les trois autres cas demandés par
+ * K4 : même titre dans une AUTRE source, fichier source déjà importé
+ * (hash identique), et préparation homonyme (même nom de préparation
+ * existant déjà ailleurs — deux préparations homonymes de sources ou
+ * recettes différentes restent normales et indépendantes, ceci est
+ * seulement informatif).
+ */
+export interface ImportDuplicateMatch {
+  kind: "same_title_same_source" | "same_title_other_source" | "same_file_hash" | "homonymous_preparation";
+  recipeId: string | null;
+  recipeTitle: string | null;
+  sourceId: string | null;
+  sectionName?: string | null;
+}
+
+export interface CheckImportDuplicatesParams {
+  title: string;
+  sourceId: string;
+  /** SHA-256 hex du fichier source, s'il a déjà été calculé — `null`/absent si aucun fichier ou hash pas encore connu. */
+  fileHash?: string | null;
+  /** Noms de préparation du brouillon en cours (`section.name`), vides ignorés. */
+  sectionNames?: string[];
+}
+
 // ============================================================
 // Repli en mémoire process — dev local sans Supabase configuré, et tests
 // unitaires (`hasSupabaseConfig()` faux dans les deux cas : ni `.env.local`
@@ -127,7 +186,8 @@ const CREATED_AT = () => new Date().toISOString();
 
 let memoryBatches: ImportBatch[] = [];
 let memoryItems: ImportItem[] = [];
-let memorySavedRecipes: { recipe: Recipe }[] = [];
+/** `sections` conservé uniquement pour la détection de préparation homonyme (K4) en mode mémoire — jamais persisté tel quel côté Supabase (voir `recipe_sections`, table réelle). */
+let memorySavedRecipes: { recipe: Recipe; sections: ImportSectionDraft[] }[] = [];
 let memorySessionCategories: SourceCategory[] = [];
 
 /** Réinitialise le repli en mémoire — réservé aux tests. */
@@ -176,6 +236,58 @@ async function allKnownRecipesForDuplicateCheckMemory(): Promise<{ title: string
 
 async function checkDuplicateMemory(title: string, sourceId: string): Promise<{ title: string; sourceId: string } | null> {
   return findDuplicateRecipe(title, sourceId, await allKnownRecipesForDuplicateCheckMemory());
+}
+
+/**
+ * Repli mémoire de `checkImportDuplicates` (K4) — utilisé en dev local sans
+ * Supabase et par les tests unitaires. La détection de préparation homonyme
+ * ne porte que sur les recettes enregistrées pendant CETTE session mémoire
+ * (`memorySavedRecipes`), pas sur le jeu de données de démonstration
+ * (`getRecipes()` n'expose pas les préparations, seulement des recettes déjà
+ * assemblées) : limite acceptée du repli mémoire, la détection réelle et
+ * complète vit dans `checkImportDuplicatesSupabase` (table
+ * `recipe_sections` réelle).
+ * ponytail: préparations homonymes non vérifiées contre le jeu de démo en
+ * mode mémoire — sans conséquence en Preview (Supabase toujours configuré).
+ */
+async function checkImportDuplicatesMemory(params: CheckImportDuplicatesParams): Promise<ImportDuplicateMatch[]> {
+  const { title, sourceId, sectionNames = [] } = params;
+  const normalizedTitle = normalizeText(title);
+  const matches: ImportDuplicateMatch[] = [];
+
+  if (normalizedTitle) {
+    const demoTitles = (await getRecipes()).map((r) => ({ id: r.id, title: r.title, sourceId: r.sourceId }));
+    const savedTitles = memorySavedRecipes.map(({ recipe }) => ({ id: recipe.id, title: recipe.title, sourceId: recipe.sourceId }));
+    for (const candidate of [...demoTitles, ...savedTitles]) {
+      if (normalizeText(candidate.title) !== normalizedTitle) continue;
+      matches.push({
+        kind: candidate.sourceId === sourceId ? "same_title_same_source" : "same_title_other_source",
+        recipeId: candidate.id,
+        recipeTitle: candidate.title,
+        sourceId: candidate.sourceId,
+      });
+    }
+  }
+
+  const normalizedSectionNames = sectionNames.map((n) => n.trim().toLowerCase()).filter((n) => n.length > 0);
+  if (normalizedSectionNames.length > 0) {
+    for (const { recipe, sections } of memorySavedRecipes) {
+      for (const section of sections) {
+        const name = section.name?.trim().toLowerCase();
+        if (name && normalizedSectionNames.includes(name)) {
+          matches.push({
+            kind: "homonymous_preparation",
+            recipeId: recipe.id,
+            recipeTitle: recipe.title,
+            sourceId: recipe.sourceId,
+            sectionName: section.name,
+          });
+        }
+      }
+    }
+  }
+
+  return matches;
 }
 
 async function uniqueSlugMemory(title: string): Promise<string> {
@@ -258,7 +370,7 @@ async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<S
     createdAt: now,
     updatedAt: now,
   };
-  memorySavedRecipes.push({ recipe });
+  memorySavedRecipes.push({ recipe, sections: draft.sections });
 
   const item: ImportItem = {
     id: crypto.randomUUID(),
@@ -351,43 +463,171 @@ async function checkDuplicateSupabase(
   );
 }
 
-async function uniqueSlugSupabase(client: SupabaseAdminClient, sourceId: string, title: string): Promise<string> {
-  const base = slugify(title);
-  const result = await client.from("recipes").select("slug").eq("source_id", sourceId);
-  const rows = unwrap(result, "lecture des slugs existants");
-  const taken = new Set(rows.map((row) => row.slug));
-  if (!taken.has(base)) return base;
-  let suffix = 2;
-  while (taken.has(`${base}-${suffix}`)) suffix += 1;
-  return `${base}-${suffix}`;
+/**
+ * Repli Supabase de `checkImportDuplicates` (K4) : couvre les quatre cas
+ * demandés — même titre + même source, même titre dans une autre source,
+ * hash de fichier identique, préparation homonyme. Ne bloque ni ne fusionne
+ * jamais rien automatiquement : retourne seulement des différences à
+ * présenter à la personne (l'appelant décide).
+ * ponytail: filtre par nom de préparation via `.or(ilike...)` — les noms
+ * contenant une virgule casseraient la syntaxe de filtre PostgREST ; aucune
+ * préparation démo n'en contient à ce jour, à durcir si ça devient un
+ * problème réel (échapper ou passer par une fonction dédiée).
+ */
+async function checkImportDuplicatesSupabase(
+  client: SupabaseAdminClient,
+  params: CheckImportDuplicatesParams,
+): Promise<ImportDuplicateMatch[]> {
+  const { title, sourceId, fileHash, sectionNames = [] } = params;
+  const matches: ImportDuplicateMatch[] = [];
+  const trimmedTitle = title.trim();
+
+  if (trimmedTitle) {
+    const titleResult = await client.from("recipes").select("id, title, source_id").ilike("title", trimmedTitle);
+    const titleRows = unwrap(titleResult, "vérification de doublon par titre");
+    for (const row of titleRows) {
+      matches.push({
+        kind: row.source_id === sourceId ? "same_title_same_source" : "same_title_other_source",
+        recipeId: row.id,
+        recipeTitle: row.title,
+        sourceId: row.source_id,
+      });
+    }
+  }
+
+  if (fileHash) {
+    const hashResult = await client
+      .from("import_items")
+      .select("recipe_id")
+      .eq("source_file_hash", fileHash)
+      .not("recipe_id", "is", null);
+    const hashRows = unwrap(hashResult, "vérification de doublon par hash de fichier");
+    const recipeIds = [...new Set(hashRows.map((row) => row.recipe_id).filter((id): id is string => id !== null))];
+    if (recipeIds.length > 0) {
+      const recipesResult = await client.from("recipes").select("id, title, source_id").in("id", recipeIds);
+      const recipeRows = unwrap(recipesResult, "lecture des recettes en doublon de fichier");
+      for (const row of recipeRows) {
+        matches.push({ kind: "same_file_hash", recipeId: row.id, recipeTitle: row.title, sourceId: row.source_id });
+      }
+    }
+  }
+
+  const normalizedSectionNames = sectionNames.map((name) => name.trim()).filter((name) => name.length > 0);
+  if (normalizedSectionNames.length > 0) {
+    const orFilter = normalizedSectionNames.map((name) => `name.ilike.${name}`).join(",");
+    const sectionsResult = await client.from("recipe_sections").select("recipe_id, name").or(orFilter);
+    const sectionRows = unwrap(sectionsResult, "vérification de préparations homonymes");
+    if (sectionRows.length > 0) {
+      const recipeIds = [...new Set(sectionRows.map((row) => row.recipe_id))];
+      const recipesResult = await client.from("recipes").select("id, title, source_id").in("id", recipeIds);
+      const recipeRows = unwrap(recipesResult, "lecture des recettes pour préparations homonymes");
+      const recipeById = new Map(recipeRows.map((row) => [row.id, row]));
+      for (const section of sectionRows) {
+        const recipe = recipeById.get(section.recipe_id);
+        matches.push({
+          kind: "homonymous_preparation",
+          recipeId: section.recipe_id,
+          recipeTitle: recipe?.title ?? null,
+          sourceId: recipe?.source_id ?? null,
+          sectionName: section.name,
+        });
+      }
+    }
+  }
+
+  return matches;
 }
 
-async function findItemForDraftIdSupabase(client: SupabaseAdminClient, draftId: string): Promise<ImportItem | null> {
-  const result = await client
-    .from("import_items")
-    .select("*")
-    .eq("proposed_recipe->>id", draftId)
-    .eq("status", "done")
-    .not("recipe_id", "is", null)
-    .limit(1)
-    .maybeSingle();
-  if (result.error) {
-    throw new Error(`Vérification d'idempotence de l'import échouée : ${result.error.message}`);
-  }
-  return result.data ? mapImportItemRow(result.data) : null;
+/** SHA-256 hex minuscule — même format que la contrainte SQL `import_items_source_file_hash_format`. Pure, testable sans réseau. */
+export function computeSha256Hex(bytes: ArrayBuffer | Uint8Array): string {
+  return createHash("sha256").update(Buffer.from(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))).digest("hex");
 }
 
 /**
- * Enregistre une recette validée par la personne dans Supabase. Idempotent
- * par `draft.id` (même garantie qu'en mémoire). Aucune vraie transaction
- * multi-tables disponible via l'API REST Supabase sans fonction Postgres
- * dédiée (hors périmètre — migrations réservées à `data-security-agent`) :
- * en cas d'échec après la création de la recette, celle-ci est supprimée en
- * compensation (cascade sur `recipe_sections`/`recipe_ingredients`) plutôt
- * que de laisser un enregistrement partiel silencieux.
- * ponytail: nettoyage compensatoire best-effort, pas une transaction ACID
- * réelle — à remplacer par une fonction Postgres (`rpc`) si des écritures
- * concurrentes sur la même recette deviennent un problème réel.
+ * Télécharge le fichier source réellement archivé (I6) et calcule son
+ * empreinte — jamais sur le texte extrait, jamais un hash inventé (K4).
+ * Échec de lecture explicite (jamais un hash `null` silencieux qui ferait
+ * manquer un doublon réel).
+ */
+async function fetchAndHashSourceFile(client: SupabaseAdminClient, path: string): Promise<string> {
+  const download = await client.storage.from(SOURCE_BUCKET).download(path);
+  if (download.error || !download.data) {
+    throw new Error(
+      `Lecture du fichier source pour calcul du hash échouée (${path}) : ${download.error?.message ?? "réponse vide"}`,
+    );
+  }
+  const buffer = await download.data.arrayBuffer();
+  return computeSha256Hex(buffer);
+}
+
+/**
+ * Fichier Storage potentiellement orphelin après un échec d'enregistrement
+ * (K3-DATA) : jamais supprimé automatiquement ici — une nouvelle tentative
+ * avec le même `draft` réutilise le même `sourceFileUrl`, une suppression
+ * immédiate casserait cette reprise (« la correction reste reprenable côté
+ * formulaire »). Marquage pour traitement différé : avertissement structuré
+ * et explicite, jamais silencieux, à vérifier/nettoyer manuellement si le
+ * fichier reste réellement orphelin (recette jamais réessayée avec succès).
+ */
+function logPossiblyOrphanedSourceFile(path: string, batchId: string, cause: string): void {
+  console.warn(
+    "[import] échec d'enregistrement après archivage d'un fichier source — fichier potentiellement orphelin, " +
+      "AUCUNE suppression automatique (une nouvelle tentative peut le réutiliser), à vérifier manuellement si l'import n'aboutit jamais",
+    { bucket: SOURCE_BUCKET, path, batchId, cause },
+  );
+}
+
+interface SaveImportRecipeRpcRow {
+  outcome: "saved" | "already_saved";
+  recipe: RecipeRow;
+  item: {
+    id: string;
+    import_batch_id: string;
+    source_file_url: string | null;
+    source_file_hash: string | null;
+    status: string;
+    raw_extraction: unknown;
+    proposed_recipe: unknown;
+    errors: string[];
+    recipe_id: string | null;
+  };
+}
+
+/**
+ * `Database["public"]["Functions"]` du contrat gelé (`src/lib/supabase/types.ts`)
+ * ne déclare aucune fonction RPC (`Record<string, never>`) — ce contrat reste
+ * intentionnellement intact (gelé pour tout le lot K, `docs/11-TASK_BOARD.md`).
+ * Un cast local minimal vers une forme `.rpc()` non typée est donc utilisé ICI
+ * SEULEMENT, plutôt que d'élargir le contrat partagé pour un seul appel
+ * serveur privilégié. Le comportement réel de `@supabase/supabase-js` au
+ * runtime ne dépend jamais de ces génériques TypeScript.
+ */
+type UntypedRpcClient = {
+  rpc(fn: "save_import_recipe", args: { payload: Record<string, unknown> }): Promise<{
+    data: SaveImportRecipeRpcRow | null;
+    error: { message: string } | null;
+  }>;
+};
+
+async function callSaveImportRecipeRpc(
+  client: SupabaseAdminClient,
+  payload: Record<string, unknown>,
+): Promise<SaveImportRecipeRpcRow> {
+  const { data, error } = await (client as unknown as UntypedRpcClient).rpc("save_import_recipe", { payload });
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Réponse vide de la transaction d'enregistrement de l'import.");
+  }
+  return data;
+}
+
+/**
+ * Enregistre une recette validée par la personne dans Supabase — écriture
+ * unique via `save_import_recipe` (fonction Postgres, voir l'en-tête de ce
+ * fichier), réellement atomique et idempotente par `draft.id` (vérifié à
+ * l'intérieur de la fonction, pas par un aller-retour séparé).
  */
 async function saveImportRecipeSupabase(
   client: SupabaseAdminClient,
@@ -395,119 +635,79 @@ async function saveImportRecipeSupabase(
 ): Promise<SaveImportRecipeResult> {
   const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false } = params;
 
-  const alreadySaved = await findItemForDraftIdSupabase(client, draft.id);
-  if (alreadySaved && alreadySaved.recipeId) {
-    const recipeResult = await client.from("recipes").select("*").eq("id", alreadySaved.recipeId).maybeSingle();
-    if (recipeResult.error) {
-      throw new Error(`Relecture de la recette déjà enregistrée échouée : ${recipeResult.error.message}`);
-    }
-    if (!recipeResult.data) {
-      throw new Error(
-        "Recette déjà enregistrée introuvable en base (incohérence de données) — jamais recréée automatiquement.",
-      );
-    }
-    return { status: "already_saved", recipe: mapRecipeRow(recipeResult.data), item: alreadySaved };
-  }
-
   const duplicate = await checkDuplicateSupabase(client, draft.title, draft.sourceId);
   if (duplicate && !acknowledgeDuplicate) {
     return { status: "duplicate", duplicate };
   }
 
-  const slug = await uniqueSlugSupabase(client, draft.sourceId, draft.title);
+  const sourceFileUrl = sourceFileUrlFor(draft);
+  const sourceFileHash = sourceFileUrl ? await fetchAndHashSourceFile(client, sourceFileUrl) : null;
 
-  const recipeInsertResult = await client
-    .from("recipes")
-    .insert({
-      source_id: draft.sourceId,
-      source_category_id: draft.sourceCategoryId,
-      title: draft.title,
-      slug,
-      additional_information: combineAdditionalInformation(draft),
-      original_document_url: sourceFileUrlFor(draft),
-      photo_url: null,
-      illustration_url: null,
-      import_status: "validated",
-    })
-    .select()
-    .single();
-  const recipeInsert = unwrap(recipeInsertResult, "création de la recette");
-  const recipeId = recipeInsert.id;
-
-  try {
-    // L'ordre RETURNING d'un INSERT multi-lignes en une seule instruction
-    // suit l'ordre des valeurs fournies (garantie Postgres) : les index
-    // ci-dessous restent alignés sans identifiant temporaire supplémentaire.
-    const sectionsInsertResult = await client
-      .from("recipe_sections")
-      .insert(
-        draft.sections.map((section, index) => ({
-          recipe_id: recipeId,
-          name: section.name,
-          position: index,
-          original_text: section.originalText,
-        })),
-      )
-      .select();
-    const sectionsInsert = unwrap(sectionsInsertResult, "création des préparations");
-
-    const ingredientsPayload = draft.sections.flatMap((section, sectionIndex) =>
-      section.ingredients.map((ingredient, ingredientIndex) => ({
-        recipe_section_id: sectionsInsert[sectionIndex].id,
-        original_name: ingredient.originalName,
-        canonical_ingredient_id: ingredient.canonicalIngredientId,
-        original_quantity_text: ingredient.originalQuantityText,
-        quantity_decimal: ingredient.quantityDecimal,
+  const payload: Record<string, unknown> = {
+    draftId: draft.id,
+    batchId,
+    sourceId: draft.sourceId,
+    sourceCategoryId: draft.sourceCategoryId,
+    title: draft.title,
+    slugBase: slugify(draft.title),
+    additionalInformation: combineAdditionalInformation(draft),
+    sourceFileUrl,
+    sourceFileHash,
+    rawExtraction,
+    proposedRecipe: draft,
+    sections: draft.sections.map((section) => ({
+      name: section.name,
+      originalText: section.originalText,
+      ingredients: section.ingredients.map((ingredient, index) => ({
+        originalName: ingredient.originalName,
+        canonicalIngredientId: ingredient.canonicalIngredientId,
+        originalQuantityText: ingredient.originalQuantityText,
+        quantityDecimal: ingredient.quantityDecimal,
         unit: ingredient.unit,
-        position: ingredientIndex,
-        verification_status: ingredient.verificationStatus,
-        confidence: null,
+        position: index,
+        verificationStatus: ingredient.verificationStatus,
       })),
-    );
-    const ingredientsInsertResult = await client.from("recipe_ingredients").insert(ingredientsPayload).select();
-    unwrap(ingredientsInsertResult, "création des ingrédients");
+    })),
+    allergens: draft.allergens.map((entry) => ({ allergenId: entry.allergenId, status: entry.status })),
+    specificities: draft.specificities.map((entry) => ({
+      specificityId: entry.specificityId,
+      status: entry.status,
+      reason: entry.reason,
+      source: entry.source,
+    })),
+  };
 
-    const itemInsertResult = await client
-      .from("import_items")
-      .insert({
-        import_batch_id: batchId,
-        source_file_url: sourceFileUrlFor(draft),
-        status: "done",
-        raw_extraction: rawExtraction,
-        proposed_recipe: draft,
-        errors: [],
-        recipe_id: recipeId,
-      })
-      .select()
-      .single();
-    const itemInsert = unwrap(itemInsertResult, "enregistrement du suivi d'import");
-
-    const batchUpdate = await client.from("import_batches").update({ status: "done" }).eq("id", batchId);
-    if (batchUpdate.error) {
-      throw new Error(`Mise à jour du statut du lot d'import échouée : ${batchUpdate.error.message}`);
-    }
-
-    // Journalisation minimale (règle CLAUDE.md « journaliser modèle, version
-    // du schéma et avertissements »).
-    console.info("[import] recette enregistrée (Supabase)", {
-      model: providerName,
-      schemaVersion: IMPORT_SCHEMA_VERSION,
-      warnings: draft.warnings,
-      recipeId,
-    });
-
-    return { status: "saved", recipe: mapRecipeRow(recipeInsert), item: mapImportItemRow(itemInsert) };
+  let rpcResult: SaveImportRecipeRpcRow;
+  try {
+    rpcResult = await callSaveImportRecipeRpc(client, payload);
   } catch (error) {
-    const baseMessage = error instanceof Error ? error.message : String(error);
-    const cleanup = await client.from("recipes").delete().eq("id", recipeId);
-    if (cleanup.error) {
-      throw new Error(
-        `${baseMessage} — ATTENTION : le nettoyage automatique de la recette partielle a également échoué ` +
-          `(${cleanup.error.message}), vérification manuelle requise en base (recette ${recipeId}).`,
-      );
+    const message = error instanceof Error ? error.message : String(error);
+    if (sourceFileUrl) {
+      logPossiblyOrphanedSourceFile(sourceFileUrl, batchId, message);
     }
-    throw new Error(baseMessage);
+    // Aucune écriture partielle à nettoyer côté base : la transaction
+    // Postgres a déjà tout annulé (voir en-tête de fichier). Le message
+    // reste lisible pour l'appelant (CLAUDE.md, jamais une erreur brute).
+    throw new Error(`Enregistrement de la recette échoué, aucune donnée partielle conservée : ${message}`);
   }
+
+  const recipe = mapRecipeRow(rpcResult.recipe);
+  const item = mapImportItemRow(rpcResult.item);
+
+  if (rpcResult.outcome === "already_saved") {
+    return { status: "already_saved", recipe, item };
+  }
+
+  // Journalisation minimale (règle CLAUDE.md « journaliser modèle, version
+  // du schéma et avertissements »).
+  console.info("[import] recette enregistrée (Supabase, transaction atomique)", {
+    model: providerName,
+    schemaVersion: IMPORT_SCHEMA_VERSION,
+    warnings: draft.warnings,
+    recipeId: recipe.id,
+  });
+
+  return { status: "saved", recipe, item };
 }
 
 async function getSavedRecipesSupabase(client: SupabaseAdminClient): Promise<Recipe[]> {
@@ -547,6 +747,20 @@ export async function checkDuplicate(title: string, sourceId: string): Promise<{
 export async function saveImportRecipe(params: SaveImportRecipeParams): Promise<SaveImportRecipeResult> {
   if (!hasSupabaseConfig()) return saveImportRecipeMemory(params);
   return saveImportRecipeSupabase(createSupabaseAdminClient(), params);
+}
+
+/**
+ * Rapport complet des doublons potentiels (K4) : même titre + même source
+ * (déjà couvert par `checkDuplicate`, repris ici), même titre dans une autre
+ * source, hash de fichier identique, préparation homonyme. Jamais bloquant,
+ * jamais de fusion automatique — une liste de différences à présenter à la
+ * personne avant enregistrement. Fonction disponible pour l'écran de
+ * vérification complet (K3-IMPORT/K3-UI) ; `saveImportRecipe` continue de
+ * n'utiliser que le cas même titre + même source (comportement inchangé).
+ */
+export async function checkImportDuplicates(params: CheckImportDuplicatesParams): Promise<ImportDuplicateMatch[]> {
+  if (!hasSupabaseConfig()) return checkImportDuplicatesMemory(params);
+  return checkImportDuplicatesSupabase(createSupabaseAdminClient(), params);
 }
 
 export async function getSavedRecipes(): Promise<Recipe[]> {
