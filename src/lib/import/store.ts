@@ -390,11 +390,13 @@ async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<S
 
   // Journalisation minimale (règle CLAUDE.md « journaliser modèle, version
   // du schéma et avertissements ») — pas d'infra de logs dédiée en mode
-  // mémoire, console structurée suffit ici.
+  // mémoire, console structurée suffit ici. Nombre d'avertissements
+  // uniquement (jamais leur texte : un avertissement peut nommer un
+  // ingrédient ou une quantité réels — donnée privée, K14).
   console.info("[import] recette enregistrée (mémoire)", {
     model: providerName,
     schemaVersion: IMPORT_SCHEMA_VERSION,
-    warnings: draft.warnings,
+    warningsCount: draft.warnings.length,
     recipeId,
   });
 
@@ -699,11 +701,13 @@ async function saveImportRecipeSupabase(
   }
 
   // Journalisation minimale (règle CLAUDE.md « journaliser modèle, version
-  // du schéma et avertissements »).
+  // du schéma et avertissements »). Nombre d'avertissements uniquement
+  // (jamais leur texte : un avertissement peut nommer un ingrédient ou une
+  // quantité réels — donnée privée, K14).
   console.info("[import] recette enregistrée (Supabase, transaction atomique)", {
     model: providerName,
     schemaVersion: IMPORT_SCHEMA_VERSION,
-    warnings: draft.warnings,
+    warningsCount: draft.warnings.length,
     recipeId: recipe.id,
   });
 
