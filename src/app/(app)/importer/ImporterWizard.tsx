@@ -311,6 +311,19 @@ export function ImporterWizard() {
               </Button>
             </Link>
           </div>
+          {/* K13 — proposition FACULTATIVE, jamais cochée/déclenchée
+              automatiquement : simple lien vers la file des illustrations
+              manquantes, aucune génération pendant l'import lui-même. Le
+              nouvel ingrédient canonique éventuellement validé ci-dessus y
+              apparaît déjà automatiquement (K6/K8, voir queue.ts). */}
+          <p className="border-t border-grise pt-3 text-sm text-cacao/70">
+            Facultatif —{" "}
+            <Link href="/illustrations/manquantes" className="font-medium text-olive underline hover:text-olive/80">
+              Créer une illustration
+            </Link>{" "}
+            pour cette recette ou ses matières premières. Vous pouvez aussi y revenir plus tard depuis la fiche
+            recette ou depuis <Link href="/illustrations" className="underline hover:text-olive/80">Illustrations</Link>.
+          </p>
         </Card>
       </div>
     );

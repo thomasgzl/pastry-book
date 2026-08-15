@@ -110,6 +110,17 @@ export function RecipeSheet({
 
       {visual && <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>}
 
+      {/* Lien discret K13 : l'intégration complète (K12, « Nouvelle version »
+          si un visuel existe déjà, réservée aux utilisateurs autorisés) est
+          un lot à part — ce lien mène uniquement à l'écran de confirmation
+          réel, jamais à une génération directe. */}
+      <Link
+        href="/illustrations/manquantes"
+        className="self-start text-sm text-cacao/60 underline hover:text-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+      >
+        Créer une illustration
+      </Link>
+
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Coefficient</EditorialTitle>
         <CoefficientControl value={coefficient} onChange={handleCoefficientChange} />
