@@ -9,10 +9,11 @@ import { getCanonicalIngredients, getRecipeCountForCanonicalIngredient } from "@
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function MatieresPremieresPage() {
-  const ingredients = getCanonicalIngredients();
-  const visualUrls = await Promise.all(
-    ingredients.map((ingredient) => getApprovedVisualUrl("ingredient", ingredient.id)),
-  );
+  const ingredients = await getCanonicalIngredients();
+  const [visualUrls, recipeCounts] = await Promise.all([
+    Promise.all(ingredients.map((ingredient) => getApprovedVisualUrl("ingredient", ingredient.id))),
+    Promise.all(ingredients.map((ingredient) => getRecipeCountForCanonicalIngredient(ingredient.slug))),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,7 +26,7 @@ export default async function MatieresPremieresPage() {
           <CanonicalIngredientCard
             key={ingredient.id}
             name={ingredient.name}
-            recipeCount={getRecipeCountForCanonicalIngredient(ingredient.slug)}
+            recipeCount={recipeCounts[index]}
             imageUrl={visualUrls[index] ?? undefined}
             href={`/matieres-premieres/${ingredient.slug}`}
           />

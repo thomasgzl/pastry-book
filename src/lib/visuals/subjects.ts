@@ -26,18 +26,24 @@ export const VISUAL_KIND_LABELS: Record<VisualSubjectKind, string> = {
 
 /**
  * Univers des sujets illustrables (E3), toutes sources en lecture seule
- * (`src/lib/data/*`, mode démo). Aucune écriture ici — cette fonction ne fait
- * que lister, jamais générer.
+ * (`src/lib/data/*` — Supabase en Preview/Production, démo sinon, K1).
+ * Aucune écriture ici — cette fonction ne fait que lister, jamais générer.
  */
-export function getAllVisualSubjects(): VisualSubject[] {
-  const ingredients: VisualSubject[] = getCanonicalIngredients().map((ingredient) => ({
+export async function getAllVisualSubjects(): Promise<VisualSubject[]> {
+  const [canonicalIngredients, recipes, sources] = await Promise.all([
+    getCanonicalIngredients(),
+    getRecipes(),
+    getSources(),
+  ]);
+
+  const ingredients: VisualSubject[] = canonicalIngredients.map((ingredient) => ({
     type: "ingredient",
     id: ingredient.id,
     slug: ingredient.slug,
     label: ingredient.name,
   }));
 
-  const recipes: VisualSubject[] = getRecipes().map((recipe) => ({
+  const recipeSubjects: VisualSubject[] = recipes.map((recipe) => ({
     type: "recipe",
     id: recipe.id,
     slug: recipe.slug,
@@ -45,15 +51,16 @@ export function getAllVisualSubjects(): VisualSubject[] {
     photoUrl: recipe.photoUrl,
   }));
 
-  const sources: VisualSubject[] = getSources().map((source) => ({
+  const sourceSubjects: VisualSubject[] = sources.map((source) => ({
     type: "source",
     id: source.id,
     slug: source.slug,
     label: source.name,
   }));
 
-  const categories: VisualSubject[] = getSources().flatMap((source) =>
-    getCategoriesForSource(source.id).map((category) => ({
+  const categoriesPerSource = await Promise.all(sources.map((source) => getCategoriesForSource(source.id)));
+  const categories: VisualSubject[] = sources.flatMap((source, index) =>
+    categoriesPerSource[index].map((category) => ({
       type: "sourceCategory" as const,
       id: category.id,
       slug: category.slug,
@@ -63,9 +70,10 @@ export function getAllVisualSubjects(): VisualSubject[] {
     })),
   );
 
-  return [...ingredients, ...recipes, ...sources, ...categories];
+  return [...ingredients, ...recipeSubjects, ...sourceSubjects, ...categories];
 }
 
-export function getVisualSubject(type: VisualSubjectKind, id: string): VisualSubject | undefined {
-  return getAllVisualSubjects().find((subject) => subject.type === type && subject.id === id);
+export async function getVisualSubject(type: VisualSubjectKind, id: string): Promise<VisualSubject | undefined> {
+  const subjects = await getAllVisualSubjects();
+  return subjects.find((subject) => subject.type === type && subject.id === id);
 }

@@ -18,17 +18,20 @@ export default async function CategoriePage({
   params: Promise<{ source: string; categorie: string }>;
 }) {
   const { source: sourceSlug, categorie: categorySlug } = await params;
-  const source = getSourceBySlug(sourceSlug);
+  const source = await getSourceBySlug(sourceSlug);
   if (!source) notFound();
 
-  const category = getCategoryBySlug(source.id, categorySlug);
+  const category = await getCategoryBySlug(source.id, categorySlug);
   if (!category) notFound();
 
-  const recipesRaw = getRecipesByCategory(sourceSlug, categorySlug);
+  const recipesRaw = await getRecipesByCategory(sourceSlug, categorySlug);
   // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
   // `RecipeCard`/`recipes.ts` (module aussi consommé par des pages client).
-  const visualUrls = await Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id)));
-  const recipes = recipesRaw.map((recipe, index) => ({ ...toRecipeCardData(recipe), imageUrl: visualUrls[index] }));
+  const [visualUrls, cardData] = await Promise.all([
+    Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+    Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
+  ]);
+  const recipes = recipesRaw.map((recipe, index) => ({ ...cardData[index], imageUrl: visualUrls[index] }));
 
   return (
     <div className="flex flex-col gap-6">

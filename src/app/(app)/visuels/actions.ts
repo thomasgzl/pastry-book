@@ -40,9 +40,9 @@ function recipeModeFor(photoUrl: string | null | undefined): RecipeVisualMode {
 }
 
 /** Matière première : les pages publiques (`/matieres-premieres`) affichent le visuel PRINCIPAL — jamais un brouillon — donc revalidées à chaque changement de statut/principal (lot G, G3). Aucun effet pour les autres types de sujet (pas encore affichés hors `/visuels`). */
-function revalidatePublicPages(asset: VisualAsset): void {
+async function revalidatePublicPages(asset: VisualAsset): Promise<void> {
   if (asset.subjectType !== "ingredient") return;
-  const subject = getVisualSubject(asset.subjectType, asset.subjectId);
+  const subject = await getVisualSubject(asset.subjectType, asset.subjectId);
   if (!subject) return;
   revalidatePath("/matieres-premieres");
   revalidatePath(`/matieres-premieres/${subject.slug}`);
@@ -51,7 +51,7 @@ function revalidatePublicPages(asset: VisualAsset): void {
 export async function generateAction(formData: FormData): Promise<void> {
   const input = readForm(formData, generateSchema);
   if (!input) return;
-  const subject = getVisualSubject(input.subjectType, input.subjectId);
+  const subject = await getVisualSubject(input.subjectType, input.subjectId);
   if (!subject) return;
 
   await generateVisualDraft({
@@ -70,7 +70,7 @@ export async function regenerateAction(formData: FormData): Promise<void> {
   if (!input) return;
   const asset = await getVisualAssetById(input.assetId);
   if (!asset) return;
-  const subject = getVisualSubject(asset.subjectType, asset.subjectId);
+  const subject = await getVisualSubject(asset.subjectType, asset.subjectId);
 
   await regenerateVisualDraft(input.assetId, subject?.label ?? "Sujet", {
     categorySlug: subject?.categorySlug,
@@ -83,7 +83,7 @@ export async function approveAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(await approveVisualAsset(input.assetId));
+    await revalidatePublicPages(await approveVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -104,7 +104,7 @@ export async function approveAsPrimaryAction(formData: FormData): Promise<void> 
   if (!input) return;
   try {
     await approveVisualAsset(input.assetId);
-    revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
+    await revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -115,7 +115,7 @@ export async function rejectAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(await rejectVisualAsset(input.assetId));
+    await revalidatePublicPages(await rejectVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -126,7 +126,7 @@ export async function setPrimaryAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;
   try {
-    revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
+    await revalidatePublicPages(await setPrimaryVisualAsset(input.assetId));
   } catch (error) {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
@@ -149,7 +149,7 @@ export async function generateMissingBatchAction(
   _previous: BatchActionState,
   formData: FormData,
 ): Promise<BatchActionState> {
-  const allSubjects = getAllVisualSubjects();
+  const allSubjects = await getAllVisualSubjects();
   const missingFlags = await Promise.all(
     allSubjects.map((subject) => hasAnyVisualAsset(subject.type, subject.id)),
   );

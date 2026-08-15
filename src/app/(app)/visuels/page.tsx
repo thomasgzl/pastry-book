@@ -31,7 +31,7 @@ export default async function VisuelsPage({
   const onlyMissing = manquants === "1";
 
   const provider = getVisualsProvider();
-  const subjects = getAllVisualSubjects();
+  const subjects = await getAllVisualSubjects();
   const missingFlags = await Promise.all(subjects.map((subject) => hasAnyVisualAsset(subject.type, subject.id)));
   const missingBySubjectId = new Map(subjects.map((subject, index) => [`${subject.type}-${subject.id}`, !missingFlags[index]]));
   const missingCount = missingFlags.filter((hasAsset) => !hasAsset).length;

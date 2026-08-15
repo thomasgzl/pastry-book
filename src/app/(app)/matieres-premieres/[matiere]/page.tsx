@@ -17,18 +17,19 @@ import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function MatierePremierePage({ params }: { params: Promise<{ matiere: string }> }) {
   const { matiere: slug } = await params;
-  const ingredient = getCanonicalIngredientBySlug(slug);
+  const ingredient = await getCanonicalIngredientBySlug(slug);
   if (!ingredient) notFound();
 
-  const recipesRaw = getRecipesForCanonicalIngredient(slug);
+  const recipesRaw = await getRecipesForCanonicalIngredient(slug);
   // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
   // approuvé si présent, repli placeholder botanique sinon — jamais absente.
-  const [portrait, recipeVisualUrls] = await Promise.all([
+  const [portrait, recipeVisualUrls, cardData] = await Promise.all([
     ApprovedVisual({ subjectType: "ingredient", subjectId: ingredient.id, alt: ingredient.name, ratio: "1:1" }),
     Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+    Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
   ]);
   const recipes = recipesRaw.map((recipe, index) => ({
-    ...toRecipeCardData(recipe),
+    ...cardData[index],
     imageUrl: recipeVisualUrls[index],
   }));
 

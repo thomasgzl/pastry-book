@@ -144,13 +144,14 @@ function createImportBatchMemory(): ImportBatch {
   return batch;
 }
 
-function getCategoriesForSourceIncludingSessionMemory(sourceId: string): SourceCategory[] {
-  return [...getCategoriesForSource(sourceId), ...memorySessionCategories.filter((c) => c.sourceId === sourceId)];
+async function getCategoriesForSourceIncludingSessionMemory(sourceId: string): Promise<SourceCategory[]> {
+  return [...(await getCategoriesForSource(sourceId)), ...memorySessionCategories.filter((c) => c.sourceId === sourceId)];
 }
 
-function createLocalCategoryMemory(sourceId: string, name: string): SourceCategory {
+async function createLocalCategoryMemory(sourceId: string, name: string): Promise<SourceCategory> {
   const trimmed = name.trim();
-  const existing = getCategoriesForSourceIncludingSessionMemory(sourceId).find(
+  const existingCategories = await getCategoriesForSourceIncludingSessionMemory(sourceId);
+  const existing = existingCategories.find(
     (category) => category.name.toLowerCase() === trimmed.toLowerCase(),
   );
   if (existing) return existing;
@@ -160,26 +161,26 @@ function createLocalCategoryMemory(sourceId: string, name: string): SourceCatego
     sourceId,
     name: trimmed,
     slug: slugify(trimmed),
-    position: getCategoriesForSourceIncludingSessionMemory(sourceId).length,
+    position: existingCategories.length,
   };
   memorySessionCategories.push(category);
   return category;
 }
 
-function allKnownRecipesForDuplicateCheckMemory(): { title: string; sourceId: string }[] {
+async function allKnownRecipesForDuplicateCheckMemory(): Promise<{ title: string; sourceId: string }[]> {
   return [
-    ...getRecipes().map((recipe) => ({ title: recipe.title, sourceId: recipe.sourceId })),
+    ...(await getRecipes()).map((recipe) => ({ title: recipe.title, sourceId: recipe.sourceId })),
     ...memorySavedRecipes.map(({ recipe }) => ({ title: recipe.title, sourceId: recipe.sourceId })),
   ];
 }
 
-function checkDuplicateMemory(title: string, sourceId: string): { title: string; sourceId: string } | null {
-  return findDuplicateRecipe(title, sourceId, allKnownRecipesForDuplicateCheckMemory());
+async function checkDuplicateMemory(title: string, sourceId: string): Promise<{ title: string; sourceId: string } | null> {
+  return findDuplicateRecipe(title, sourceId, await allKnownRecipesForDuplicateCheckMemory());
 }
 
-function uniqueSlugMemory(title: string): string {
+async function uniqueSlugMemory(title: string): Promise<string> {
   const base = slugify(title);
-  const taken = new Set([...getRecipes().map((r) => r.slug), ...memorySavedRecipes.map((r) => r.recipe.slug)]);
+  const taken = new Set([...(await getRecipes()).map((r) => r.slug), ...memorySavedRecipes.map((r) => r.recipe.slug)]);
   if (!taken.has(base)) return base;
   let suffix = 2;
   while (taken.has(`${base}-${suffix}`)) suffix += 1;
@@ -219,7 +220,7 @@ function findItemForDraftIdMemory(draftId: string): ImportItem | undefined {
  * `draft.id` (ex. double clic, nouvelle tentative après coupure réseau) ne
  * crée jamais une seconde recette, retourne celle déjà enregistrée.
  */
-function saveImportRecipeMemory(params: SaveImportRecipeParams): SaveImportRecipeResult {
+async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<SaveImportRecipeResult> {
   const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false } = params;
 
   const alreadySaved = findItemForDraftIdMemory(draft.id);
@@ -228,7 +229,7 @@ function saveImportRecipeMemory(params: SaveImportRecipeParams): SaveImportRecip
     return { status: "already_saved", recipe, item: alreadySaved };
   }
 
-  const duplicate = checkDuplicateMemory(draft.title, draft.sourceId);
+  const duplicate = await checkDuplicateMemory(draft.title, draft.sourceId);
   if (duplicate && !acknowledgeDuplicate) {
     return { status: "duplicate", duplicate };
   }
@@ -241,7 +242,7 @@ function saveImportRecipeMemory(params: SaveImportRecipeParams): SaveImportRecip
     sourceId: draft.sourceId,
     sourceCategoryId: draft.sourceCategoryId,
     title: draft.title,
-    slug: uniqueSlugMemory(draft.title),
+    slug: await uniqueSlugMemory(draft.title),
     additionalInformation: combineAdditionalInformation(draft),
     // Chemin Storage réel du premier fichier archivé (I6) — `null` si aucun
     // fichier n'a été uploadé (texte collé, saisie manuelle, ou archivage

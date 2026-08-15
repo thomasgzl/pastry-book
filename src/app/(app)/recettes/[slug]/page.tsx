@@ -27,7 +27,7 @@ function toBadgeStatus(status: string): BadgeStatus {
 }
 
 function buildBreadcrumb(
-  detail: NonNullable<ReturnType<typeof getRecipeDetail>>,
+  detail: NonNullable<Awaited<ReturnType<typeof getRecipeDetail>>>,
   from: string | undefined,
 ): BreadcrumbItem[] {
   if (from === "recettes") {
@@ -63,11 +63,12 @@ export default async function RecettePage({
   const { slug } = await params;
   const { from } = await searchParams;
 
-  const detail = getRecipeDetail(slug);
+  const detail = await getRecipeDetail(slug);
   if (!detail) notFound();
 
-  const allergenById = new Map(getAllergens().map((allergen) => [allergen.id, allergen]));
-  const allergens = getRecipeAllergens(detail.recipe.id).flatMap((entry) => {
+  const [allAllergens, recipeAllergens] = await Promise.all([getAllergens(), getRecipeAllergens(detail.recipe.id)]);
+  const allergenById = new Map(allAllergens.map((allergen) => [allergen.id, allergen]));
+  const allergens = recipeAllergens.flatMap((entry) => {
     const allergen = allergenById.get(entry.allergenId);
     if (!allergen) return [];
     return [{ id: allergen.id, name: allergen.name, status: toBadgeStatus(entry.status) }];

@@ -64,7 +64,7 @@ export const demoImportProvider: ImportAIProvider = {
   },
 
   async proposeSpecificities(ingredients: ExtractedIngredient[]): Promise<SpecificityProposal[]> {
-    const availableSlugs = getSpecificities().map((specificity) => specificity.slug);
+    const availableSlugs = (await getSpecificities()).map((specificity) => specificity.slug);
     return proposeSpecificitiesFromIngredients(ingredients, availableSlugs);
   },
 };

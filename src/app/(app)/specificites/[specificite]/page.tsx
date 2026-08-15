@@ -17,13 +17,17 @@ import { getRecipeSpecificities, getRecipesForSpecificity, getSpecificityBySlug 
 
 export default async function SpecificitePage({ params }: { params: Promise<{ specificite: string }> }) {
   const { specificite: slug } = await params;
-  const specificity = getSpecificityBySlug(slug);
+  const specificity = await getSpecificityBySlug(slug);
   if (!specificity) notFound();
 
-  const recipes = getRecipesForSpecificity(slug).map((recipe) => {
-    const link = getRecipeSpecificities(recipe.id).find((entry) => entry.specificityId === specificity.id)!;
-    return { recipe, status: link.status as "confirmed" | "proposed" };
-  });
+  const recipesForSpecificity = await getRecipesForSpecificity(slug);
+  const recipes = await Promise.all(
+    recipesForSpecificity.map(async (recipe) => {
+      const [links, cardData] = await Promise.all([getRecipeSpecificities(recipe.id), toRecipeCardData(recipe)]);
+      const link = links.find((entry) => entry.specificityId === specificity.id)!;
+      return { recipe, status: link.status as "confirmed" | "proposed", cardData };
+    }),
+  );
 
   const confirmed = recipes.filter((entry) => entry.status === "confirmed");
   const proposed = recipes.filter((entry) => entry.status !== "confirmed");
@@ -46,9 +50,9 @@ export default async function SpecificitePage({ params }: { params: Promise<{ sp
         <>
           {confirmed.length > 0 && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {confirmed.map(({ recipe, status }) => (
+              {confirmed.map(({ recipe, status, cardData }) => (
                 <div key={recipe.id} className="flex flex-col gap-2">
-                  <RecipeCard {...toRecipeCardData(recipe)} />
+                  <RecipeCard {...cardData} />
                   <SpecificityBadge name={specificity.name} status={status} />
                 </div>
               ))}
@@ -59,9 +63,9 @@ export default async function SpecificitePage({ params }: { params: Promise<{ sp
             <div className="flex flex-col gap-3">
               <EditorialTitle as="h2">Proposées, à vérifier</EditorialTitle>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {proposed.map(({ recipe, status }) => (
+                {proposed.map(({ recipe, status, cardData }) => (
                   <div key={recipe.id} className="flex flex-col gap-2">
-                    <RecipeCard {...toRecipeCardData(recipe)} />
+                    <RecipeCard {...cardData} />
                     <SpecificityBadge name={specificity.name} status={status} />
                   </div>
                 ))}

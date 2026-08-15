@@ -54,8 +54,13 @@ function nextLocalId(prefix: string): string {
   return `${prefix}-${localIdCounter}`;
 }
 
-function buildIngredientDraft(ingredient: ExtractedIngredient, canonicalSlug: string | null): ImportIngredientDraft {
-  const canonical = canonicalSlug ? getCanonicalIngredients().find((c) => c.slug === canonicalSlug) : undefined;
+async function buildIngredientDraft(
+  ingredient: ExtractedIngredient,
+  canonicalSlug: string | null,
+): Promise<ImportIngredientDraft> {
+  const canonical = canonicalSlug
+    ? (await getCanonicalIngredients()).find((c) => c.slug === canonicalSlug)
+    : undefined;
   const { quantityDecimal, verificationStatus } = deriveQuantity(ingredient.originalQuantityText);
   return {
     id: nextLocalId("ing"),
@@ -76,8 +81,10 @@ async function buildSectionDraft(provider: ImportAIProvider, section: ExtractedS
     name: section.name,
     // Procédé propre à CETTE préparation quand la source en fournit un séparément (correction lot G) — jamais partagé avec les autres préparations.
     originalText: section.procedureText ?? null,
-    ingredients: section.ingredients.map((ingredient) =>
-      buildIngredientDraft(ingredient, canonicalBySlug.get(ingredient.originalName) ?? null),
+    ingredients: await Promise.all(
+      section.ingredients.map((ingredient) =>
+        buildIngredientDraft(ingredient, canonicalBySlug.get(ingredient.originalName) ?? null),
+      ),
     ),
   };
 }
@@ -107,7 +114,7 @@ export async function buildImportDraft(
   const sections = await Promise.all(raw.sections.map((section) => buildSectionDraft(provider, section)));
 
   const allergenProposals = await provider.proposeAllergens(allIngredients);
-  const allergenBySlug = new Map(getAllergens().map((a) => [a.slug, a]));
+  const allergenBySlug = new Map((await getAllergens()).map((a) => [a.slug, a]));
   const allergens: ImportAllergenDraft[] = allergenProposals
     .map((proposal) => {
       const allergen = allergenBySlug.get(proposal.allergenSlug);
@@ -116,7 +123,7 @@ export async function buildImportDraft(
     .filter((entry): entry is ImportAllergenDraft => entry !== null);
 
   const specificityProposals = await provider.proposeSpecificities(allIngredients);
-  const specificityBySlug = new Map(getSpecificities().map((s) => [s.slug, s]));
+  const specificityBySlug = new Map((await getSpecificities()).map((s) => [s.slug, s]));
   const specificities: ImportSpecificityDraft[] = specificityProposals
     .map((proposal) => {
       const specificity = specificityBySlug.get(proposal.specificitySlug);

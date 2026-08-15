@@ -20,21 +20,26 @@ import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 
 export default async function EntreprisePage({ params }: { params: Promise<{ source: string }> }) {
   const { source: sourceSlug } = await params;
-  const source = getSourceBySlug(sourceSlug);
+  const source = await getSourceBySlug(sourceSlug);
   if (!source) notFound();
 
-  const categoriesRaw = getCategoriesForSource(source.id)
-    .map((category) => ({ ...category, recipeCount: getRecipeCountForCategory(category.id) }))
+  const categoriesUnfiltered = await getCategoriesForSource(source.id);
+  const categoryCounts = await Promise.all(
+    categoriesUnfiltered.map((category) => getRecipeCountForCategory(category.id)),
+  );
+  const categoriesRaw = categoriesUnfiltered
+    .map((category, index) => ({ ...category, recipeCount: categoryCounts[index] }))
     // Une catégorie sans recette ne s'affiche pas (CLAUDE.md, aucune section vide).
     .filter((category) => category.recipeCount > 0);
 
-  const uncategorizedRecipes = getRecipesWithoutCategoryForSource(sourceSlug);
+  const uncategorizedRecipes = await getRecipesWithoutCategoryForSource(sourceSlug);
   // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
   // `RecipeCard`/`CategoryCard`/`recipes.ts` (modules aussi consommés par des
   // pages client).
-  const [categoryVisualUrls, uncategorizedVisualUrls] = await Promise.all([
+  const [categoryVisualUrls, uncategorizedVisualUrls, uncategorizedCardData] = await Promise.all([
     Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
     Promise.all(uncategorizedRecipes.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+    Promise.all(uncategorizedRecipes.map((recipe) => toRecipeCardData(recipe))),
   ]);
   const categories = categoriesRaw.map((category, index) => ({
     ...category,
@@ -76,7 +81,7 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
           {categories.length > 0 && <EditorialTitle as="h2">Autres recettes</EditorialTitle>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {uncategorizedRecipes.map((recipe, index) => (
-              <RecipeCard key={recipe.id} {...toRecipeCardData(recipe)} imageUrl={uncategorizedVisualUrls[index]} />
+              <RecipeCard key={recipe.id} {...uncategorizedCardData[index]} imageUrl={uncategorizedVisualUrls[index]} />
             ))}
           </div>
         </div>
