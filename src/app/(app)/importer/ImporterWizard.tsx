@@ -20,10 +20,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Card } from "@/components/ui/Card";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { getSources } from "@/lib/data/sources";
-import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
-import { getAllergens, getSpecificities } from "@/lib/data/specificities";
-import type { Allergen, CanonicalIngredient, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
+import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
@@ -33,7 +30,9 @@ import {
   createCategoryAction,
   createImportBatchAction,
   getCategoriesAction,
+  getImportReferenceDataAction,
   saveImportRecipeAction,
+  type ImportReferenceData,
   type SaveImportRecipeResult,
 } from "./importActions";
 import { createEmptyDraft } from "./draftFactory";
@@ -61,16 +60,9 @@ function applyDemoExtraction(draft: ImportRecipeDraft, extracted: DemoExtraction
   };
 }
 
-interface ReferenceData {
-  sources: Source[];
-  canonicalIngredients: CanonicalIngredient[];
-  specificities: Specificity[];
-  allergens: Allergen[];
-}
-
 export function ImporterWizard() {
   const [step, setStep] = useState<Step>(0);
-  const [reference, setReference] = useState<ReferenceData | null>(null);
+  const [reference, setReference] = useState<ImportReferenceData | null>(null);
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const [referenceAttempt, setReferenceAttempt] = useState(0);
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -107,9 +99,9 @@ export function ImporterWizard() {
   // silencieux vers la démo si Supabase est configuré et échoue (K1).
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getSources(), getCanonicalIngredients(), getSpecificities(), getAllergens()])
-      .then(([sourcesList, canonicalIngredients, specificities, allergens]) => {
-        if (!cancelled) setReference({ sources: sourcesList, canonicalIngredients, specificities, allergens });
+    getImportReferenceDataAction()
+      .then((data) => {
+        if (!cancelled) setReference(data);
       })
       .catch(() => {
         if (!cancelled) setReferenceError("Impossible de charger les référentiels (entreprises, matières premières, spécificités, allergènes). Réessayez.");

@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { listDemoFixtures, type DemoFixtureId } from "@/lib/ai/import/fixtures";
-import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
+import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportFileRef } from "@/lib/import/schema";
 import { uploadSourceFile } from "@/lib/import/sourceUpload";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
+import { runDemoExtractionAction } from "../importActions";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_FILES = 10;
@@ -111,7 +112,7 @@ export function FilesStep({
     setError(null);
     setLoadingFixture(fixtureId);
     try {
-      const draft = await runDemoExtraction(fixtureId);
+      const draft = await runDemoExtractionAction(fixtureId);
       onDemoExampleLoaded(draft, "demo");
     } catch {
       setError("Le chargement de l'exemple de démonstration a échoué. Réessayez.");

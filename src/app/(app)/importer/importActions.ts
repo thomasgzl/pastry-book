@@ -19,13 +19,41 @@ import {
   saveImportRecipe,
   type SaveImportRecipeResult,
 } from "@/lib/import/store";
-import type { ImportBatch, SourceCategory } from "@/lib/domain/schemas";
+import { getSources } from "@/lib/data/sources";
+import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import { getAllergens, getSpecificities } from "@/lib/data/specificities";
+import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
+import type { DemoFixtureId } from "@/lib/ai/import/fixtures";
+import type { Allergen, CanonicalIngredient, ImportBatch, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
 export type { SaveImportRecipeResult } from "@/lib/import/store";
 
+export interface ImportReferenceData {
+  sources: Source[];
+  canonicalIngredients: CanonicalIngredient[];
+  specificities: Specificity[];
+  allergens: Allergen[];
+}
+
+/** Référentiels lus via Supabase (K1) — `src/lib/data/*` dépend de `next/headers`, donc injoignable depuis `ImporterWizard.tsx` (Client Component) sans cette frontière. */
+export async function getImportReferenceDataAction(): Promise<ImportReferenceData> {
+  const [sources, canonicalIngredients, specificities, allergens] = await Promise.all([
+    getSources(),
+    getCanonicalIngredients(),
+    getSpecificities(),
+    getAllergens(),
+  ]);
+  return { sources, canonicalIngredients, specificities, allergens };
+}
+
 export async function createImportBatchAction(): Promise<ImportBatch> {
   return createImportBatch();
+}
+
+/** `runDemoExtraction` lit les référentiels via `src/lib/data/*` (server-only, `next/headers`) — même frontière que `getImportReferenceDataAction`, requise pour `FilesStep.tsx` (Client Component). */
+export async function runDemoExtractionAction(fixtureId: DemoFixtureId): Promise<DemoExtractionDraft> {
+  return runDemoExtraction(fixtureId);
 }
 
 export async function getCategoriesAction(sourceId: string): Promise<SourceCategory[]> {
