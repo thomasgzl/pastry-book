@@ -1,7 +1,7 @@
 /**
  * Optimisation client d'une image avant extraction réelle (lot G2-bis) —
- * jamais l'original modifié/écrasé, jamais d'appel réseau ici. Utilisé
- * uniquement par le pilote IA réel (`PilotExtractionPanel.tsx`).
+ * jamais l'original modifié/écrasé, jamais d'appel réseau ici. Brique
+ * réutilisable pour le parcours d'extraction réelle (branché par K3-IMPORT).
  *
  * Orientation EXIF : déléguée au décodage natif du navigateur
  * (`createImageBitmap` sans option `imageOrientation` applique

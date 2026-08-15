@@ -6,8 +6,8 @@
  * écriture/lecture passant par `src/lib/import/store.ts`. Un Client Component
  * ne peut pas attendre une vraie requête Supabase de façon synchrone pendant
  * le rendu ; ce fichier fournit le même patron déjà utilisé par
- * `pilotActions.ts` (extraction IA) et `src/app/(app)/visuels/actions.ts`
- * (visuels). Aucun secret ici : `store.ts` lit la clé de service uniquement
+ * `src/app/(app)/visuels/actions.ts` (visuels). Aucun secret ici : `store.ts`
+ * lit la clé de service uniquement
  * côté serveur (`createSupabaseAdminClient`).
  */
 

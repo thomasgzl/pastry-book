@@ -193,8 +193,8 @@ function sourceFileNameFor(draft: ImportRecipeDraft): string | null {
 
 /**
  * Chemin Storage réel du premier fichier source archivé (I6, upload direct
- * navigateur → bucket privé `recipe-sources` déclenché depuis `FilesStep.tsx`/
- * `PilotExtractionPanel.tsx`) — jamais une URL inventée. `null` tant qu'aucun
+ * navigateur → bucket privé `recipe-sources` déclenché depuis `FilesStep.tsx`)
+ * — jamais une URL inventée. `null` tant qu'aucun
  * fichier n'a été réellement archivé (texte collé, saisie manuelle, mode
  * démonstration sans Supabase configuré, ou échec d'archivage non résolu par
  * la personne avant l'enregistrement).

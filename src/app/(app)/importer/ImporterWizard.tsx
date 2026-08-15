@@ -8,7 +8,8 @@
  * publication sans validation humaine). Entièrement utilisable sans
  * fournisseur IA configuré : les 3 boutons « exemple de démonstration »
  * n'appellent qu'un adaptateur local déterministe (`src/lib/ai/import`),
- * jamais un réseau ni une clé.
+ * jamais un réseau ni une clé. L'extraction IA réelle (fournisseur OpenAI)
+ * sera branchée dans ce parcours par K3-IMPORT, hors périmètre ici.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -58,13 +59,7 @@ function applyDemoExtraction(draft: ImportRecipeDraft, extracted: DemoExtraction
   };
 }
 
-interface ImporterWizardProps {
-  /** Clé OpenAI présente côté serveur — active les 3 emplacements du pilote réel (lot G, G2). Jamais la valeur elle-même. */
-  realExtractionAvailable: boolean;
-  extractionModel: string;
-}
-
-export function ImporterWizard({ realExtractionAvailable, extractionModel }: ImporterWizardProps) {
+export function ImporterWizard() {
   const sources = getSources();
 
   const [step, setStep] = useState<Step>(0);
@@ -335,8 +330,6 @@ export function ImporterWizard({ realExtractionAvailable, extractionModel }: Imp
           onFilesChange={(files) => setDraft((d) => (d ? { ...d, originalFiles: files } : d))}
           onPastedTextChange={(text) => setDraft((d) => (d ? { ...d, pastedText: text } : d))}
           onDemoExampleLoaded={handleDemoExampleLoaded}
-          realExtractionAvailable={realExtractionAvailable}
-          extractionModel={extractionModel}
           importBatchId={batchId}
         />
       )}

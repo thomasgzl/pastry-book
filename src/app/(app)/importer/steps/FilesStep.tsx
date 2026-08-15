@@ -10,7 +10,6 @@ import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/run
 import type { ImportFileRef } from "@/lib/import/schema";
 import { uploadSourceFile } from "@/lib/import/sourceUpload";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
-import { PilotExtractionPanel } from "./PilotExtractionPanel";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_FILES = 10;
@@ -21,11 +20,8 @@ interface FilesStepProps {
   pastedText: string | null;
   onFilesChange: (files: ImportFileRef[]) => void;
   onPastedTextChange: (text: string | null) => void;
-  /** Appelé une fois qu'un exemple de démonstration (D3) — ou une extraction réelle du pilote (lot G) — a été chargé et transformé en brouillon pré-rempli. */
+  /** Appelé une fois qu'un exemple de démonstration (D3) a été chargé et transformé en brouillon pré-rempli. L'extraction IA réelle est branchée séparément (K3-IMPORT). */
   onDemoExampleLoaded: (draft: DemoExtractionDraft, providerName: string) => void;
-  /** Clé OpenAI présente côté serveur — affiche les 3 emplacements du pilote réel (lot G, G2). */
-  realExtractionAvailable: boolean;
-  extractionModel: string;
   /** Lot d'import déjà créé côté serveur — préfixe du chemin Storage (I6). */
   importBatchId: string;
 }
@@ -47,8 +43,6 @@ export function FilesStep({
   onFilesChange,
   onPastedTextChange,
   onDemoExampleLoaded,
-  realExtractionAvailable,
-  extractionModel,
   importBatchId,
 }: FilesStepProps) {
   const [loadingFixture, setLoadingFixture] = useState<DemoFixtureId | null>(null);
@@ -200,10 +194,6 @@ export function FilesStep({
         </div>
         {loadingFixture && <LoadingState message="Chargement de l'exemple de démonstration…" />}
       </div>
-
-      {realExtractionAvailable && (
-        <PilotExtractionPanel extractionModel={extractionModel} onExtracted={onDemoExampleLoaded} importBatchId={importBatchId} />
-      )}
 
       {error && <ErrorState message={error} />}
     </div>

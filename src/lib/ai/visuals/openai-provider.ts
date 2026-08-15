@@ -178,7 +178,7 @@ export function createOpenAiImageProvider(
           // "Transparent background is not supported for this model.", statut 400,
           // type image_generation_user_error/invalid_value) — jamais envoyé, quel que
           // soit `request.background` demandé par l'appelant. Le fond ivoire uniforme
-          // doit être obtenu par le prompt (voir `visuels/pilote/prompt.ts`), pas par ce paramètre.
+          // doit être obtenu par le prompt (voir `src/lib/visuals/preset.ts`), pas par ce paramètre.
           background: "opaque",
         }),
       });
