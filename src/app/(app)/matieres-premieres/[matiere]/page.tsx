@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { getCanonicalIngredientBySlug, getRecipesForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
@@ -23,8 +24,11 @@ export default async function MatierePremierePage({ params }: { params: Promise<
   const recipesRaw = await getRecipesForCanonicalIngredient(slug);
   // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
   // approuvé si présent, repli placeholder botanique sinon — jamais absente.
-  const [portrait, recipeVisualUrls, cardData] = await Promise.all([
+  const [portrait, hasApprovedVisual, recipeVisualUrls, cardData] = await Promise.all([
     ApprovedVisual({ subjectType: "ingredient", subjectId: ingredient.id, alt: ingredient.name, ratio: "1:1" }),
+    getApprovedVisualUrl("ingredient", ingredient.id)
+      .then((url) => url !== null)
+      .catch(() => false),
     Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
     Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
   ]);
@@ -47,6 +51,8 @@ export default async function MatierePremierePage({ params }: { params: Promise<
         <div className="w-20 shrink-0 sm:w-24">{portrait}</div>
         <EditorialTitle>{ingredient.name}</EditorialTitle>
       </div>
+
+      <IllustrationAction subjectType="ingredient" hasVisual={hasApprovedVisual} label={ingredient.name} />
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette ne contient cette matière première pour le moment." />

@@ -21,8 +21,8 @@ export function SourceCard({ name, recipeCount, imageUrl, href, className = "" }
     <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
       <Card className="flex items-center gap-3 transition-colors hover:bg-avoine/40">
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel démo/CMS, pas encore de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas de pipeline next/image dédié (lot E).
+          <img src={imageUrl} alt={name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
         ) : (
           <PlaceholderIllustration label={name} className="h-10 w-10" />
         )}

@@ -31,4 +31,27 @@ describe("EntreprisePage — Hennessy", () => {
   it("404 pour une source inconnue", async () => {
     await expect(EntreprisePage({ params: Promise.resolve({ source: "inexistante" }) })).rejects.toThrow();
   });
+
+  it("aucun visuel approuvé : portrait placeholder + action « Créer une illustration » (K12)", async () => {
+    const { container } = render(await EntreprisePage({ params: Promise.resolve({ source: "cap-patissier" }) }));
+
+    expect(container.querySelector("img")).toHaveAttribute("alt", "");
+    expect(screen.getByRole("link", { name: "Créer une illustration" })).toHaveAttribute(
+      "href",
+      "/illustrations/manquantes?q=CAP%20P%C3%A2tissier",
+    );
+  });
+
+  it("Hennessy n'a qu'un brouillon (démo) : jamais affiché, considéré comme non illustré (K12)", async () => {
+    const { container } = render(await EntreprisePage({ params: Promise.resolve({ source: "hennessy" }) }));
+
+    // Le portrait de tête de page reste le repli placeholder — le brouillon
+    // existant (`status: "draft"`, fixtures E4) n'est jamais principal ni
+    // rendu publiquement (`getApprovedVisualUrl` exige `approved`+`isPrimary`).
+    expect(container.querySelector("img")).toHaveAttribute("alt", "");
+    expect(screen.getByRole("link", { name: "Créer une illustration" })).toHaveAttribute(
+      "href",
+      "/illustrations/manquantes?q=Hennessy",
+    );
+  });
 });

@@ -14,6 +14,7 @@ import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import type { BadgeStatus } from "@/components/ui/StatusBadge";
 import { getRecipeDetail } from "@/lib/data/recipes";
 import { getAllergens, getRecipeAllergens } from "@/lib/data/specificities";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 import { RecipeSheet } from "./RecipeSheet";
 
 /**
@@ -74,16 +75,23 @@ export default async function RecettePage({
     return [{ id: allergen.id, name: allergen.name, status: toBadgeStatus(entry.status) }];
   });
 
-  // Condition d'affichage inchangée (lot J6, présentation uniquement) : le
-  // visuel n'apparaît que si la recette a une photo source en base — voir
-  // RecipeSheet. `ApprovedVisual` décide seule d'afficher le vrai visuel
-  // approuvé ou le repli placeholder. Appelé directement (await) plutôt
-  // qu'en JSX : ce composant async est résolu ici, côté serveur, avant de
-  // franchir la frontière `"use client"` de `RecipeSheet` — un élément JSX
-  // async non résolu ne peut pas être rendu par le reconciliateur client.
-  const visual = detail.recipe.photoUrl
-    ? await ApprovedVisual({ subjectType: "recipe", subjectId: detail.recipe.id, alt: detail.recipe.title, ratio: "4:3" })
-    : undefined;
+  // Visuel toujours affiché (K12) : visuel approuvé si présent, repli
+  // placeholder botanique sinon — jamais absent, même règle que la carte
+  // recette/la fiche matière première. `photoUrl` ne conditionne plus le
+  // rendu : il ne décrit qu'un mode de génération (photo vs description),
+  // pas la présence d'une illustration approuvée. Appelé directement (await)
+  // plutôt qu'en JSX : ce composant async est résolu ici, côté serveur, avant
+  // de franchir la frontière `"use client"` de `RecipeSheet` — un élément
+  // JSX async non résolu ne peut pas être rendu par le reconciliateur client.
+  const [visual, hasApprovedVisual] = await Promise.all([
+    ApprovedVisual({ subjectType: "recipe", subjectId: detail.recipe.id, alt: detail.recipe.title, ratio: "4:3" }),
+    getApprovedVisualUrl("recipe", detail.recipe.id)
+      .then((url) => url !== null)
+      // Lecture Storage/Supabase indisponible : dégrade vers « pas encore
+      // illustrée » plutôt qu'un plantage — même repli silencieux que
+      // `ApprovedVisual` pour cette information purement décorative.
+      .catch(() => false),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -93,6 +101,7 @@ export default async function RecettePage({
         sourceName={detail.sourceName}
         categoryName={detail.categoryName}
         visual={visual}
+        hasApprovedVisual={hasApprovedVisual}
         sections={detail.sections}
         allergens={allergens}
         keyIngredients={detail.keyIngredients}

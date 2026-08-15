@@ -42,8 +42,12 @@ export function CanonicalIngredientCard({
     <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
       <Card className="flex items-center gap-3 transition-colors hover:bg-avoine/40">
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel démo/CMS, pas encore de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+          // Matière première : image entière visible, jamais recadrée
+          // (`object-contain`, même règle que `ApprovedVisual`/`CulinaryFrame`
+          // pour ce type de sujet, K12) ; texte alternatif réel, jamais vide,
+          // le nom n'étant pas répété ailleurs dans cette vignette compacte.
+          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
+          <img src={imageUrl} alt={name} className="h-10 w-10 shrink-0 rounded-lg bg-ivoire object-contain p-0.5" />
         ) : botanicalVariant ? (
           <BotanicalOrnament variant={botanicalVariant} className="h-10 w-10 shrink-0" />
         ) : (

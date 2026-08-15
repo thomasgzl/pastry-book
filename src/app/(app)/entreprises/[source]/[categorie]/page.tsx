@@ -3,8 +3,10 @@
  */
 
 import { notFound } from "next/navigation";
+import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { getCategoryBySlug } from "@/lib/data/categories";
@@ -25,9 +27,15 @@ export default async function CategoriePage({
   if (!category) notFound();
 
   const recipesRaw = await getRecipesByCategory(sourceSlug, categorySlug);
-  // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
-  // `RecipeCard`/`recipes.ts` (module aussi consommé par des pages client).
-  const [visualUrls, cardData] = await Promise.all([
+  // Visuels IA approuvés (lot J7/K12) — résolus ici (page serveur), jamais
+  // dans `RecipeCard`/`recipes.ts` (module aussi consommé par des pages
+  // client). En-tête de catégorie (K12) : même patron que la fiche matière
+  // première/la page entreprise.
+  const [portrait, hasApprovedVisual, visualUrls, cardData] = await Promise.all([
+    ApprovedVisual({ subjectType: "sourceCategory", subjectId: category.id, alt: category.name, ratio: "1:1" }),
+    getApprovedVisualUrl("sourceCategory", category.id)
+      .then((url) => url !== null)
+      .catch(() => false),
     Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
     Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
   ]);
@@ -44,7 +52,12 @@ export default async function CategoriePage({
         ]}
       />
 
-      <EditorialTitle>{category.name}</EditorialTitle>
+      <div className="flex items-center gap-4">
+        <div className="w-20 shrink-0 sm:w-24">{portrait}</div>
+        <EditorialTitle>{category.name}</EditorialTitle>
+      </div>
+
+      <IllustrationAction subjectType="sourceCategory" hasVisual={hasApprovedVisual} label={category.name} />
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette pour cette catégorie pour le moment." />

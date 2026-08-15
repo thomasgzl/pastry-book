@@ -44,6 +44,10 @@ interface MissingQueueBrowserProps {
   /** Lien documentaire officiel affiché à la place d'un prix inventé quand l'estimation n'est pas fiable (K9). */
   costDocUrl: string;
   dimensionsByType: Record<VisualSubjectKind, { ratio: string; size: string }>;
+  /** Pré-remplit la recherche depuis `?q=` (K12, deep-link approché depuis une
+   * carte/fiche métier vers son sujet précis) — reste une recherche normale,
+   * modifiable, jamais une présélection automatique du sujet. */
+  initialQuery?: string;
 }
 
 /** Prompt final EXACT tel qu'il sera envoyé au fournisseur — même appel que `generateVisualDraft`/`buildVisualPrompt` côté serveur (`service.ts`), jamais un exemple générique (K9). */
@@ -82,8 +86,9 @@ export function MissingQueueBrowser({
   costPerImageEstimateEur,
   costDocUrl,
   dimensionsByType,
+  initialQuery = "",
 }: MissingQueueBrowserProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [batchSize, setBatchSize] = useState<QueueBatchSize>(QUEUE_BATCH_SIZE_OPTIONS[0]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState(runMissingQueueAction, INITIAL_STATE);

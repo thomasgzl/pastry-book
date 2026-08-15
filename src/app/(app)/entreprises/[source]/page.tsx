@@ -8,8 +8,10 @@
  */
 
 import { notFound } from "next/navigation";
+import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { CategoryCard } from "@/components/cards/CategoryCard";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -33,14 +35,20 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
     .filter((category) => category.recipeCount > 0);
 
   const uncategorizedRecipes = await getRecipesWithoutCategoryForSource(sourceSlug);
-  // Visuels IA approuvés (lot J7) — résolus ici (page serveur), jamais dans
-  // `RecipeCard`/`CategoryCard`/`recipes.ts` (modules aussi consommés par des
-  // pages client).
-  const [categoryVisualUrls, uncategorizedVisualUrls, uncategorizedCardData] = await Promise.all([
-    Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
-    Promise.all(uncategorizedRecipes.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
-    Promise.all(uncategorizedRecipes.map((recipe) => toRecipeCardData(recipe))),
-  ]);
+  // Visuels IA approuvés (lot J7/K12) — résolus ici (page serveur), jamais
+  // dans `RecipeCard`/`CategoryCard`/`recipes.ts` (modules aussi consommés
+  // par des pages client). Portrait de l'entreprise (K12) : même patron que
+  // la fiche matière première.
+  const [portrait, hasApprovedVisual, categoryVisualUrls, uncategorizedVisualUrls, uncategorizedCardData] =
+    await Promise.all([
+      ApprovedVisual({ subjectType: "source", subjectId: source.id, alt: source.name, ratio: "1:1" }),
+      getApprovedVisualUrl("source", source.id)
+        .then((url) => url !== null)
+        .catch(() => false),
+      Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
+      Promise.all(uncategorizedRecipes.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+      Promise.all(uncategorizedRecipes.map((recipe) => toRecipeCardData(recipe))),
+    ]);
   const categories = categoriesRaw.map((category, index) => ({
     ...category,
     imageUrl: categoryVisualUrls[index],
@@ -56,7 +64,12 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
         ]}
       />
 
-      <EditorialTitle>{source.name}</EditorialTitle>
+      <div className="flex items-center gap-4">
+        <div className="w-20 shrink-0 sm:w-24">{portrait}</div>
+        <EditorialTitle>{source.name}</EditorialTitle>
+      </div>
+
+      <IllustrationAction subjectType="source" hasVisual={hasApprovedVisual} label={source.name} />
 
       {categories.length === 0 && uncategorizedRecipes.length === 0 && (
         <EmptyState message="Aucune recette pour cette entreprise pour le moment." />

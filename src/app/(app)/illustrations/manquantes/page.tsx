@@ -33,7 +33,12 @@ function buildDimensionsByType(): Record<VisualSubjectKind, { ratio: string; siz
   ) as Record<VisualSubjectKind, { ratio: string; size: string }>;
 }
 
-export default async function MissingIllustrationsPage() {
+export default async function MissingIllustrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   let entries: MissingSubjectEntry[] | null = null;
   let loadError = false;
   try {
@@ -87,6 +92,7 @@ export default async function MissingIllustrationsPage() {
           costPerImageEstimateEur={description.costPerImageEstimateEur}
           costDocUrl={OPENAI_PRICING_DOC_URL}
           dimensionsByType={buildDimensionsByType()}
+          initialQuery={q}
         />
       )}
     </div>

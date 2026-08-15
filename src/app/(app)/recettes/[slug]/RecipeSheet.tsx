@@ -10,13 +10,13 @@
  * CBF4 (refonte visuelle) : présentation uniquement, aucun changement de
  * logique (coefficient, QS, `needs_review`, sections conditionnelles).
  *
- * Visuel (lot J5/J6) : `visual` est un `ReactNode` déjà résolu et rendu côté
- * serveur par la page (`<ApprovedVisual />` — visuel approuvé si présent,
- * repli placeholder sinon), composé ici via le slot enfant standard pour
- * Server Component dans un Client Component. Ce fichier n'importe jamais
- * `approvedVisual.ts`/`ApprovedVisual` directement (règle non négociable :
- * lecture Storage serveur uniquement). Condition d'affichage identique à
- * avant (présence d'une photo source) — aucun changement de logique.
+ * Visuel (lot J5/J6, toujours affiché depuis K12) : `visual` est un
+ * `ReactNode` déjà résolu et rendu côté serveur par la page
+ * (`<ApprovedVisual />` — visuel approuvé si présent, repli placeholder
+ * botanique sinon, jamais absent), composé ici via le slot enfant standard
+ * pour Server Component dans un Client Component. Ce fichier n'importe
+ * jamais `approvedVisual.ts`/`ApprovedVisual` directement (règle non
+ * négociable : lecture Storage serveur uniquement).
  */
 
 import { useState } from "react";
@@ -28,6 +28,7 @@ import { WarningIcon } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { CoefficientControl } from "@/components/ui/CoefficientControl";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { getIngredientQuantityDisplay, isValidCoefficient } from "@/lib/recipes/coefficient";
 import type { RecipeKeyIngredient, RecipeSectionWithIngredients } from "@/lib/data/recipes";
 
@@ -41,9 +42,14 @@ interface RecipeSheetProps {
   title: string;
   sourceName: string;
   categoryName?: string;
-  /** Visuel déjà résolu et rendu par la page (voir note ci-dessus) — absent
-   * si la recette n'a aucune photo source (aucune section vide affichée). */
-  visual?: ReactNode;
+  /** Visuel déjà résolu et rendu par la page (voir note ci-dessus) — toujours
+   * présent (visuel approuvé ou repli placeholder, K12). */
+  visual: ReactNode;
+  /** Sujet déjà pourvu d'un visuel principal approuvé ? Détermine le libellé
+   * de l'action secondaire (« Créer une illustration » / « Nouvelle version »,
+   * K12) — jamais déduit de `visual`, qui affiche toujours un cadre (image ou
+   * placeholder). */
+  hasApprovedVisual: boolean;
   sections: RecipeSectionWithIngredients[];
   allergens: RecipeSheetAllergen[];
   keyIngredients: RecipeKeyIngredient[];
@@ -79,6 +85,7 @@ export function RecipeSheet({
   sourceName,
   categoryName,
   visual,
+  hasApprovedVisual,
   sections,
   allergens,
   keyIngredients,
@@ -108,18 +115,14 @@ export function RecipeSheet({
         </p>
       </div>
 
-      {visual && <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>}
+      <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>
 
-      {/* Lien discret K13 : l'intégration complète (K12, « Nouvelle version »
-          si un visuel existe déjà, réservée aux utilisateurs autorisés) est
-          un lot à part — ce lien mène uniquement à l'écran de confirmation
-          réel, jamais à une génération directe. */}
-      <Link
-        href="/illustrations/manquantes"
-        className="self-start text-sm text-cacao/60 underline hover:text-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
-      >
-        Créer une illustration
-      </Link>
+      <IllustrationAction
+        subjectType="recipe"
+        hasVisual={hasApprovedVisual}
+        label={title}
+        className="self-start"
+      />
 
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Coefficient</EditorialTitle>

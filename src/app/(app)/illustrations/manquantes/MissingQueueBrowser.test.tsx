@@ -156,3 +156,20 @@ describe("MissingQueueBrowser — écran de confirmation (K9)", () => {
     expect(within(panel).getByRole("button", { name: "Générer le lot (2)" })).toBeInTheDocument();
   });
 });
+
+describe("MissingQueueBrowser — deep-link approché depuis une fiche métier (K12)", () => {
+  it("`initialQuery` pré-remplit la recherche et filtre sur le sujet visé, sans rien présélectionner ni confirmer", () => {
+    renderBrowser({ initialQuery: "Tarte au citron" });
+
+    expect(screen.getByRole("searchbox", { name: "Rechercher un sujet manquant par nom" })).toHaveValue(
+      "Tarte au citron",
+    );
+    expect(screen.getByText("Tarte au citron")).toBeInTheDocument();
+    // "Citron" (ingrédient) est écarté : sa recherche par sous-chaîne ne le
+    // retient pas pour la requête "Tarte au citron" (l'inverse serait vrai).
+    expect(screen.queryByText("Citron")).not.toBeInTheDocument();
+    // Reste une recherche normale, modifiable : aucune sélection ni
+    // confirmation automatique — l'utilisateur doit encore agir.
+    expect(screen.queryByLabelText(/Pour confirmer, tapez exactement/)).not.toBeInTheDocument();
+  });
+});

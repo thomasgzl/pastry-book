@@ -18,10 +18,14 @@ describe("RecettePage — recette CAP minimale (pate-sablee-cap)", () => {
     expect(screen.getByText("Farine T55")).toBeInTheDocument();
     expect(screen.getByText("Sel")).toBeInTheDocument();
 
-    // Aucune section vide (CLAUDE.md, principe 2). L'image, décorative
-    // (alt=""), a le rôle ARIA implicite "presentation" — on la recherche
-    // donc directement dans le DOM plutôt que par rôle accessible.
-    expect(container.querySelector("img")).not.toBeInTheDocument();
+    // Aucune section vide (CLAUDE.md, principe 2) pour les blocs
+    // informationnels — mais le visuel, lui, est toujours affiché depuis K12
+    // (visuel approuvé sinon repli placeholder botanique, jamais absent,
+    // même règle que RecipeCard/CategoryCard). Recette CAP sans visuel
+    // approuvé ⇒ image de repli décorative (alt="").
+    const img = container.querySelector("img");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("alt", "");
     expect(screen.queryByRole("heading", { name: "Allergènes détectés" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Matières premières clés" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Informations complémentaires" })).not.toBeInTheDocument();
