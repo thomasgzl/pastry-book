@@ -17,10 +17,22 @@ interface RecipeDetailsStepProps {
 }
 
 const inputClasses =
-  "min-h-11 w-full rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
+  "min-h-11 w-full min-w-0 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
+
+const moveButtonClasses =
+  "min-h-11 min-w-11 rounded-lg text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive disabled:opacity-30";
 
 function updateSection(draft: ImportRecipeDraft, sectionId: string, update: (section: ImportSectionDraft) => ImportSectionDraft): ImportRecipeDraft {
   return { ...draft, sections: draft.sections.map((section) => (section.id === sectionId ? update(section) : section)) };
+}
+
+/** Réorganisation monter/descendre — même patron que `moveFile` (FilesStep, K3-IMPORT), pas de librairie de glisser-déposer. */
+function moveSection(draft: ImportRecipeDraft, index: number, direction: -1 | 1): ImportRecipeDraft {
+  const target = index + direction;
+  if (target < 0 || target >= draft.sections.length) return draft;
+  const sections = [...draft.sections];
+  [sections[index], sections[target]] = [sections[target], sections[index]];
+  return { ...draft, sections };
 }
 
 /**
@@ -106,10 +118,32 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
         <EditorialTitle as="h2">Préparations et ingrédients</EditorialTitle>
         {draft.sections.map((section, sectionIndex) => (
           <Card key={section.id} className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label htmlFor={`section-name-${section.id}`} className="text-sm font-medium text-cacao">
                 Nom de la préparation (facultatif — laisser vide pour une liste simple)
               </label>
+              {draft.sections.length > 1 && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onChange((d) => moveSection(d, sectionIndex, -1))}
+                    disabled={sectionIndex === 0}
+                    aria-label={`Monter la préparation ${section.name ?? sectionIndex + 1}`}
+                    className={moveButtonClasses}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onChange((d) => moveSection(d, sectionIndex, 1))}
+                    disabled={sectionIndex === draft.sections.length - 1}
+                    aria-label={`Descendre la préparation ${section.name ?? sectionIndex + 1}`}
+                    className={moveButtonClasses}
+                  >
+                    ↓
+                  </button>
+                </div>
+              )}
             </div>
             <input
               id={`section-name-${section.id}`}
