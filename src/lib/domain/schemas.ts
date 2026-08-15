@@ -173,6 +173,17 @@ export const importItemSchema = z.object({
   sourceFileUrl: z.url().nullable().optional(),
   /** Nom de fichier local ou identifiant temporaire choisi avant tout enregistrement réel — distinct de `sourceFileUrl`, jamais confondu avec lui. */
   sourceFileName: z.string().min(1).nullable().optional(),
+  /**
+   * SHA-256 hex minuscule du fichier source une fois uploadé (calculé sur les
+   * octets du fichier, jamais sur le texte extrait) — sert uniquement à
+   * repérer un fichier identique déjà importé (K4), ne remplace jamais
+   * `sourceFileUrl`. Nullable/absent tant qu'aucun fichier réel n'est associé.
+   */
+  sourceFileHash: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable()
+    .optional(),
   status: z.enum(["pending", "processing", "needs_review", "done", "error"]),
   rawExtraction: z.unknown().nullable(),
   proposedRecipe: z.unknown().nullable(),

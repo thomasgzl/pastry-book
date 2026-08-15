@@ -152,6 +152,8 @@ export type ImportItemRow = {
   import_batch_id: string;
   /** Nullable depuis `20260814090200_import_source_file_url_nullable.sql` — la saisie manuelle sans fichier écrit `null` (jamais une URL fictive). */
   source_file_url: Nullable<string>;
+  /** SHA-256 hex minuscule du fichier source, depuis `20260815100000_import_source_file_hash.sql` — pour la détection de doublons par fichier identique (K4). Nullable tant qu'aucun fichier n'est associé. */
+  source_file_hash: Nullable<string>;
   status: JobStatus;
   raw_extraction: unknown;
   proposed_recipe: unknown;
@@ -217,7 +219,13 @@ export interface Database {
       import_batches: Table<ImportBatchRow, "id" | "status" | "created_at">;
       import_items: Table<
         ImportItemRow,
-        "id" | "status" | "raw_extraction" | "proposed_recipe" | "errors" | "recipe_id"
+        | "id"
+        | "source_file_hash"
+        | "status"
+        | "raw_extraction"
+        | "proposed_recipe"
+        | "errors"
+        | "recipe_id"
       >;
       visual_assets: Table<
         VisualAssetRow,
