@@ -48,6 +48,12 @@ export async function getApprovedVisualUrl(
 
   if (asset.imageUrl.startsWith("data:")) return asset.imageUrl;
 
+  // Chemin public statique (`/visuals/...`, image fournie manuellement —
+  // `scripts/link-local-ingredient-images.mjs`) : servi tel quel par Next,
+  // jamais dans le bucket privé, donc jamais besoin d'URL signée. Un chemin
+  // Storage réel ne commence jamais par `/` (format `{subjectType}/{subjectId}/{uuid}.{ext}`).
+  if (asset.imageUrl.startsWith("/")) return asset.imageUrl;
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.storage
     .from(VISUAL_ASSETS_BUCKET)

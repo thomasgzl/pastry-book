@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { getCanonicalIngredientBySlug, getRecipesForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
 import { toRecipeCardData } from "@/lib/data/recipes";
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
+import { getLocalIngredientImage } from "@/lib/visuals/localIngredientImages";
 
 export default async function MatierePremierePage({ params }: { params: Promise<{ matiere: string }> }) {
   const { matiere: slug } = await params;
@@ -25,7 +26,13 @@ export default async function MatierePremierePage({ params }: { params: Promise<
   // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
   // approuvé si présent, repli placeholder botanique sinon — jamais absente.
   const [portrait, hasApprovedVisual, recipeVisualUrls, cardData] = await Promise.all([
-    ApprovedVisual({ subjectType: "ingredient", subjectId: ingredient.id, alt: ingredient.name, ratio: "1:1" }),
+    ApprovedVisual({
+      subjectType: "ingredient",
+      subjectId: ingredient.id,
+      alt: ingredient.name,
+      ratio: "1:1",
+      localFallbackSrc: getLocalIngredientImage(ingredient.slug),
+    }),
     getApprovedVisualUrl("ingredient", ingredient.id)
       .then((url) => url !== null)
       .catch(() => false),

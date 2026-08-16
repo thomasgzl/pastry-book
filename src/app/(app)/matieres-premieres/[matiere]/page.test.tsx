@@ -31,12 +31,12 @@ describe("MatierePremierePage", () => {
     );
   });
 
-  it("aucun visuel approuvé (Pistache : brouillon/rejeté seulement, jamais affiché) : placeholder + « Créer une illustration » (K12)", async () => {
+  it("aucun visuel approuvé (Pistache : brouillon/rejeté seulement, jamais affiché) : repli illustration locale + « Créer une illustration » (K12)", async () => {
     const { container } = render(await MatierePremierePage({ params: Promise.resolve({ matiere: "pistache" }) }));
 
     const img = container.querySelector("img");
-    expect(img).toHaveAttribute("alt", "");
-    expect(img).toHaveAttribute("src", expect.stringMatching(/^\/visuals\/placeholders\//));
+    expect(img).toHaveAttribute("alt", "Pistache");
+    expect(img).toHaveAttribute("src", "/visuals/24-pistache.svg");
     expect(screen.getByRole("link", { name: "Créer une illustration" })).toHaveAttribute(
       "href",
       "/illustrations/manquantes?q=Pistache",

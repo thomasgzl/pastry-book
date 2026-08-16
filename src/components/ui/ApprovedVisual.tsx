@@ -29,6 +29,9 @@ interface ApprovedVisualProps {
   ratio?: "4:3" | "16:9" | "1:1";
   fit?: "cover" | "contain";
   className?: string;
+  /** Repli statique (`localIngredientImages.ts`) si aucun visuel approuvé
+   * n'existe encore — pas un visuel IA, jamais prioritaire sur `url`. */
+  localFallbackSrc?: string;
 }
 
 /**
@@ -49,6 +52,7 @@ export async function ApprovedVisual({
   ratio = "4:3",
   fit,
   className = "",
+  localFallbackSrc,
 }: ApprovedVisualProps) {
   let url: string | null = null;
   try {
@@ -59,14 +63,15 @@ export async function ApprovedVisual({
     // décorative (l'essentiel de la page — recette, ingrédient — reste lisible).
     url = null;
   }
+  const effectiveUrl = url ?? localFallbackSrc ?? null;
 
   return (
     <CulinaryFrame
-      src={url ?? FALLBACK_SRC[subjectType]}
-      alt={url ? alt : ""}
+      src={effectiveUrl ?? FALLBACK_SRC[subjectType]}
+      alt={effectiveUrl ? alt : ""}
       ratio={ratio}
       fit={fit ?? DEFAULT_FIT[subjectType]}
-      decorate={!url}
+      decorate={!effectiveUrl}
       className={className}
     />
   );

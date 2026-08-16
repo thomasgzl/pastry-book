@@ -7,6 +7,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { CanonicalIngredientCard } from "@/components/cards/CanonicalIngredientCard";
 import { getCanonicalIngredients, getRecipeCountForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
+import { getLocalIngredientImage } from "@/lib/visuals/localIngredientImages";
 
 export default async function MatieresPremieresPage() {
   const ingredients = await getCanonicalIngredients();
@@ -27,7 +28,7 @@ export default async function MatieresPremieresPage() {
             key={ingredient.id}
             name={ingredient.name}
             recipeCount={recipeCounts[index]}
-            imageUrl={visualUrls[index] ?? undefined}
+            imageUrl={visualUrls[index] ?? getLocalIngredientImage(ingredient.slug)}
             href={`/matieres-premieres/${ingredient.slug}`}
           />
         ))}
