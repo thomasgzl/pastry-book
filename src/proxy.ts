@@ -64,7 +64,14 @@ export const config = {
      * Toutes les routes sauf les ressources statiques internes et les
      * fichiers PWA (manifeste, service worker, icônes), qui doivent rester
      * joignables sans authentification.
+     *
+     * `visuals/` et `icons/` sont exclus : ce sont des assets de design
+     * statiques et non sensibles servis depuis `public/` (logos, icônes PWA,
+     * illustrations d'entreprises/matières, placeholders). Ils doivent se
+     * charger sans session — notamment le sceau de la page publique
+     * `/connexion` et les icônes du manifeste PWA. Aucune donnée privée n'y
+     * réside (les médias privés passent par le stockage signé Supabase).
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|visuals/|icons/).*)",
   ],
 };

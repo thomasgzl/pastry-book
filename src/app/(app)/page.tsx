@@ -11,22 +11,26 @@
  * seul rendu de résultats groupés à maintenir, état porté par l'URL comme le
  * reste du lot (C4/C9), retour arrière naturel depuis les résultats.
  *
- * Héro éditorial (CBF2/CBF5) : titre + recherche d'un côté, illustration de
- * l'autre à partir de `lg` (tablette paysage/desktop) ; empilé en une seule
- * colonne en dessous, illustration masquée sous `sm` (mobile étroit) pour ne
- * jamais gêner la lecture.
+ * Héro éditorial (CBF2/CBF5, intégration visuelle finale) : « affiche
+ * pâtissière ». À partir de `lg` (tablette paysage / ordinateur), grille deux
+ * colonnes — titre + sous-titre + recherche à gauche, illustration culinaire
+ * à droite, centrée verticalement. En dessous (tablette portrait, téléphone),
+ * une seule colonne dans l'ordre imposé : titre → sous-titre → illustration →
+ * recherche (classes `order-*`), l'illustration restant visible sur mobile
+ * mais avec une largeur plafonnée pour ne pas repousser la recherche hors de
+ * l'écran.
  *
- * Tablette portrait (lot J3) : sous `lg`, l'illustration reste empilée mais
- * sa largeur est plafonnée (`max-w-sm`/`max-w-md`) plutôt que de s'étirer
- * sur toute la largeur du conteneur — un placeholder encore vide ne doit
- * pas dominer visuellement la moitié de la hauteur utile de l'écran.
+ * L'illustration est un PNG à fond transparent : rendue via une balise image
+ * accessible en `object-contain` (jamais recadrée ni étirée), sans cadre ni
+ * fond CSS derrière — on n'utilise donc PAS `CulinaryFrame` (qui recadre en
+ * `cover` dans une carte bordée), réservé aux visuels de recette/matière.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CulinaryFrame } from "@/components/ui/CulinaryFrame";
 import { EntryCard } from "@/components/ui/EntryCard";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
 
 function BuildingIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
@@ -89,22 +93,25 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-10 py-4">
-      <section className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
-        <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-          {/* eslint-disable-next-line @next/next/no-img-element -- emblème SVG statique, taille fixe (contrat CBV1). */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-center lg:gap-12">
+        <div className="order-1 flex flex-col items-center gap-2 text-center lg:col-start-1 lg:row-start-1 lg:items-start lg:text-left">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight text-cacao sm:text-4xl">
+            Le Grand Livre de Pâtisserie
+          </h1>
+          <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
+        </div>
+
+        <div className="order-2 flex justify-center lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- PNG transparent statique, rendu contenu sans cadre (intégration visuelle finale). Optimisation du poids : voir rapport de livraison. */}
           <img
-            src="/visuals/placeholders/emblem.svg"
-            alt=""
-            className="h-20 w-20 shrink-0"
+            src={LOGO_ASSETS.homeIllustration}
+            alt="Tarte au citron meringuée entourée d'un décor botanique"
+            className="h-auto w-full max-w-[15rem] object-contain sm:max-w-xs lg:max-w-md"
+            decoding="async"
           />
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-cacao sm:text-4xl">
-              Le Grand Livre de Pâtisserie
-            </h1>
-            <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
-          </div>
-
+        <div className="order-3 flex justify-center lg:col-start-1 lg:row-start-2 lg:justify-start">
           <SearchInput
             value={query}
             onChange={setQuery}
@@ -114,12 +121,6 @@ export default function HomePage() {
             className="w-full max-w-lg text-left sm:max-w-xl lg:max-w-2xl"
           />
         </div>
-
-        <CulinaryFrame
-          src="/visuals/placeholders/placeholder-hero.svg"
-          ratio="16:9"
-          className="mx-auto hidden w-full max-w-sm sm:block sm:max-w-md lg:max-w-none"
-        />
       </section>
 
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

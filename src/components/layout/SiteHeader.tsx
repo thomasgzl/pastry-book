@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
 
 const NAV_ITEMS = [
   { label: "Accueil", href: "/" },
@@ -56,11 +57,21 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="shrink-0 whitespace-nowrap rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
+          className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
           onClick={() => setMenuOpen(false)}
         >
+          {/* Sceau compact (contour unique, lisible en petit) + nom court en
+              deçà de lg ; sceau + nom déployé (image horizontale) à partir de
+              lg. object-contain implicite (ratio conservé, jamais étiré). */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- PNG de marque statique, taille fixe. */}
+          <img src={LOGO_ASSETS.compact} alt="" className="h-9 w-9 shrink-0 lg:hidden" />
           <span className="lg:hidden">Grand Livre</span>
-          <span className="hidden lg:inline">Le Grand Livre de Pâtisserie</span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- PNG de marque statique, taille fixe. */}
+          <img
+            src={LOGO_ASSETS.horizontal}
+            alt="Le Grand Livre de Pâtisserie"
+            className="hidden h-10 w-auto lg:block"
+          />
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden min-w-0 md:block">
