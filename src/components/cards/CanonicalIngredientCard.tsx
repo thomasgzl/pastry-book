@@ -37,43 +37,39 @@ export function CanonicalIngredientCard({
   const slug = href.split("/").filter(Boolean).pop() ?? "";
   const botanicalVariant = BOTANICAL_BY_SLUG[slug];
 
-  // Fondu éditorial (K18v3, référence A) : calque image plein cadre, ancré
-  // à gauche (`object-left`), masque CSS entre 35% et 58% de la largeur de
-  // la carte — un seul fond ivoire, aucun rectangle de survol séparé
-  // (docs/06-DESIGN_SYSTEM.md).
+  // Fondu éditorial (K18v4) : recadrage assumé (`object-cover` + zoom), pas
+  // une vignette entière — l'illustration déborde légèrement à gauche de la
+  // carte (clipping par `overflow-hidden` du conteneur) et se fond dans
+  // l'ivoire via un masque appliqué directement sur le calque pixel, jamais
+  // sur une zone vide séparée (docs/06-DESIGN_SYSTEM.md).
   const maskStyle = {
-    WebkitMaskImage: "linear-gradient(to right, black 0%, black 35%, transparent 58%)",
-    maskImage: "linear-gradient(to right, black 0%, black 35%, transparent 58%)",
+    WebkitMaskImage:
+      "linear-gradient(to right, #000 0%, #000 45%, rgba(0,0,0,0.75) 65%, transparent 100%)",
+    maskImage:
+      "linear-gradient(to right, #000 0%, #000 45%, rgba(0,0,0,0.75) 65%, transparent 100%)",
   };
+  const imageLayerClassName =
+    "absolute inset-y-0 -left-4 z-0 h-full w-[60%] origin-left scale-125 object-cover object-left";
 
   return (
     <Link
       href={href}
-      className={`block h-[134px] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:h-[140px] ${className}`}
+      className={`block h-[140px] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-cacao/20 hover:shadow-md">
+      <div className="relative h-full w-full overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
         {imageUrl ? (
-          // Matière première : image entière visible, jamais recadrée
-          // (`object-contain`, même règle que `ApprovedVisual`/`CulinaryFrame`
-          // pour ce type de sujet, K12) ; texte alternatif réel, jamais vide,
-          // le nom n'étant pas répété ailleurs dans cette vignette compacte.
+          // Matière première : recadrage assumé (`object-cover` + zoom), la
+          // carte n'a plus besoin de montrer l'illustration entière (K18v4) ;
+          // texte alternatif réel, jamais vide, le nom n'étant pas répété
+          // ailleurs dans cette vignette compacte.
           // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
-          <img
-            src={imageUrl}
-            alt={name}
-            className="absolute inset-0 z-0 h-full w-full object-contain object-left"
-            style={maskStyle}
-          />
+          <img src={imageUrl} alt={name} className={imageLayerClassName} style={maskStyle} />
         ) : botanicalVariant ? (
-          <BotanicalOrnament
-            variant={botanicalVariant}
-            className="absolute inset-0 z-0 h-full w-full object-contain object-left"
-            style={maskStyle}
-          />
+          <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} style={maskStyle} />
         ) : (
           <PlaceholderIllustration label={name} className="absolute left-6 top-1/2 z-0 h-14 w-14 -translate-y-1/2" style={maskStyle} />
         )}
-        <div className="relative z-10 flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[54%] pr-4">
+        <div className="relative z-10 flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[55%] pr-4">
           <p className="line-clamp-2 font-serif text-lg font-semibold leading-tight text-cacao sm:text-xl">{name}</p>
           <p className="text-xs text-cacao/60 sm:text-sm">
             {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
