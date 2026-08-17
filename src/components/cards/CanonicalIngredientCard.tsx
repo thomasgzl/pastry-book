@@ -37,19 +37,19 @@ export function CanonicalIngredientCard({
   const slug = href.split("/").filter(Boolean).pop() ?? "";
   const botanicalVariant = BOTANICAL_BY_SLUG[slug];
 
-  // Fondu éditorial (K18v4) : recadrage assumé (`object-cover` + zoom), pas
-  // une vignette entière — l'illustration déborde légèrement à gauche de la
-  // carte (clipping par `overflow-hidden` du conteneur) et se fond dans
-  // l'ivoire via un masque appliqué directement sur le calque pixel, jamais
-  // sur une zone vide séparée (docs/06-DESIGN_SYSTEM.md).
-  const maskStyle = {
-    WebkitMaskImage:
-      "linear-gradient(to right, #000 0%, #000 45%, rgba(0,0,0,0.75) 65%, transparent 100%)",
-    maskImage:
-      "linear-gradient(to right, #000 0%, #000 45%, rgba(0,0,0,0.75) 65%, transparent 100%)",
-  };
+  // Fondu éditorial (K18v5) : calque illustration collé au bord gauche
+  // (marges transparentes des fichiers compensées par un décalage négatif),
+  // fondu assuré par un calque dégradé indépendant à la couleur exacte du
+  // fond de carte — jamais un masque seul sur l'image, jamais un rectangle
+  // séparé derrière le texte (docs/06-DESIGN_SYSTEM.md).
   const imageLayerClassName =
-    "absolute inset-y-0 -left-4 z-0 h-full w-[60%] origin-left scale-125 object-cover object-left";
+    "absolute inset-y-0 z-0 h-full w-[65%] origin-left scale-125 object-cover object-left";
+  const imageLayerStyle = { left: "-13%" };
+  const fadeLayerStyle = {
+    left: "28%",
+    width: "35%",
+    background: "linear-gradient(to right, transparent 0%, var(--color-ivoire) 75%, var(--color-ivoire) 100%)",
+  };
 
   return (
     <Link
@@ -63,13 +63,14 @@ export function CanonicalIngredientCard({
           // texte alternatif réel, jamais vide, le nom n'étant pas répété
           // ailleurs dans cette vignette compacte.
           // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt={name} className={imageLayerClassName} style={maskStyle} />
+          <img src={imageUrl} alt={name} className={imageLayerClassName} style={imageLayerStyle} />
         ) : botanicalVariant ? (
-          <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} style={maskStyle} />
+          <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} style={imageLayerStyle} />
         ) : (
-          <PlaceholderIllustration label={name} className="absolute left-6 top-1/2 z-0 h-14 w-14 -translate-y-1/2" style={maskStyle} />
+          <PlaceholderIllustration label={name} className="absolute left-6 top-1/2 z-0 h-14 w-14 -translate-y-1/2" />
         )}
-        <div className="relative z-10 flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[55%] pr-4">
+        <div aria-hidden="true" className="absolute inset-y-0 z-[1]" style={fadeLayerStyle} />
+        <div className="relative z-[2] flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[55%] pr-4">
           <p className="line-clamp-2 font-serif text-lg font-semibold leading-tight text-cacao sm:text-xl">{name}</p>
           <p className="text-xs text-cacao/60 sm:text-sm">
             {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
