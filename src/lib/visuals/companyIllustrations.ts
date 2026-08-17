@@ -43,3 +43,17 @@ export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> =
 export function getCompanyIllustration(slug: string): CompanyIllustration | undefined {
   return COMPANY_ILLUSTRATION_BY_SLUG[slug];
 }
+
+/**
+ * Point d'extension IA (à câbler par `ai-visuals-agent`, hors de ce lot).
+ * Lorsqu'une future entreprise importée n'a pas d'entrée ici :
+ *   1. vérifier l'existence d'un visuel approuvé (`getApprovedVisualUrl`) et le
+ *      réutiliser tel quel s'il existe — jamais de régénération d'une image déjà
+ *      présente ;
+ *   2. sinon, mettre la génération EN FILE explicite (pipeline IA), jamais
+ *      déclenchée au simple affichage de la carte ;
+ *   3. en cas d'échec ou tant que rien n'est généré, conserver le placeholder —
+ *      l'absence d'illustration ne casse jamais la page.
+ * La carte entreprise reste agnostique : elle lit un chemin fourni par cette
+ * couche de données, elle ne code aucun chemin en dur.
+ */

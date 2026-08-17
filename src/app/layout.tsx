@@ -16,9 +16,9 @@ const karla = Karla({
 export const metadata: Metadata = {
   title: "Le Grand Livre de Pâtisserie",
   description: "Base privée de recettes professionnelles.",
-  // Icône SVG placeholder (voir manifest.ts) : dégradation gracieuse sur
-  // iOS, qui ne sait pas afficher un SVG en icône d'accueil.
-  icons: { apple: "/icons/icon.svg" },
+  // Sceau de marque PNG (voir manifest.ts) ; iOS l'utilise comme icône
+  // d'accueil (apple-touch-icon).
+  icons: { apple: "/visuals/logo/logo-pwa-192.png" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

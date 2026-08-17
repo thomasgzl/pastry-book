@@ -13,6 +13,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
 
 const inputClassName =
   "min-h-11 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao placeholder:text-cacao/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive";
@@ -108,8 +109,15 @@ export default function ConnexionPage() {
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <div className="flex flex-col items-center gap-2 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element -- emblème SVG statique, taille fixe (contrat CBV1). */}
-        <img src="/visuals/placeholders/emblem.svg" alt="" className="h-14 w-14" />
+        {/* Sceau complet (le nom y figure déjà) : décoratif ici, alt vide pour
+            ne pas doubler l'annonce du titre porté par `EditorialTitle`. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- PNG de marque statique, taille fixe. */}
+        <img
+          src={LOGO_ASSETS.seal}
+          alt=""
+          className="h-28 w-28 object-contain"
+          decoding="async"
+        />
         <EditorialTitle>Le Grand Livre de Pâtisserie</EditorialTitle>
         <p className="text-sm text-cacao/70">Archive privée de recettes professionnelles</p>
       </div>

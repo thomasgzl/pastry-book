@@ -11,19 +11,14 @@ import type { MetadataRoute } from "next";
  * du design system (`docs/06-DESIGN_SYSTEM.md`) — cohérent avec la barre de
  * statut/chrome du système plutôt que le brun cacao, réservé au texte.
  *
- * Icônes : aucune illustration IA n'existe encore (lot E non lancé). Plutôt
- * que d'installer une dépendance de rendu d'image (sharp/canvas) pour un
- * simple aplat de couleur, on référence une unique icône SVG vectorielle
- * (`public/icons/icon.svg`, monogramme géométrique olive sur fond ivoire)
- * avec `sizes: "any"` — accepté nativement par le standard manifeste et par
- * Chrome/Android/desktop, sans perte de qualité à aucune taille (couvre donc
- * 192 et 512 sans générer plusieurs fichiers). iOS ne sait pas utiliser de
- * SVG comme icône d'accueil ; `layout.tsx` pointe quand même
- * `apple-touch-icon` vers le même fichier en dégradation gracieuse (Safari
- * retombera sur une capture de la page, non bloquant) — générer un vrai PNG
- * à la main via zlib pour un simple placeholder de couleur unie n'apporte
- * pas de valeur proportionnée à sa complexité. À remplacer par les visuels
- * réels du lot E (ai-visuals-agent) sans changer cette structure.
+ * Icônes : sceau de marque validé, décliné en PNG carrés 192 et 512
+ * (`public/visuals/logo/logo-pwa-{192,512}.png`, contour unique lisible en
+ * petit), servis à Chrome/Android/desktop. `layout.tsx` réutilise le 192 pour
+ * `apple-touch-icon` (iOS). Purpose `any` uniquement : le sceau est posé sur
+ * fond transparent avec des coins libres, donc pas de variante `maskable`
+ * (un masque plein-cadre rognerait l'anneau) — à ajouter le jour où un asset
+ * maskable plein-fond est fourni. L'illustration détaillée de l'accueil n'est
+ * JAMAIS utilisée comme icône.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -37,9 +32,15 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#556043",
     icons: [
       {
-        src: "/icons/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/visuals/logo/logo-pwa-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/visuals/logo/logo-pwa-512.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "any",
       },
     ],
