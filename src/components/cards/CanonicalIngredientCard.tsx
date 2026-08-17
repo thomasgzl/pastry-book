@@ -37,40 +37,40 @@ export function CanonicalIngredientCard({
   const slug = href.split("/").filter(Boolean).pop() ?? "";
   const botanicalVariant = BOTANICAL_BY_SLUG[slug];
 
-  // Fondu éditorial (K18v5) : calque illustration collé au bord gauche
-  // (marges transparentes des fichiers compensées par un décalage négatif),
-  // fondu assuré par un calque dégradé indépendant à la couleur exacte du
-  // fond de carte — jamais un masque seul sur l'image, jamais un rectangle
-  // séparé derrière le texte (docs/06-DESIGN_SYSTEM.md).
-  const imageLayerClassName =
-    "absolute inset-y-0 z-0 h-full w-[65%] origin-left scale-125 object-cover object-left";
-  const imageLayerStyle = { left: "-13%" };
+  // Équilibre éditorial (K18v6) : illustration presque entière, à peine
+  // recadrée (object-contain), collée au bord gauche à ~15px, occupant
+  // ~40% de la carte. Fondu très léger sur son bord droit, calque dégradé
+  // indépendant à la couleur exacte du fond de carte — jamais un masque
+  // seul sur l'image, jamais un rectangle séparé derrière le texte
+  // (docs/06-DESIGN_SYSTEM.md).
+  const imageWrapperClassName = "absolute left-[15px] top-1/2 z-0 h-[102px] w-[40%] -translate-y-1/2";
+  const imageLayerClassName = "h-full w-full origin-left scale-105 object-contain object-left";
   const fadeLayerStyle = {
-    left: "28%",
-    width: "35%",
-    background: "linear-gradient(to right, transparent 0%, var(--color-ivoire) 75%, var(--color-ivoire) 100%)",
+    left: "calc(15px + 40% - 10%)",
+    width: "10%",
+    background: "linear-gradient(to right, transparent 0%, var(--color-ivoire) 85%, var(--color-ivoire) 100%)",
   };
 
   return (
     <Link
       href={href}
-      className={`block h-[140px] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
+      className={`block h-[128px] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
         {imageUrl ? (
-          // Matière première : recadrage assumé (`object-cover` + zoom), la
-          // carte n'a plus besoin de montrer l'illustration entière (K18v4) ;
-          // texte alternatif réel, jamais vide, le nom n'étant pas répété
-          // ailleurs dans cette vignette compacte.
-          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt={name} className={imageLayerClassName} style={imageLayerStyle} />
+          <div className={imageWrapperClassName}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E). */}
+            <img src={imageUrl} alt={name} className={imageLayerClassName} />
+          </div>
         ) : botanicalVariant ? (
-          <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} style={imageLayerStyle} />
+          <div className={imageWrapperClassName}>
+            <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} />
+          </div>
         ) : (
           <PlaceholderIllustration label={name} className="absolute left-6 top-1/2 z-0 h-14 w-14 -translate-y-1/2" />
         )}
         <div aria-hidden="true" className="absolute inset-y-0 z-[1]" style={fadeLayerStyle} />
-        <div className="relative z-[2] flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[55%] pr-4">
+        <div className="relative z-[2] flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[49%] pr-4">
           <p className="line-clamp-2 font-serif text-lg font-semibold leading-tight text-cacao sm:text-xl">{name}</p>
           <p className="text-xs text-cacao/60 sm:text-sm">
             {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
