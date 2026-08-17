@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const FILES = {
   branch: "ornament-branch.svg",
   citron: "botanical-lemon.svg",
@@ -13,6 +15,7 @@ export type BotanicalVariant = keyof typeof FILES;
 interface BotanicalOrnamentProps {
   variant?: BotanicalVariant;
   className?: string;
+  style?: CSSProperties;
 }
 
 /**
@@ -22,7 +25,7 @@ interface BotanicalOrnamentProps {
  * important, masquable via `className` (`hidden sm:block`) — la lisibilité
  * mobile prime sur la décoration (docs/06-DESIGN_SYSTEM.md).
  */
-export function BotanicalOrnament({ variant = "branch", className = "" }: BotanicalOrnamentProps) {
+export function BotanicalOrnament({ variant = "branch", className = "", style }: BotanicalOrnamentProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- asset SVG statique, pas de pipeline next/image dédié (lot E, non lancé).
     <img
@@ -30,6 +33,7 @@ export function BotanicalOrnament({ variant = "branch", className = "" }: Botani
       alt=""
       aria-hidden="true"
       className={`pointer-events-none select-none ${className}`}
+      style={style}
     />
   );
 }

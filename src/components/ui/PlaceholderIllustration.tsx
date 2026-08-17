@@ -5,17 +5,21 @@
  * docs/06-DESIGN_SYSTEM.md § Illustrations et images.
  */
 
+import type { CSSProperties } from "react";
+
 interface PlaceholderIllustrationProps {
   /** Nom dont l'initiale sert de monogramme. Purement décoratif : le nom
    * réel est déjà porté par le texte de la carte, donc masqué aux lecteurs
    * d'écran (`aria-hidden`) pour éviter une répétition. */
   label: string;
   className?: string;
+  style?: CSSProperties;
 }
 
 export function PlaceholderIllustration({
   label,
   className = "",
+  style,
 }: PlaceholderIllustrationProps) {
   const initiale = label.trim().charAt(0).toUpperCase() || "?";
 
@@ -24,6 +28,7 @@ export function PlaceholderIllustration({
       aria-hidden="true"
       viewBox="0 0 40 40"
       className={`shrink-0 rounded-lg ${className}`}
+      style={style}
     >
       <rect width="40" height="40" rx="8" className="fill-avoine" />
       <text
