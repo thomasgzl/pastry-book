@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { AllergenBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { toRecipeCardData } from "@/lib/data/recipes";
@@ -26,13 +27,17 @@ function toBadgeStatus(status: string): BadgeStatus {
 
 export default async function AllergenePage({ params }: { params: Promise<{ allergene: string }> }) {
   const { allergene: slug } = await params;
-  const allergen = getAllergenBySlug(slug);
+  const allergen = await getAllergenBySlug(slug);
   if (!allergen) notFound();
 
-  const recipes = getRecipesForAllergen(slug).map((recipe) => {
-    const link = getRecipeAllergens(recipe.id).find((entry) => entry.allergenId === allergen.id)!;
-    return { recipe, status: toBadgeStatus(link.status) };
-  });
+  const recipesForAllergen = await getRecipesForAllergen(slug);
+  const recipes = await Promise.all(
+    recipesForAllergen.map(async (recipe) => {
+      const [links, cardData] = await Promise.all([getRecipeAllergens(recipe.id), toRecipeCardData(recipe)]);
+      const link = links.find((entry) => entry.allergenId === allergen.id)!;
+      return { recipe, status: toBadgeStatus(link.status), cardData };
+    }),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,15 +49,15 @@ export default async function AllergenePage({ params }: { params: Promise<{ alle
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{allergen.name}</h1>
+      <EditorialTitle>{allergen.name}</EditorialTitle>
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette avec cet allergène pour le moment." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {recipes.map(({ recipe, status }) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {recipes.map(({ recipe, status, cardData }) => (
             <div key={recipe.id} className="flex flex-col gap-2">
-              <RecipeCard {...toRecipeCardData(recipe)} />
+              <RecipeCard {...cardData} />
               <AllergenBadge name={allergen.name} status={status} />
             </div>
           ))}

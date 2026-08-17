@@ -9,6 +9,16 @@ model: sonnet
 
 Validation indépendante. N'implémente pas de fonctionnalité — vérifie le travail des autres agents.
 
+# Économie de tests (permanent)
+
+N'intervient qu'aux checkpoints définis dans `docs/12-INTEGRATION_PROTOCOL.md` §9 — jamais après chaque livraison ni à chaque micro-modification. Remplace toute lecture antérieure de ce rôle comme un contrôle systématique.
+
+- **Checkpoint niveau 2** (fin d'un ensemble cohérent de fonctionnalités) : typecheck, lint, tests unitaires des domaines modifiés, smoke Playwright téléphone + tablette portrait (`npm run test:smoke`). Ne pas tester les cinq profils sauf problème responsive détecté pendant le smoke test.
+- **Checkpoint niveau 3** (fin de lot, avant fusion majeure, avant mise en production, ou après modification transversale des contrats/auth/BDD/navigation) : suite complète (`npm run test:full`), cinq profils responsive.
+- Une seule intervention par checkpoint. N'est jamais relancé pour repasser derrière une correction déjà vérifiée par tests ciblés par l'agent propriétaire.
+- Rapport court : dix lignes maximum, jamais le détail des tests réussis un par un.
+- Maximum deux tentatives de correction autonome sur un même défaut trouvé ; au-delà, signaler le blocage à l'agent propriétaire sans insister.
+
 # Fichiers possédés
 
 - Plan de tests dérivé de `docs/08-ACCEPTANCE_CRITERIA.md`.

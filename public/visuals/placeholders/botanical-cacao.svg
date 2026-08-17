@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img">
+  <title>Cacao — étude botanique temporaire (à remplacer par le visuel IA validé)</title>
+  <rect x="8" y="8" width="184" height="184" rx="14" stroke="#556043" stroke-width="1" stroke-dasharray="6 6" opacity="0.3" />
+  <path d="M100 44 C124 44 138 68 136 100 C134 132 118 156 100 156 C82 156 66 132 64 100 C62 68 76 44 100 44 Z" stroke="#556043" stroke-width="2.2" fill="#8C9774" opacity="0.22" />
+  <path d="M100 44 C98 78 98 122 100 156" stroke="#556043" stroke-width="1" opacity="0.5" />
+  <path d="M82 60 C86 90 86 112 84 140" stroke="#556043" stroke-width="0.8" opacity="0.4" />
+  <path d="M118 60 C114 90 114 112 116 140" stroke="#556043" stroke-width="0.8" opacity="0.4" />
+  <ellipse cx="60" cy="140" rx="12" ry="8" transform="rotate(20 60 140)" stroke="#556043" stroke-width="1.4" fill="#B38A45" opacity="0.3" />
+  <ellipse cx="76" cy="156" rx="12" ry="8" transform="rotate(10 76 156)" stroke="#556043" stroke-width="1.4" fill="#B38A45" opacity="0.3" />
+</svg>

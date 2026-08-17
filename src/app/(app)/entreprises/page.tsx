@@ -4,28 +4,41 @@
  */
 
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SourceCard } from "@/components/cards/SourceCard";
 import { getRecipeCountForSource, getSources } from "@/lib/data/sources";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
+import { getCompanyIllustration } from "@/lib/visuals/companyIllustrations";
 
-export default function EntreprisesPage() {
-  const sources = getSources();
+export default async function EntreprisesPage() {
+  const sources = await getSources();
+  // Visuel IA approuvé (lot J7) plutôt que le champ démo `illustrationUrl`
+  // (toujours `null` dans le jeu de données actuel, voir `demo/data.ts`).
+  const [visualUrls, recipeCounts] = await Promise.all([
+    Promise.all(sources.map((source) => getApprovedVisualUrl("source", source.id))),
+    Promise.all(sources.map((source) => getRecipeCountForSource(source.id))),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Entreprises" }]} />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">Entreprises</h1>
+      <EditorialTitle>Entreprises</EditorialTitle>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {sources.map((source) => (
-          <SourceCard
-            key={source.id}
-            name={source.name}
-            recipeCount={getRecipeCountForSource(source.id)}
-            imageUrl={source.illustrationUrl ?? undefined}
-            href={`/entreprises/${source.slug}`}
-          />
-        ))}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {sources.map((source, index) => {
+          const fallbackIllustration = getCompanyIllustration(source.slug);
+          return (
+            <SourceCard
+              key={source.id}
+              name={source.name}
+              recipeCount={recipeCounts[index]}
+              imageUrl={visualUrls[index] ?? fallbackIllustration?.path}
+              imagePosition={fallbackIllustration?.position}
+              href={`/entreprises/${source.slug}`}
+            />
+          );
+        })}
       </div>
     </div>
   );

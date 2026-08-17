@@ -162,7 +162,28 @@ export type ImportBatch = z.infer<typeof importBatchSchema>;
 export const importItemSchema = z.object({
   id: z.uuid(),
   importBatchId: z.uuid(),
-  sourceFileUrl: z.url(),
+  /**
+   * URL du fichier source une fois réellement stocké. `null`/absent tant
+   * qu'aucun fichier n'a été enregistré — ce qui est le cas normal pour la
+   * saisie manuelle (texte collé, aucun fichier) et pour tout import avant
+   * que la persistance réelle du fichier (pas encore câblée) n'ait eu lieu.
+   * Ne devient obligatoire qu'au moment de cette persistance réelle, jamais
+   * avant. Ne jamais y placer une URL fictive pour satisfaire ce schéma.
+   */
+  sourceFileUrl: z.url().nullable().optional(),
+  /** Nom de fichier local ou identifiant temporaire choisi avant tout enregistrement réel — distinct de `sourceFileUrl`, jamais confondu avec lui. */
+  sourceFileName: z.string().min(1).nullable().optional(),
+  /**
+   * SHA-256 hex minuscule du fichier source une fois uploadé (calculé sur les
+   * octets du fichier, jamais sur le texte extrait) — sert uniquement à
+   * repérer un fichier identique déjà importé (K4), ne remplace jamais
+   * `sourceFileUrl`. Nullable/absent tant qu'aucun fichier réel n'est associé.
+   */
+  sourceFileHash: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .nullable()
+    .optional(),
   status: z.enum(["pending", "processing", "needs_review", "done", "error"]),
   rawExtraction: z.unknown().nullable(),
   proposedRecipe: z.unknown().nullable(),

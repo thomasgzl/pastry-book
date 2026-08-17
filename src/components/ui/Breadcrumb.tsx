@@ -21,7 +21,7 @@ export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
 
   return (
     <nav aria-label="Fil d'Ariane" className={className}>
-      <ol className="flex flex-wrap items-center gap-1.5 text-sm text-cacao/70">
+      <ol className="flex flex-wrap items-center gap-1.5 text-xs text-cacao/70 sm:text-sm">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           return (

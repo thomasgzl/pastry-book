@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none" role="img">
+  <title>Emplacement visuel de fiche recette temporaire — illustration à générer (photo→illustration ou description→illustration)</title>
+  <rect width="800" height="600" fill="#F7F3EA" />
+  <rect x="1" y="1" width="798" height="598" stroke="#D8CDBD" stroke-width="2" />
+  <rect x="30" y="30" width="740" height="540" stroke="#556043" stroke-width="1.5" stroke-dasharray="10 10" opacity="0.3" />
+
+  <!-- assiette schématique -->
+  <ellipse cx="400" cy="340" rx="190" ry="110" stroke="#556043" stroke-width="2.5" fill="#FFFCF6" opacity="0.7" />
+  <ellipse cx="400" cy="340" rx="140" ry="80" stroke="#556043" stroke-width="1.5" opacity="0.6" fill="none" />
+  <path d="M340 320 C360 290 440 290 460 320 C470 340 430 360 400 355 C370 360 330 340 340 320 Z" stroke="#556043" stroke-width="2" fill="#8C9774" opacity="0.3" />
+
+  <!-- brindille décorative -->
+  <path d="M560 210 C540 240 520 250 500 240" stroke="#556043" stroke-width="1.8" stroke-linecap="round" fill="none" />
+  <ellipse cx="560" cy="205" rx="14" ry="8" transform="rotate(-20 560 205)" fill="#8C9774" opacity="0.35" />
+
+  <rect x="470" y="500" width="270" height="52" rx="6" fill="#FFFCF6" stroke="#D8CDBD" />
+  <text x="484" y="533" font-family="sans-serif" font-size="22" fill="#7A6A58">Visuel à générer — recette</text>
+</svg>

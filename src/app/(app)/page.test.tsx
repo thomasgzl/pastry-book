@@ -23,9 +23,9 @@ describe("HomePage", () => {
     }
   });
 
-  it("affiche le bouton Importer désactivé", () => {
+  it("n'affiche aucun bouton Importer (celui du header suffit, CBF2)", () => {
     render(<HomePage />);
-    expect(screen.getByRole("button", { name: "Importer" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Importer" })).not.toBeInTheDocument();
   });
 
   it("les liens pointent vers les quatre répertoires attendus", () => {

@@ -6,18 +6,43 @@
  */
 
 import { notFound } from "next/navigation";
+import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { getCanonicalIngredientBySlug, getRecipesForCanonicalIngredient } from "@/lib/data/canonical-ingredients";
 import { toRecipeCardData } from "@/lib/data/recipes";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
+import { getLocalIngredientImage } from "@/lib/visuals/localIngredientImages";
 
 export default async function MatierePremierePage({ params }: { params: Promise<{ matiere: string }> }) {
   const { matiere: slug } = await params;
-  const ingredient = getCanonicalIngredientBySlug(slug);
+  const ingredient = await getCanonicalIngredientBySlug(slug);
   if (!ingredient) notFound();
 
-  const recipes = getRecipesForCanonicalIngredient(slug).map(toRecipeCardData);
+  const recipesRaw = await getRecipesForCanonicalIngredient(slug);
+  // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
+  // approuvé si présent, repli placeholder botanique sinon — jamais absente.
+  const [portrait, hasApprovedVisual, recipeVisualUrls, cardData] = await Promise.all([
+    ApprovedVisual({
+      subjectType: "ingredient",
+      subjectId: ingredient.id,
+      alt: ingredient.name,
+      ratio: "1:1",
+      localFallbackSrc: getLocalIngredientImage(ingredient.slug),
+    }),
+    getApprovedVisualUrl("ingredient", ingredient.id)
+      .then((url) => url !== null)
+      .catch(() => false),
+    Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
+    Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
+  ]);
+  const recipes = recipesRaw.map((recipe, index) => ({
+    ...cardData[index],
+    imageUrl: recipeVisualUrls[index],
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,12 +54,17 @@ export default async function MatierePremierePage({ params }: { params: Promise<
         ]}
       />
 
-      <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">{ingredient.name}</h1>
+      <div className="flex items-center gap-4">
+        <div className="w-20 shrink-0 sm:w-24">{portrait}</div>
+        <EditorialTitle>{ingredient.name}</EditorialTitle>
+      </div>
+
+      <IllustrationAction subjectType="ingredient" hasVisual={hasApprovedVisual} label={ingredient.name} />
 
       {recipes.length === 0 ? (
         <EmptyState message="Aucune recette ne contient cette matière première pour le moment." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
             <RecipeCard key={recipe.href} {...recipe} />
           ))}

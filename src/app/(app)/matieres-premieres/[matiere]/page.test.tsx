@@ -18,4 +18,28 @@ describe("MatierePremierePage", () => {
   it("404 pour un slug inconnu", async () => {
     await expect(MatierePremierePage({ params: Promise.resolve({ matiere: "inexistante" }) })).rejects.toThrow();
   });
+
+  it("visuel approuvé (démo, K11) : portrait réel `object-contain`, alt réel, action « Nouvelle version » (K12)", async () => {
+    render(await MatierePremierePage({ params: Promise.resolve({ matiere: "citron" }) }));
+
+    const portrait = screen.getByAltText("Citron");
+    expect(portrait.className).toContain("object-contain");
+    expect(portrait).toHaveAttribute("src", expect.stringMatching(/^data:image\/svg\+xml;base64,/));
+    expect(screen.getByRole("link", { name: "Nouvelle version" })).toHaveAttribute(
+      "href",
+      "/illustrations?type=ingredient&q=Citron",
+    );
+  });
+
+  it("aucun visuel approuvé (Pistache : brouillon/rejeté seulement, jamais affiché) : repli illustration locale + « Créer une illustration » (K12)", async () => {
+    const { container } = render(await MatierePremierePage({ params: Promise.resolve({ matiere: "pistache" }) }));
+
+    const img = container.querySelector("img");
+    expect(img).toHaveAttribute("alt", "Pistache");
+    expect(img).toHaveAttribute("src", "/visuals/24-pistache.svg");
+    expect(screen.getByRole("link", { name: "Créer une illustration" })).toHaveAttribute(
+      "href",
+      "/illustrations/manquantes?q=Pistache",
+    );
+  });
 });

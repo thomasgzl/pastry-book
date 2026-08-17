@@ -113,6 +113,15 @@ Ne pas fixer une version de dépendance sans vérifier la version stable disponi
 - Fournir des états : chargement, aucun résultat, erreur et `À vérifier`.
 - Utiliser des données de démonstration clairement identifiées comme fictives.
 
+## Économie de tests (protocole permanent)
+
+Remplace toute exigence antérieure de validation complète après chaque tranche ou chaque livraison. Détail complet dans `docs/12-INTEGRATION_PROTOCOL.md` §9. Résumé impératif :
+
+- Niveau 1 (pendant le développement) : tests ciblés sur le module modifié uniquement. Jamais la suite complète, jamais Playwright, jamais `qa-integration-agent` à ce niveau.
+- Niveau 2 (checkpoint intermédiaire, fin d'un ensemble cohérent de fonctionnalités) : typecheck, lint, tests unitaires des domaines modifiés, smoke test téléphone + tablette portrait. `qa-integration-agent` intervient une seule fois, à ce moment.
+- Niveau 3 (fin de lot, avant fusion majeure, avant mise en production, ou modification transversale des contrats/auth/BDD/navigation) : suite complète, cinq profils responsive, validation finale par `qa-integration-agent`.
+- Aucun rapport détaillé pour un test réussi ; aucun agent supplémentaire pour répéter une vérification déjà faite ; aucun test pour une modification purement documentaire ou pour la production de captures ; maximum deux tentatives de correction autonome sur une même erreur avant de signaler un blocage.
+
 ## Définition de « terminé »
 
 Une tâche n'est terminée que si :

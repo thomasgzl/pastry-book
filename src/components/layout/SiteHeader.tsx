@@ -37,11 +37,15 @@ function MenuIcon({ open }: { open: boolean }) {
 /**
  * En-tête du shell authentifié : titre du site, navigation principale
  * (desktop en ligne, mobile en menu déroulant — bascule unique au point de
- * rupture `md`, cible tactile ≥ 44px), bouton Importer visible mais
- * désactivé (aucune route `/importer` n'existe encore : un `<button
- * disabled>` natif est plus sûr qu'un lien qui mènerait à une page absente).
- * Hennessy n'apparaît jamais ici : ce n'est pas un onglet de premier niveau,
- * seulement une carte de la page Entreprises (CLAUDE.md).
+ * rupture `md`, cible tactile ≥ 44px), bouton Importer actif vers
+ * `/importer` (lot J2, absorbe l'ancien D1b — la route existe et
+ * fonctionne). Hennessy n'apparaît jamais ici : ce n'est pas un onglet de
+ * premier niveau, seulement une carte de la page Entreprises (CLAUDE.md).
+ *
+ * Nav tablette portrait (lot J2) : libellés `whitespace-nowrap` avec un
+ * palier de densité intermédiaire (`md`, avant `lg`) — texte et espacements
+ * resserrés pour que « Matières premières » tienne sur une seule ligne sans
+ * réduire la cible tactile (min-h-11 conservé).
  */
 export function SiteHeader() {
   const pathname = usePathname();
@@ -49,17 +53,18 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-grise bg-ivoire/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
+          className="shrink-0 whitespace-nowrap rounded font-serif text-lg font-semibold text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive sm:text-xl"
           onClick={() => setMenuOpen(false)}
         >
-          Le Grand Livre de Pâtisserie
+          <span className="lg:hidden">Grand Livre</span>
+          <span className="hidden lg:inline">Le Grand Livre de Pâtisserie</span>
         </Link>
 
-        <nav aria-label="Navigation principale" className="hidden md:block">
-          <ul className="flex items-center gap-1">
+        <nav aria-label="Navigation principale" className="hidden min-w-0 md:block">
+          <ul className="flex items-center gap-0.5 lg:gap-2">
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               return (
@@ -67,8 +72,10 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 items-center rounded-lg px-3 text-base font-medium transition-colors hover:bg-avoine focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${
-                      active ? "text-olive" : "text-cacao"
+                    className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-2 text-[0.82rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive lg:px-4 lg:text-[0.95rem] ${
+                      active
+                        ? "bg-avoine font-semibold text-olive"
+                        : "text-cacao hover:bg-avoine/60"
                     }`}
                   >
                     {item.label}
@@ -80,9 +87,9 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="secondary" disabled className="hidden md:inline-flex">
-            Importer
-          </Button>
+          <Link href="/importer" className="hidden md:inline-flex">
+            <Button variant="secondary">Importer</Button>
+          </Link>
 
           <button
             type="button"
@@ -112,8 +119,8 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
-                    className={`flex min-h-11 items-center rounded-lg px-2 text-base font-medium ${
-                      active ? "text-olive" : "text-cacao"
+                    className={`flex min-h-11 items-center rounded-lg px-3 text-base font-medium ${
+                      active ? "bg-avoine font-semibold text-olive" : "text-cacao hover:bg-avoine/60"
                     }`}
                   >
                     {item.label}
@@ -122,9 +129,11 @@ export function SiteHeader() {
               );
             })}
             <li>
-              <Button variant="secondary" disabled className="mt-1 w-full justify-start">
-                Importer
-              </Button>
+              <Link href="/importer" onClick={() => setMenuOpen(false)}>
+                <Button variant="secondary" className="mt-1 w-full justify-start">
+                  Importer
+                </Button>
+              </Link>
             </li>
           </ul>
         </nav>

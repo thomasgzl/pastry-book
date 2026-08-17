@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Card } from "@/components/ui/Card";
+import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { getAllergens, getRecipesForAllergen, getRecipesForSpecificity, getSpecificities } from "@/lib/data/specificities";
 
 function EntryCard({ name, recipeCount, href }: { name: string; recipeCount: number; href: string }) {
@@ -21,25 +22,29 @@ function EntryCard({ name, recipeCount, href }: { name: string; recipeCount: num
   );
 }
 
-export default function SpecificitesPage() {
-  const specificities = getSpecificities();
-  const allergens = getAllergens();
+export default async function SpecificitesPage() {
+  const specificities = await getSpecificities();
+  const allergens = await getAllergens();
+  const [specificityCounts, allergenCounts] = await Promise.all([
+    Promise.all(specificities.map((specificity) => getRecipesForSpecificity(specificity.slug))),
+    Promise.all(allergens.map((allergen) => getRecipesForAllergen(allergen.slug))),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
         <Breadcrumb items={[{ label: "Accueil", href: "/" }, { label: "Spécificités" }]} />
-        <h1 className="font-serif text-2xl font-semibold text-cacao sm:text-3xl">Spécificités et allergènes</h1>
+        <EditorialTitle>Spécificités et allergènes</EditorialTitle>
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-lg font-semibold text-cacao">Spécificités</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {specificities.map((specificity) => (
+        <EditorialTitle as="h2">Spécificités</EditorialTitle>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {specificities.map((specificity, index) => (
             <EntryCard
               key={specificity.id}
               name={specificity.name}
-              recipeCount={getRecipesForSpecificity(specificity.slug).length}
+              recipeCount={specificityCounts[index].length}
               href={`/specificites/${specificity.slug}`}
             />
           ))}
@@ -47,13 +52,13 @@ export default function SpecificitesPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-lg font-semibold text-cacao">Allergènes</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {allergens.map((allergen) => (
+        <EditorialTitle as="h2">Allergènes</EditorialTitle>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {allergens.map((allergen, index) => (
             <EntryCard
               key={allergen.id}
               name={allergen.name}
-              recipeCount={getRecipesForAllergen(allergen.slug).length}
+              recipeCount={allergenCounts[index].length}
               href={`/specificites/allergenes/${allergen.slug}`}
             />
           ))}

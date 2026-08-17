@@ -73,8 +73,8 @@ Contrainte non négociable (`CLAUDE.md`, détail dans `docs/06-DESIGN_SYSTEM.md`
 
 ### `qa-integration-agent`
 
-- Refuse une livraison non vérifiée au minimum en : téléphone étroit, iPhone récent, tablette portrait, tablette paysage, ordinateur standard.
-- Teste aussi : installation de la PWA, lancement en mode autonome, navigation tactile, rotation de la tablette, présence d'un état hors connexion, reprise après coupure réseau, absence de défilement horizontal, comportement avec le clavier virtuel, tailles des zones tactiles.
+- N'intervient qu'aux checkpoints de niveau 2 (téléphone + tablette portrait) et niveau 3 (cinq profils) définis dans `docs/12-INTEGRATION_PROTOCOL.md` §9 — jamais à chaque livraison individuelle.
+- Au checkpoint de niveau 3 uniquement, vérifie au minimum : téléphone étroit, iPhone récent, tablette portrait, tablette paysage, ordinateur standard, installation de la PWA, lancement en mode autonome, navigation tactile, rotation de la tablette, présence d'un état hors connexion, reprise après coupure réseau, absence de défilement horizontal, comportement avec le clavier virtuel, tailles des zones tactiles.
 
 ## Fichiers possédés (exclusifs)
 
@@ -118,7 +118,7 @@ ai-visuals-agent (illustrations, après validation des données)
 qa-integration-agent (validation à chaque étape, pas seulement à la fin)
 ```
 
-`qa-integration-agent` intervient après chaque lot, pas uniquement en fin de projet.
+`qa-integration-agent` intervient aux checkpoints de niveau 2 et 3 (`docs/12-INTEGRATION_PROTOCOL.md` §9), pas à chaque livraison individuelle ni à chaque micro-modification.
 
 ## Situations imposant une validation humaine
 

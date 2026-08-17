@@ -57,17 +57,25 @@ export function SearchInput({
   }, [value, debounceMs]);
 
   return (
-    <div className={className}>
+    <div className={`relative ${className}`}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-cacao/50"
+      >
+        <circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M13.5 13.5 L18 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
       <input
         id={id}
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-11 w-full rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao placeholder:text-cacao/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+        className="min-h-11 w-full rounded-lg border border-grise bg-coquille py-2 pr-3 pl-10 text-base text-cacao placeholder:text-cacao/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
       />
     </div>
   );

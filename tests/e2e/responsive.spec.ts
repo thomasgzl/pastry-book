@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Cibles tactiles (B9)", () => {
-  test("les boutons existants respectent 44x44px minimum", async ({ page }) => {
+  test("les boutons existants respectent 44x44px minimum", async ({ page }, testInfo) => {
     await page.goto("/");
+    // Sous le point de rupture `md` (lot J2), le bouton Importer d'en-tête est
+    // dans le menu déroulant mobile — l'ouvrir d'abord, même patron que
+    // `preview-checkpoint.spec.ts` (bloc « Cibles tactiles »).
+    const isMobileNav = testInfo.project.name === "téléphone étroit" || testInfo.project.name === "iPhone récent";
+    if (isMobileNav) {
+      await page.getByRole("button", { name: /Ouvrir le menu/ }).click();
+    }
     const homeButton = page.getByRole("button", { name: "Importer" }).first();
     const homeBox = await homeButton.boundingBox();
     expect(homeBox?.width).toBeGreaterThanOrEqual(44);

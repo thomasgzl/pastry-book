@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img">
+  <title>Citron — étude botanique temporaire (à remplacer par le visuel IA validé)</title>
+  <rect x="8" y="8" width="184" height="184" rx="14" stroke="#556043" stroke-width="1" stroke-dasharray="6 6" opacity="0.3" />
+  <path d="M70 100 C70 70 88 52 100 52 C112 52 130 70 130 100 C130 130 112 148 100 148 C88 148 70 130 70 100 Z" stroke="#556043" stroke-width="2.2" fill="#8C9774" opacity="0.25" />
+  <path d="M100 52 L108 40" stroke="#556043" stroke-width="2" stroke-linecap="round" />
+  <path d="M100 148 L94 160" stroke="#556043" stroke-width="2" stroke-linecap="round" />
+  <path d="M108 40 C118 36 126 40 130 32" stroke="#556043" stroke-width="1.8" stroke-linecap="round" fill="none" />
+  <ellipse cx="130" cy="32" rx="12" ry="7" transform="rotate(-30 130 32)" fill="#8C9774" opacity="0.35" />
+  <path d="M82 78 C90 90 90 110 82 122" stroke="#556043" stroke-width="1" opacity="0.5" fill="none" />
+  <path d="M118 78 C110 90 110 110 118 122" stroke="#556043" stroke-width="1" opacity="0.5" fill="none" />
+</svg>

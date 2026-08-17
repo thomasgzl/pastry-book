@@ -97,6 +97,7 @@ Par défaut, un lot ignore tout objet possédant déjà un visuel approuvé. Les
 
 ## Cohérence et versionnement
 
+- **Référence artistique — preset v1 (lot G, pilote G3)** : le visuel « Citron » réel généré et approuvé le 14/08/2026 (`visual_assets.id = 049a7647-417a-4659-bc15-18845e797ec5`, prompt et preset stockés avec l'asset) sert de référence de STYLE pour toute génération réelle ultérieure de cette version — niveau de détail, finesse du trait, légèreté de l'aquarelle, fond ivoire, quantité d'espace négatif, échelle dans le cadre, palette olive/sauge. Réutilisé verbatim via `PILOT_STYLE_DESCRIPTOR` (`src/app/(app)/visuels/pilotStyleKit.ts`), jamais comme élément de CONTENU des autres sujets.
 - Stocker le prompt final exact, le preset et sa version avec chaque image.
 - Une modification du preset ne régénère pas les anciennes images automatiquement.
 - Permettre plus tard de filtrer les visuels créés avec une ancienne version.
@@ -134,6 +135,28 @@ Prévoir :
 - Les photos ne sont envoyées qu'au fournisseur configuré pour cette fonction.
 - Aucun nom d'entreprise confidentiel n'est nécessaire dans l'image si une description d'ambiance suffit.
 - Supprimer les métadonnées inutiles des images publiées.
+
+## Contrat des placeholders — Lot C-bis
+
+Tâche `CBV1`. Avant que la génération IA ne soit branchée (lot E), chaque emplacement de futur visuel affiche un asset SVG temporaire, dessiné à la main, dans `public/visuals/placeholders/`. Aucun appel réseau, aucune clé, aucun coût : ce sont des fichiers statiques versionnés.
+
+**Règle de remplacement** : le nom de fichier est stable. Quand un visuel IA approuvé existe pour un objet donné, le composant consommateur bascule son `src` vers l'image réelle stockée (bibliothèque `visual_assets`) ; le placeholder ne sert que de repli (`fallback`) tant qu'aucun visuel approuvé n'existe. Aucun composant ne doit être modifié pour changer un placeholder par un autre — seul le contenu du fichier SVG ou le `src` pointé change.
+
+**Marquage temporaire** : les deux plus grands formats (héro, fiche recette) portent un cadre en pointillés et un petit encart texte « Visuel à générer » en `cacao` à opacité réduite — cohérent avec la règle « aucun texte dans l'image publiée » puisqu'il s'agit justement d'un repli non publié, jamais d'un visuel principal approuvé. Les cartes plus petites (matière première, emblème, ornement) portent un cadre en pointillés discret et un style volontairement schématique (traits fins, pas de texte, taille de rendu trop réduite pour un libellé lisible) plutôt qu'un label — la balise `<title>` du SVG porte la mention « temporaire » pour les lecteurs d'écran et les outils.
+
+Style commun à tous les fichiers : trait fin olive (`#556043`), lavis léger en aplats semi-transparents (`sauge #8C9774`, `laiton #B38A45` en accent rare), fond ivoire (`#F7F3EA`) ou transparent selon le tableau ci-dessous, aucune photo, aucune personne, aucun logo — conforme à `docs/06-DESIGN_SYSTEM.md`.
+
+| Emplacement | Nom logique | Fichier | Dimensions (px) | Ratio | Fond | Comportement responsive | Page / composant |
+|---|---|---|---|---|---|---|---|
+| Emblème d'accueil | `emblem` | `emblem.svg` | rendu cible 64–96 px carré (viewBox `96×96`) | 1:1 | Transparent | Taille fixe, ne grandit pas avec la mise en page ; remplace le carré « L » (`PlaceholderIllustration`) dans l'en-tête de l'accueil | `src/app/(app)/page.tsx` (tâche `CBF2`) |
+| Héro accueil | `hero` | `placeholder-hero.svg` | viewBox `1600×900` | 16:9 (paysage éditorial) | Ivoire | Pleine largeur du conteneur héro, hauteur fluide (`aspect-ratio` CSS) ; recadré/masqué avant le texte sur mobile étroit selon `CBF5`, jamais sous du texte important | `src/app/(app)/page.tsx` (tâche `CBF2`) |
+| Visuel de fiche recette | `recipe-4x3` | `placeholder-recipe-4x3.svg` | viewBox `800×600` | 4:3 | Ivoire | Desktop / tablette paysage : ratio 4:3, hauteur limitée, coins arrondis appliqués par le conteneur (pas baké dans le SVG). Mobile / tablette portrait : pleine largeur, coins arrondis, ratio conservé | `src/app/(app)/recettes/[slug]/RecipeSheet.tsx` (tâche `CBF4`) |
+| Carte matière première | `botanical-{ingrédient}` | `botanical-lemon.svg`, `botanical-pistachio.svg`, `botanical-vanilla.svg`, `botanical-cacao.svg`, `botanical-pear.svg`, `botanical-hazelnut.svg` | viewBox `200×200` | 1:1 | Transparent (la carte pose son propre fond ivoire/avoine) | Carré léger, remplace `PlaceholderIllustration` dans `CanonicalIngredientCard` ; un fichier par matière première canonique déjà validée (Citron, Pistache, Vanille, Chocolat/Cacao, Poire, Noisette) | `src/components/cards/CanonicalIngredientCard.tsx` |
+| Ornement de bordure | `ornament-branch` | `ornament-branch.svg` | viewBox `400×200` | libre (branche horizontale fine) | Transparent | Élément purement décoratif, réutilisable en le pivotant/reflétant en CSS (`transform: rotate() / scaleX(-1)`) autour du héro, en coin de carte ou dans un état vide ; masquable en premier sur mobile étroit s'il gêne la lecture (`CBF5`) | Héro accueil, cartes, `EmptyState` |
+
+**Convention de nommage pour les futures matières premières** : `botanical-{slug-ingrédient}.svg` (slug déjà utilisé pour l'ingrédient canonique). Tant qu'un fichier dédié n'existe pas pour un ingrédient donné, le composant retombe sur le monogramme générique existant (`PlaceholderIllustration`), jamais sur un placeholder d'un autre ingrédient.
+
+**Correspondance avec les futurs visuels IA (lot E)** : quand un visuel est généré et approuvé pour un objet, il est stocké via `visual_assets` avec sa propre URL ; il ne prend jamais le nom d'un fichier de ce dossier. Les fichiers de `public/visuals/placeholders/` ne sont ni régénérés ni écrasés par le lot E — ils restent le repli permanent pour tout objet sans visuel approuvé.
 
 ## Hors périmètre initial
 

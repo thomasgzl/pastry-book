@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" role="img">
+  <title>Noisette — étude botanique temporaire (à remplacer par le visuel IA validé)</title>
+  <rect x="8" y="8" width="184" height="184" rx="14" stroke="#556043" stroke-width="1" stroke-dasharray="6 6" opacity="0.3" />
+  <circle cx="100" cy="112" r="38" stroke="#556043" stroke-width="2.2" fill="#B38A45" opacity="0.28" />
+  <path d="M68 90 C80 66 120 66 132 90 C120 96 80 96 68 90 Z" stroke="#556043" stroke-width="2" fill="#8C9774" opacity="0.3" />
+  <path d="M100 74 L100 60" stroke="#556043" stroke-width="1.8" stroke-linecap="round" />
+  <path d="M100 60 C108 54 116 58 120 50" stroke="#556043" stroke-width="1.6" stroke-linecap="round" fill="none" />
+  <ellipse cx="120" cy="50" rx="10" ry="6" transform="rotate(-30 120 50)" fill="#8C9774" opacity="0.35" />
+</svg>

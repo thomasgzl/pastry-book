@@ -3,21 +3,21 @@ import { describe, expect, it } from "vitest";
 import SpecificitesPage from "./page";
 
 describe("SpecificitesPage", () => {
-  it("affiche deux sections séparées : Spécificités et Allergènes", () => {
-    render(<SpecificitesPage />);
+  it("affiche deux sections séparées : Spécificités et Allergènes", async () => {
+    render(await SpecificitesPage());
     expect(screen.getByRole("heading", { name: "Spécificités" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Allergènes" })).toBeInTheDocument();
   });
 
-  it("liste Vegan, Sans gluten, Sans lactose et Gluten, Œufs, Lait, Fruits à coque", () => {
-    render(<SpecificitesPage />);
+  it("liste Vegan, Sans gluten, Sans lactose et Gluten, Œufs, Lait, Fruits à coque", async () => {
+    render(await SpecificitesPage());
     for (const name of ["Vegan", "Sans gluten", "Sans lactose", "Gluten", "Œufs", "Lait", "Fruits à coque"]) {
       expect(screen.getByRole("link", { name: new RegExp(name) })).toBeInTheDocument();
     }
   });
 
-  it("lien vers la sous-page allergène distinct de la sous-page spécificité", () => {
-    render(<SpecificitesPage />);
+  it("lien vers la sous-page allergène distinct de la sous-page spécificité", async () => {
+    render(await SpecificitesPage());
     expect(screen.getByRole("link", { name: /Vegan/ })).toHaveAttribute("href", "/specificites/vegan");
     expect(screen.getByRole("link", { name: /Gluten/ })).toHaveAttribute("href", "/specificites/allergenes/gluten");
   });
