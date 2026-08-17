@@ -26,7 +26,7 @@ interface CanonicalIngredientCardProps {
   className?: string;
 }
 
-/** Carte du répertoire des matières premières normalisées. */
+/** Carte du répertoire des matières premières normalisées — carré éditorial (K19). */
 export function CanonicalIngredientCard({
   name,
   recipeCount,
@@ -37,44 +37,43 @@ export function CanonicalIngredientCard({
   const slug = href.split("/").filter(Boolean).pop() ?? "";
   const botanicalVariant = BOTANICAL_BY_SLUG[slug];
 
-  // Équilibre éditorial (K18v6) : illustration presque entière, à peine
-  // recadrée (object-contain), collée au bord gauche à ~15px, occupant
-  // ~40% de la carte. Fondu très léger sur son bord droit, calque dégradé
-  // indépendant à la couleur exacte du fond de carte — jamais un masque
-  // seul sur l'image, jamais un rectangle séparé derrière le texte
-  // (docs/06-DESIGN_SYSTEM.md).
-  const imageWrapperClassName = "absolute left-[15px] top-1/2 z-0 h-[102px] w-[40%] -translate-y-1/2";
-  const imageLayerClassName = "h-full w-full origin-left scale-105 object-contain object-left";
-  const fadeLayerStyle = {
-    left: "calc(15px + 40% - 10%)",
-    width: "10%",
-    background: "linear-gradient(to right, transparent 0%, var(--color-ivoire) 85%, var(--color-ivoire) 100%)",
-  };
-
   return (
     <Link
       href={href}
-      className={`block h-[128px] rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
+      className={`group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
-        {imageUrl ? (
-          <div className={imageWrapperClassName}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E). */}
-            <img src={imageUrl} alt={name} className={imageLayerClassName} />
-          </div>
-        ) : botanicalVariant ? (
-          <div className={imageWrapperClassName}>
-            <BotanicalOrnament variant={botanicalVariant} className={imageLayerClassName} />
-          </div>
-        ) : (
-          <PlaceholderIllustration label={name} className="absolute left-6 top-1/2 z-0 h-14 w-14 -translate-y-1/2" />
-        )}
-        <div aria-hidden="true" className="absolute inset-y-0 z-[1]" style={fadeLayerStyle} />
-        <div className="relative z-[2] flex h-full min-w-0 flex-col justify-center gap-1 py-3 pl-[49%] pr-4">
-          <p className="line-clamp-2 font-serif text-lg font-semibold leading-tight text-cacao sm:text-xl">{name}</p>
-          <p className="text-xs text-cacao/60 sm:text-sm">
+      <div
+        className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md"
+        style={{ aspectRatio: "4 / 5" }}
+      >
+        {/* Zone haute : hauteur fixe (pas liée au contenu) afin que
+            l'illustration démarre au même niveau sur toutes les cartes,
+            qu'un nom tienne sur une ou deux lignes (docs/06-DESIGN_SYSTEM.md). */}
+        <div className="flex h-[64px] shrink-0 flex-col justify-start gap-0.5 px-3 pt-3 sm:h-[76px] sm:px-4 sm:pt-4">
+          <p className="font-serif text-sm font-semibold leading-snug text-cacao sm:text-lg">{name}</p>
+          <p className="text-[11px] text-cacao/60 sm:text-sm">
             {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
           </p>
+        </div>
+
+        <div className="relative min-h-0 flex-1 px-2 pb-2">
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
+            <img
+              src={imageUrl}
+              alt={name}
+              className="h-full w-full origin-bottom object-contain object-bottom transition-transform duration-200 group-hover:scale-[1.02]"
+            />
+          ) : botanicalVariant ? (
+            <BotanicalOrnament
+              variant={botanicalVariant}
+              className="h-full w-full origin-bottom object-contain object-bottom transition-transform duration-200 group-hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <PlaceholderIllustration label={name} className="h-20 w-20 sm:h-24 sm:w-24" />
+            </div>
+          )}
         </div>
       </div>
     </Link>

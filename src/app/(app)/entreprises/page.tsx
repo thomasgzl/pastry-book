@@ -8,6 +8,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SourceCard } from "@/components/cards/SourceCard";
 import { getRecipeCountForSource, getSources } from "@/lib/data/sources";
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
+import { getCompanyIllustration } from "@/lib/visuals/companyIllustrations";
 
 export default async function EntreprisesPage() {
   const sources = await getSources();
@@ -24,16 +25,20 @@ export default async function EntreprisesPage() {
 
       <EditorialTitle>Entreprises</EditorialTitle>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {sources.map((source, index) => (
-          <SourceCard
-            key={source.id}
-            name={source.name}
-            recipeCount={recipeCounts[index]}
-            imageUrl={visualUrls[index] ?? undefined}
-            href={`/entreprises/${source.slug}`}
-          />
-        ))}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {sources.map((source, index) => {
+          const fallbackIllustration = getCompanyIllustration(source.slug);
+          return (
+            <SourceCard
+              key={source.id}
+              name={source.name}
+              recipeCount={recipeCounts[index]}
+              imageUrl={visualUrls[index] ?? fallbackIllustration?.path}
+              imagePosition={fallbackIllustration?.position}
+              href={`/entreprises/${source.slug}`}
+            />
+          );
+        })}
       </div>
     </div>
   );
