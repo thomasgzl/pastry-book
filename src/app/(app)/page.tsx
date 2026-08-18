@@ -34,7 +34,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
 
 /**
- * 36×36 (tablette/ordinateur) / 34×34 (téléphone) : couleurs déjà présentes
+ * 64×64 (tablette/ordinateur) / 56×56 (téléphone) — agrandies suite retour
+ * visuel (36/34px jugé trop petit à côté du titre). Couleurs déjà présentes
  * dans les fichiers, jamais de filtre/recoloration CSS. Décoratives — le
  * titre de chaque carte porte déjà le sens, `EntryCard` place en plus ce
  * `ReactNode` dans un conteneur `aria-hidden="true"` (voir `EntryCard.tsx`).
@@ -44,9 +45,9 @@ function NavCardIcon({ src }: { src: string }) {
     <Image
       src={src}
       alt=""
-      width={36}
-      height={36}
-      className="h-[34px] w-[34px] object-contain sm:h-9 sm:w-9"
+      width={64}
+      height={64}
+      className="h-14 w-14 object-contain sm:h-16 sm:w-16"
     />
   );
 }
