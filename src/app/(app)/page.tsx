@@ -28,58 +28,34 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { EntryCard } from "@/components/ui/EntryCard";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
 
-function BuildingIcon({ className = "h-8 w-8" }: { className?: string }) {
+/**
+ * 36×36 (tablette/ordinateur) / 34×34 (téléphone) : couleurs déjà présentes
+ * dans les fichiers, jamais de filtre/recoloration CSS. Décoratives — le
+ * titre de chaque carte porte déjà le sens, `EntryCard` place en plus ce
+ * `ReactNode` dans un conteneur `aria-hidden="true"` (voir `EntryCard.tsx`).
+ */
+function NavCardIcon({ src }: { src: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M4 21V9l8-5 8 5v12" strokeLinejoin="round" />
-      <path d="M9.5 21v-6.5h5V21" strokeLinejoin="round" />
-      <path d="M3 21h18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BookIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path
-        d="M12 6.5c-1.8-1.4-4.3-2-7-2v13.5c2.7 0 5.2.6 7 2 1.8-1.4 4.3-2 7-2V4.5c-2.7 0-5.2.6-7 2Z"
-        strokeLinejoin="round"
-      />
-      <path d="M12 6.5V20" />
-    </svg>
-  );
-}
-
-function LeafBranchIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M4.5 20c6-1.2 9.6-5.3 11.5-14.5" strokeLinecap="round" />
-      <path d="M9 15.2c2-.6 3.8-2 4.8-4" strokeLinecap="round" />
-      <ellipse cx="15" cy="6.8" rx="3" ry="1.6" transform="rotate(-32 15 6.8)" />
-    </svg>
-  );
-}
-
-function SpecificityIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M12 3c1.9 1.9 1.9 4.7 0 6.6C10.1 7.7 10.1 4.9 12 3Z" strokeLinejoin="round" />
-      <path d="M12 21c-1.9-1.9-1.9-4.7 0-6.6c1.9 1.9 1.9 4.7 0 6.6Z" strokeLinejoin="round" />
-      <path d="M3 12c1.9-1.9 4.7-1.9 6.6 0C7.7 13.9 4.9 13.9 3 12Z" strokeLinejoin="round" />
-      <path d="M21 12c-1.9 1.9-4.7 1.9-6.6 0c1.9-1.9 4.7-1.9 6.6 0Z" strokeLinejoin="round" />
-    </svg>
+    <Image
+      src={src}
+      alt=""
+      width={36}
+      height={36}
+      className="h-[34px] w-[34px] object-contain sm:h-9 sm:w-9"
+    />
   );
 }
 
 const NAV_CARDS = [
-  { label: "Par entreprise", href: "/entreprises", icon: <BuildingIcon /> },
-  { label: "Par recette", href: "/recettes", icon: <BookIcon /> },
-  { label: "Par matière première", href: "/matieres-premieres", icon: <LeafBranchIcon /> },
-  { label: "Par spécificité", href: "/specificites", icon: <SpecificityIcon /> },
+  { label: "Par entreprise", href: "/entreprises", icon: <NavCardIcon src="/visuals/icons/entreprise.png" /> },
+  { label: "Par recette", href: "/recettes", icon: <NavCardIcon src="/visuals/icons/recette.png" /> },
+  { label: "Par matière première", href: "/matieres-premieres", icon: <NavCardIcon src="/visuals/icons/matiere-premiere.png" /> },
+  { label: "Par spécificité", href: "/specificites", icon: <NavCardIcon src="/visuals/icons/specificite.png" /> },
 ] as const;
 
 export default function HomePage() {
