@@ -39,8 +39,13 @@ export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> =
     position: "40% 87%",
   },
   personnel: {
+    // Seule illustration horizontale (16:9) du lot — choix delibere, les 6
+    // autres sont verticales. Nature morte quasi centree (mesure reelle sur
+    // le rendu : centre du contenu a ~50% x / ~49% y, marges symetriques),
+    // donc un recadrage `object-fit: cover` centre suffit a garder le carnet,
+    // la poche a douille, le fouet et la vanille entierement visibles.
     path: "/visuals/company/personnel.png",
-    position: "50% 46%",
+    position: "50% 49%",
   },
 };
 
