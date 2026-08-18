@@ -28,7 +28,6 @@ describe("FilesStep", () => {
         pastedText={null}
         onFilesChange={onFilesChange}
         onPastedTextChange={vi.fn()}
-        onDemoExampleLoaded={vi.fn()}
         importBatchId="batch-1"
       />,
     );
@@ -48,7 +47,6 @@ describe("FilesStep", () => {
         pastedText={null}
         onFilesChange={onFilesChange}
         onPastedTextChange={vi.fn()}
-        onDemoExampleLoaded={vi.fn()}
         importBatchId="batch-1"
       />,
     );
@@ -73,7 +71,6 @@ describe("FilesStep", () => {
         pastedText={null}
         onFilesChange={onFilesChange}
         onPastedTextChange={vi.fn()}
-        onDemoExampleLoaded={vi.fn()}
         importBatchId="batch-1"
       />,
     );
@@ -93,7 +90,6 @@ describe("FilesStep", () => {
         pastedText={null}
         onFilesChange={onFilesChange}
         onPastedTextChange={vi.fn()}
-        onDemoExampleLoaded={vi.fn()}
         importBatchId="batch-1"
       />,
     );

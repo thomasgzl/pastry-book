@@ -17,7 +17,7 @@
  * appeler `src/lib/data/*` lui-même.
  */
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
@@ -61,11 +61,15 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
   // plus qu'à restaurer la recherche au chargement / retour arrière —
   // resynchronisé ici lors d'une navigation externe, jamais pendant la
   // frappe elle-même (l'URL n'est mise à jour qu'après le debounce de
-  // `SearchInput`, voir `handleSearch`).
+  // `SearchInput`, voir `handleSearch`). Ajustement pendant le rendu plutôt
+  // que dans un effet (patron React officiel « adjusting state when a prop
+  // changes ») : évite le rendu supplémentaire qu'un `useEffect` déclencherait.
   const [inputValue, setInputValue] = useState(q);
-  useEffect(() => {
+  const [syncedQ, setSyncedQ] = useState(q);
+  if (q !== syncedQ) {
+    setSyncedQ(q);
     setInputValue(q);
-  }, [q]);
+  }
 
   function updateParams(next: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());

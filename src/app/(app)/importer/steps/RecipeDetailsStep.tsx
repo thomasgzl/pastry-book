@@ -36,9 +36,8 @@ function moveSection(draft: ImportRecipeDraft, index: number, direction: -1 | 1)
 }
 
 /**
- * Étape 4 — informations reconnues (D1 : saisie manuelle sans IA, ou
- * pré-remplissage par un exemple de démonstration D3) + correction manuelle
- * de chaque champ, dans le même écran (une valeur affichée EST déjà
+ * Étape 4 — informations reconnues (D1, saisie manuelle sans IA) + correction
+ * manuelle de chaque champ, dans le même écran (une valeur affichée EST déjà
  * modifiable, pas d'écran séparé purement en lecture). Aucune section
  * n'impose de préparation nommée (liste simple valide, CAP minimale).
  */

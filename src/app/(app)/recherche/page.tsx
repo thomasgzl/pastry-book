@@ -22,7 +22,7 @@
  * résultat plus récent.
  */
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -79,11 +79,16 @@ function RechercheContent() {
   // ralentie par un aller-retour routeur/réseau. Réinitialisée depuis l'URL
   // seulement lors d'une navigation externe (retour arrière, lien partagé),
   // jamais pendant la frappe elle-même (l'URL n'est mise à jour qu'après le
-  // debounce, donc ne « rattrape » jamais une frappe en cours).
+  // debounce, donc ne « rattrape » jamais une frappe en cours). Ajustement
+  // pendant le rendu plutôt que dans un effet (patron React officiel
+  // « adjusting state when a prop changes ») : évite le rendu supplémentaire
+  // qu'un `useEffect` déclencherait.
   const [inputValue, setInputValue] = useState(q);
-  useEffect(() => {
+  const [syncedQ, setSyncedQ] = useState(q);
+  if (q !== syncedQ) {
+    setSyncedQ(q);
     setInputValue(q);
-  }, [q]);
+  }
 
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searching, setSearching] = useState(false);

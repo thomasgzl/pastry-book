@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
-import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { listDemoFixtures, type DemoFixtureId } from "@/lib/ai/import/fixtures";
-import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportFileRef } from "@/lib/import/schema";
 import { MAX_SOURCE_FILE_SIZE_BYTES, uploadSourceFile } from "@/lib/import/sourceUpload";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
-import { runDemoExtractionAction } from "../importActions";
 
 const ACCEPTED_TYPES = "image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_FILES = 10;
@@ -31,32 +27,25 @@ interface FilesStepProps {
   pastedText: string | null;
   onFilesChange: (files: ImportFileRef[]) => void;
   onPastedTextChange: (text: string | null) => void;
-  /** Appelé une fois qu'un exemple de démonstration (D3) a été chargé et transformé en brouillon pré-rempli. L'extraction IA réelle est branchée séparément (K3-IMPORT). */
-  onDemoExampleLoaded: (draft: DemoExtractionDraft, providerName: string) => void;
   /** Lot d'import déjà créé côté serveur — préfixe du chemin Storage (I6). */
   importBatchId: string;
 }
 
 /**
- * Étape 3 — fichiers, texte collé, ou exemple de démonstration (D1 + pont
- * D3). Aucun traitement IA du contenu des fichiers déposés ici (pas d'OCR/
- * extraction branchée sur ce champ, aucun appel payant) : la saisie reste
- * manuelle à l'étape suivante. Le fichier ORIGINAL est en revanche archivé
- * directement du navigateur vers le bucket privé `recipe-sources` dès la
- * sélection (I6, `@/lib/import/sourceUpload`) — traçabilité de la source,
- * jamais un traitement de son contenu. Les 3 exemples de démonstration
- * illustrent ce que l'extraction assistée produirait, mode démonstration
- * déterministe uniquement (aucune clé, aucun appel réseau).
+ * Étape 3 — fichiers ou texte collé (D1). Aucun traitement IA du contenu des
+ * fichiers déposés ici (pas d'OCR/extraction branchée sur ce champ, aucun
+ * appel payant) : la saisie reste manuelle à l'étape suivante. Le fichier
+ * ORIGINAL est en revanche archivé directement du navigateur vers le bucket
+ * privé `recipe-sources` dès la sélection (I6, `@/lib/import/sourceUpload`)
+ * — traçabilité de la source, jamais un traitement de son contenu.
  */
 export function FilesStep({
   files,
   pastedText,
   onFilesChange,
   onPastedTextChange,
-  onDemoExampleLoaded,
   importBatchId,
 }: FilesStepProps) {
-  const [loadingFixture, setLoadingFixture] = useState<DemoFixtureId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   /**
@@ -163,19 +152,6 @@ export function FilesStep({
     });
   }
 
-  async function loadDemoExample(fixtureId: DemoFixtureId) {
-    setError(null);
-    setLoadingFixture(fixtureId);
-    try {
-      const draft = await runDemoExtractionAction(fixtureId);
-      onDemoExampleLoaded(draft, "demo");
-    } catch {
-      setError("Le chargement de l'exemple de démonstration a échoué. Réessayez.");
-    } finally {
-      setLoadingFixture(null);
-    }
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -270,26 +246,6 @@ export function FilesStep({
           placeholder="Coller ici le texte tel qu'écrit dans la source…"
           className="w-full rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
         />
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-grise p-3">
-        <p className="text-sm font-medium text-cacao">
-          Ou charger un exemple de démonstration (mode démo, aucun appel IA réel)
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {listDemoFixtures().map((fixture) => (
-            <Button
-              key={fixture.id}
-              type="button"
-              variant="secondary"
-              onClick={() => loadDemoExample(fixture.id)}
-              disabled={loadingFixture !== null}
-            >
-              {fixture.label}
-            </Button>
-          ))}
-        </div>
-        {loadingFixture && <LoadingState message="Chargement de l'exemple de démonstration…" />}
       </div>
 
       {error && <ErrorState message={error} />}

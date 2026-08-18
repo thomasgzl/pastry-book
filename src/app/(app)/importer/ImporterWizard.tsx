@@ -5,11 +5,12 @@
  * fichiers/texte, informations + correction, vérification) + écran de
  * succès. Aucune sauvegarde automatique avant le clic explicite final sur
  * l'écran de vérification (CLAUDE.md, principe 8 : IA supervisée, jamais de
- * publication sans validation humaine). Entièrement utilisable sans
- * fournisseur IA configuré : les 3 boutons « exemple de démonstration »
- * n'appellent qu'un adaptateur local déterministe (`src/lib/ai/import`),
- * jamais un réseau ni une clé. L'extraction IA réelle (fournisseur OpenAI)
- * sera branchée dans ce parcours par K3-IMPORT, hors périmètre ici.
+ * publication sans validation humaine). Les boutons « exemple de
+ * démonstration » (mode démo local, sans clé ni réseau) ont été retirés de
+ * l'interface de production — les fixtures restent disponibles pour le
+ * développement (`src/lib/ai/import/fixtures.ts`), simplement plus
+ * importées/affichées ici. L'extraction IA réelle (fournisseur OpenAI) sera
+ * branchée dans ce parcours par K3-IMPORT, hors périmètre ici.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -23,7 +24,6 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
-import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportDuplicateMatch } from "@/lib/import/store";
 import {
@@ -46,21 +46,6 @@ import { ReviewStep } from "./steps/ReviewStep";
 
 const STEP_LABELS = ["Entreprise", "Catégorie", "Fichiers", "Informations", "Vérification"] as const;
 type Step = 0 | 1 | 2 | 3 | 4;
-
-function applyDemoExtraction(draft: ImportRecipeDraft, extracted: DemoExtractionDraft): ImportRecipeDraft {
-  return {
-    ...draft,
-    title: extracted.title,
-    procedure: extracted.procedure,
-    temperature: extracted.temperature,
-    additionalInformation: extracted.additionalInformation,
-    sections: extracted.sections,
-    specificities: extracted.specificities,
-    allergens: extracted.allergens,
-    originalFiles: [...draft.originalFiles, ...extracted.originalFiles],
-    warnings: extracted.warnings,
-  };
-}
 
 export function ImporterWizard() {
   const [step, setStep] = useState<Step>(0);
@@ -280,16 +265,6 @@ export function ImporterWizard() {
     await checkForDuplicate(draft);
   }
 
-  function handleDemoExampleLoaded(extracted: DemoExtractionDraft, provider: string) {
-    const base = ensureDraft();
-    setDraft(applyDemoExtraction(base, extracted));
-    setProviderName(provider);
-    setRawExtraction(extracted);
-    setCompleteness(extracted.completeness);
-    setAcknowledgeIncomplete(false);
-    goTo(3);
-  }
-
   async function handleConfirmSave() {
     if (!draft || !validation?.success || !batchId) return;
     setSaving(true);
@@ -485,7 +460,6 @@ export function ImporterWizard() {
           pastedText={draft.pastedText}
           onFilesChange={(files) => setDraft((d) => (d ? { ...d, originalFiles: files } : d))}
           onPastedTextChange={(text) => setDraft((d) => (d ? { ...d, pastedText: text } : d))}
-          onDemoExampleLoaded={handleDemoExampleLoaded}
           importBatchId={batchId}
         />
       )}

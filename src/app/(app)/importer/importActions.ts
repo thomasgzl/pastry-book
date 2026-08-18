@@ -25,8 +25,6 @@ import {
 import { getSources } from "@/lib/data/sources";
 import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
 import { getAllergens, getSpecificities } from "@/lib/data/specificities";
-import { runDemoExtraction, type DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
-import type { DemoFixtureId } from "@/lib/ai/import/fixtures";
 import type { Allergen, CanonicalIngredient, ImportBatch, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
@@ -52,11 +50,6 @@ export async function getImportReferenceDataAction(): Promise<ImportReferenceDat
 
 export async function createImportBatchAction(): Promise<ImportBatch> {
   return createImportBatch();
-}
-
-/** `runDemoExtraction` lit les référentiels via `src/lib/data/*` (server-only, `next/headers`) — même frontière que `getImportReferenceDataAction`, requise pour `FilesStep.tsx` (Client Component). */
-export async function runDemoExtractionAction(fixtureId: DemoFixtureId): Promise<DemoExtractionDraft> {
-  return runDemoExtraction(fixtureId);
 }
 
 export async function getCategoriesAction(sourceId: string): Promise<SourceCategory[]> {
