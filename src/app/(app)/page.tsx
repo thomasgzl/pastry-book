@@ -116,6 +116,7 @@ export default function HomePage() {
             value={query}
             onChange={setQuery}
             onSearch={handleSearch}
+            debounceMs={350}
             label="Recherche globale"
             placeholder="Rechercher une recette, une entreprise, une matière première…"
             className="w-full max-w-lg text-left sm:max-w-xl lg:max-w-2xl"
