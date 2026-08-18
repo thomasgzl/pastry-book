@@ -35,20 +35,18 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
     .filter((category) => category.recipeCount > 0);
 
   const uncategorizedRecipes = await getRecipesWithoutCategoryForSource(sourceSlug);
-  // Visuels IA approuvés (lot J7/K12) — résolus ici (page serveur), jamais
-  // dans `RecipeCard`/`CategoryCard`/`recipes.ts` (modules aussi consommés
-  // par des pages client). Portrait de l'entreprise (K12) : même patron que
-  // la fiche matière première.
-  const [portrait, hasApprovedVisual, categoryVisualUrls, uncategorizedVisualUrls, uncategorizedCardData] =
-    await Promise.all([
-      ApprovedVisual({ subjectType: "source", subjectId: source.id, alt: source.name, ratio: "1:1" }),
-      getApprovedVisualUrl("source", source.id)
-        .then((url) => url !== null)
-        .catch(() => false),
-      Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
-      Promise.all(uncategorizedRecipes.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
-      Promise.all(uncategorizedRecipes.map((recipe) => toRecipeCardData(recipe))),
-    ]);
+  // Visuels de l'entreprise et de ses catégories résolus ici (page serveur),
+  // même patron que la fiche matière première. Le visuel de chaque RECETTE,
+  // lui, vient uniquement de `toRecipeCardData` (`recipes.ts`, seule source
+  // de `imageUrl` — jamais résolu une deuxième fois ici).
+  const [portrait, hasApprovedVisual, categoryVisualUrls, uncategorizedCardData] = await Promise.all([
+    ApprovedVisual({ subjectType: "source", subjectId: source.id, alt: source.name, ratio: "1:1" }),
+    getApprovedVisualUrl("source", source.id)
+      .then((url) => url !== null)
+      .catch(() => false),
+    Promise.all(categoriesRaw.map((category) => getApprovedVisualUrl("sourceCategory", category.id))),
+    Promise.all(uncategorizedRecipes.map((recipe) => toRecipeCardData(recipe))),
+  ]);
   const categories = categoriesRaw.map((category, index) => ({
     ...category,
     imageUrl: categoryVisualUrls[index],
@@ -94,7 +92,7 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
           {categories.length > 0 && <EditorialTitle as="h2">Autres recettes</EditorialTitle>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {uncategorizedRecipes.map((recipe, index) => (
-              <RecipeCard key={recipe.id} {...uncategorizedCardData[index]} imageUrl={uncategorizedVisualUrls[index]} />
+              <RecipeCard key={recipe.id} {...uncategorizedCardData[index]} />
             ))}
           </div>
         </div>

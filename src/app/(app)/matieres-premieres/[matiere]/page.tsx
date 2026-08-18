@@ -25,7 +25,10 @@ export default async function MatierePremierePage({ params }: { params: Promise<
   const recipesRaw = await getRecipesForCanonicalIngredient(slug);
   // Illustration botanique en tête de fiche (lot J7, correction P2) : visuel
   // approuvé si présent, repli placeholder botanique sinon — jamais absente.
-  const [portrait, hasApprovedVisual, recipeVisualUrls, cardData] = await Promise.all([
+  // Le visuel de chaque RECETTE, lui, vient uniquement de `toRecipeCardData`
+  // (`recipes.ts`, seule source de `imageUrl` — jamais résolu une deuxième
+  // fois ici).
+  const [portrait, hasApprovedVisual, recipes] = await Promise.all([
     ApprovedVisual({
       subjectType: "ingredient",
       subjectId: ingredient.id,
@@ -36,13 +39,8 @@ export default async function MatierePremierePage({ params }: { params: Promise<
     getApprovedVisualUrl("ingredient", ingredient.id)
       .then((url) => url !== null)
       .catch(() => false),
-    Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
     Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
   ]);
-  const recipes = recipesRaw.map((recipe, index) => ({
-    ...cardData[index],
-    imageUrl: recipeVisualUrls[index],
-  }));
 
   return (
     <div className="flex flex-col gap-6">

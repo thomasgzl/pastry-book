@@ -25,6 +25,7 @@ import type {
 import { getCategoryBySlug } from "@/lib/data/categories";
 import { getSourceBySlug } from "@/lib/data/sources";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
+import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 import {
   loadCanonicalIngredients,
   loadRecipeIngredients,
@@ -117,25 +118,27 @@ export interface RecipeCardData {
   sourceName: string;
   categoryName?: string;
   ingredientTags: string[];
-  /** Visuel IA approuvé (jamais la photo source brute) — absent tant que
-   * l'appelant ne l'a pas résolu explicitement via `getApprovedVisualUrl`
-   * (lot J7) ; `toRecipeCardData` ne le peuple jamais elle-même (fonction
-   * asynchrone dédiée à la résolution recette/source/catégorie/tags, lecture
-   * du visuel approuvé toujours résolue séparément par l'appelant). */
+  /** Visuel IA approuvé (jamais la photo source brute) — résolu par
+   * `toRecipeCardData` elle-même (`getApprovedVisualUrl`, seule source de ce
+   * champ pour toute page listant des recettes) ; `null`/absent tant
+   * qu'aucun visuel principal n'existe, jamais un repli erreur bloquant. */
   imageUrl?: string | null;
   href: string;
 }
 
 /**
  * Assemble les props attendues par `RecipeCard` pour une recette — évite de
- * dupliquer la résolution source/catégorie/tags dans chaque page qui affiche
- * des recettes.
+ * dupliquer la résolution source/catégorie/tags/visuel dans chaque page qui
+ * affiche des recettes. Seule source de `imageUrl` (`getApprovedVisualUrl`) :
+ * un appelant ne doit jamais le résoudre une deuxième fois séparément, pour
+ * éviter deux lectures divergentes du même visuel.
  */
 export async function toRecipeCardData(recipe: Recipe): Promise<RecipeCardData> {
-  const [sources, sourceCategories, ingredientTags] = await Promise.all([
+  const [sources, sourceCategories, ingredientTags, imageUrl] = await Promise.all([
     allSources(),
     allSourceCategories(),
     getIngredientTagsForRecipe(recipe.id),
+    getApprovedVisualUrl("recipe", recipe.id).catch(() => null),
   ]);
   // `sourceId` référence toujours une source existante (invariant garanti en
   // démo par data.test.ts, et par la contrainte de clé étrangère côté
@@ -150,6 +153,7 @@ export async function toRecipeCardData(recipe: Recipe): Promise<RecipeCardData> 
     sourceName: source.name,
     categoryName: category?.name,
     ingredientTags,
+    imageUrl,
     href: `/recettes/${recipe.slug}`,
   };
 }

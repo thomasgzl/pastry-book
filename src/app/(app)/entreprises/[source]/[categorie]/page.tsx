@@ -27,19 +27,18 @@ export default async function CategoriePage({
   if (!category) notFound();
 
   const recipesRaw = await getRecipesByCategory(sourceSlug, categorySlug);
-  // Visuels IA approuvés (lot J7/K12) — résolus ici (page serveur), jamais
-  // dans `RecipeCard`/`recipes.ts` (module aussi consommé par des pages
-  // client). En-tête de catégorie (K12) : même patron que la fiche matière
-  // première/la page entreprise.
-  const [portrait, hasApprovedVisual, visualUrls, cardData] = await Promise.all([
+  // Visuel de catégorie (en-tête) résolu ici (page serveur), même patron que
+  // la fiche matière première/la page entreprise. Le visuel de chaque
+  // RECETTE, lui, vient uniquement de `toRecipeCardData` (`recipes.ts`,
+  // seule source de `imageUrl` — jamais résolu une deuxième fois ici).
+  const [portrait, hasApprovedVisual, cardData] = await Promise.all([
     ApprovedVisual({ subjectType: "sourceCategory", subjectId: category.id, alt: category.name, ratio: "1:1" }),
     getApprovedVisualUrl("sourceCategory", category.id)
       .then((url) => url !== null)
       .catch(() => false),
-    Promise.all(recipesRaw.map((recipe) => getApprovedVisualUrl("recipe", recipe.id))),
     Promise.all(recipesRaw.map((recipe) => toRecipeCardData(recipe))),
   ]);
-  const recipes = recipesRaw.map((recipe, index) => ({ ...cardData[index], imageUrl: visualUrls[index] }));
+  const recipes = cardData;
 
   return (
     <div className="flex flex-col gap-6">

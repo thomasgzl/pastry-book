@@ -4,12 +4,11 @@
  * Action serveur unique de la fiche recette pour créer/réessayer son
  * illustration (F-IA3) — appelée directement depuis `RecipeIllustrationButton`
  * (Client Component), même patron que `src/app/(app)/visuels/actions.ts`.
- * Ne fait que déléguer à `generateMissingRecipeIllustration` (logique
- * partagée avec le déclenchement automatique après import) puis revalider les
- * pages qui affichent cette recette.
+ * Ne fait que déléguer à `generateMissingRecipeIllustration`, qui gère elle-
+ * même la revalidation des pages affichant des cartes recette (seul endroit
+ * qui le fait, voir sa documentation).
  */
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { generateMissingRecipeIllustration } from "@/lib/ai/visuals/recipe-illustration";
 
@@ -30,7 +29,5 @@ export async function generateRecipeIllustrationAction(
   const result = await generateMissingRecipeIllustration(parsed.data.recipeId);
   if (!result.ok) return { ok: false, message: result.error.message };
 
-  revalidatePath(`/recettes/${parsed.data.slug}`);
-  revalidatePath("/recettes");
   return { ok: true, message: null };
 }

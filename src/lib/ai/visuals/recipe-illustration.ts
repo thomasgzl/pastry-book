@@ -1,9 +1,27 @@
+import { revalidatePath } from "next/cache";
 import type { Result } from "@/lib/domain/errors";
 import { ok, err } from "@/lib/domain/errors";
 import type { VisualAsset } from "@/lib/domain/schemas";
 import { getVisualSubject } from "@/lib/visuals/subjects";
 import { approveVisualAsset, getPrimaryVisualAsset } from "@/lib/visuals/storage";
 import { generateRealVisualDraft } from "./real-generation";
+
+/**
+ * Revalide toutes les listes qui affichent des cartes recette — seul endroit
+ * qui le fait, pour ne jamais en oublier une au prochain appelant
+ * (`saveImportRecipeAction`, `generateRecipeIllustrationAction`). Les pages
+ * elles-mêmes lisent déjà Supabase via un client qui dépend des cookies de
+ * requête (`createSupabaseServerClient`), donc un rendu serveur frais est de
+ * toute façon déjà dynamique ; ceci vise le cache de navigation côté client
+ * (Router Cache) pour un retour/lien déjà visité dans la même session.
+ */
+function revalidateRecipeCardPages(recipeSlug: string): void {
+  revalidatePath(`/recettes/${recipeSlug}`);
+  revalidatePath("/recettes");
+  revalidatePath("/specificites");
+  revalidatePath("/entreprises");
+  revalidatePath("/matieres-premieres");
+}
 
 /**
  * Génère puis publie immédiatement l'illustration d'une recette (F-IA3,
@@ -43,6 +61,7 @@ export async function generateMissingRecipeIllustration(
     if (!generated.ok) return generated;
 
     const published = await approveVisualAsset(generated.data.id);
+    revalidateRecipeCardPages(subject.slug);
     return ok(published);
   } catch (cause) {
     return err(
