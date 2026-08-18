@@ -30,6 +30,7 @@ import {
   type ExtractRecipeParams,
   type ExtractRecipeResult,
 } from "@/lib/import/extraction";
+import { generateMissingRecipeIllustration } from "@/lib/ai/visuals/recipe-illustration";
 import type { Allergen, CanonicalIngredient, ImportBatch, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
@@ -91,6 +92,18 @@ export async function checkImportDuplicatesAction(
   return checkImportDuplicates(params);
 }
 
+/**
+ * Illustration de recette (F-IA3) : jamais avant l'enregistrement, jamais
+ * bloquante pour lui — la recette reste enregistrée même si cet appel échoue
+ * (clé absente, quota, réseau…), voir `generateMissingRecipeIllustration`.
+ */
+async function triggerRecipeIllustration(recipeId: string): Promise<void> {
+  const result = await generateMissingRecipeIllustration(recipeId);
+  if (!result.ok) {
+    console.error(`[import] illustration non générée pour la recette ${recipeId} : ${result.error.message}`);
+  }
+}
+
 export async function saveImportRecipeAction(params: {
   batchId: string;
   draft: ImportRecipeDraft;
@@ -99,5 +112,9 @@ export async function saveImportRecipeAction(params: {
   acknowledgeDuplicate?: boolean;
   newSourceName?: string | null;
 }): Promise<SaveImportRecipeResult> {
-  return saveImportRecipe(params);
+  const result = await saveImportRecipe(params);
+  if (result.status !== "duplicate") {
+    await triggerRecipeIllustration(result.recipe.id);
+  }
+  return result;
 }

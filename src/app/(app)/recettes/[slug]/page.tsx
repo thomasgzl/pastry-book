@@ -94,6 +94,8 @@ export default async function RecettePage({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <Breadcrumb items={buildBreadcrumb(detail, from)} />
       <RecipeSheet
+        recipeId={detail.recipe.id}
+        slug={slug}
         title={detail.recipe.title}
         sourceName={detail.sourceName}
         categoryName={detail.categoryName}

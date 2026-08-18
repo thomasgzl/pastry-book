@@ -31,6 +31,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { getIngredientQuantityDisplay, isValidCoefficient } from "@/lib/recipes/coefficient";
 import type { RecipeKeyIngredient, RecipeSectionWithIngredients } from "@/lib/data/recipes";
+import { RecipeIllustrationButton } from "./RecipeIllustrationButton";
 
 interface RecipeSheetSpecificity {
   id: string;
@@ -39,6 +40,8 @@ interface RecipeSheetSpecificity {
 }
 
 interface RecipeSheetProps {
+  recipeId: string;
+  slug: string;
   title: string;
   sourceName: string;
   categoryName?: string;
@@ -81,6 +84,8 @@ function IngredientRow({ ingredient, coefficient }: { ingredient: RecipeIngredie
 }
 
 export function RecipeSheet({
+  recipeId,
+  slug,
   title,
   sourceName,
   categoryName,
@@ -117,12 +122,16 @@ export function RecipeSheet({
 
       <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>
 
-      <IllustrationAction
-        subjectType="recipe"
-        hasVisual={hasApprovedVisual}
-        label={title}
-        className="self-start"
-      />
+      {hasApprovedVisual ? (
+        <IllustrationAction
+          subjectType="recipe"
+          hasVisual={hasApprovedVisual}
+          label={title}
+          className="self-start"
+        />
+      ) : (
+        <RecipeIllustrationButton recipeId={recipeId} slug={slug} className="self-start" />
+      )}
 
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Coefficient</EditorialTitle>
