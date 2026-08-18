@@ -25,12 +25,15 @@ import type {
   ExtractedIngredient,
   ExtractedSection,
   ExtractionCompleteness,
+  ExtractionMethod,
   ExtractOptions,
   ExtractSourceInput,
   ImportAIProvider,
 } from "./types";
 
 export interface DemoExtractionDraft {
+  /** Méthode ayant réellement produit ce brouillon — `"manual"` signale un échec/repli (clé absente, contenu illisible, refus du modèle…), jamais une extraction réussie. L'appelant (Server Action `/importer`) doit vérifier ce champ avant d'appliquer le brouillon : `buildImportDraft` ne lève jamais d'exception pour un échec d'extraction connu, il retourne toujours un brouillon exploitable (sections vides), ce champ est le seul signal fiable de succès/échec. */
+  method: ExtractionMethod;
   title: string;
   procedure: string | null;
   temperature: string | null;
@@ -42,7 +45,7 @@ export interface DemoExtractionDraft {
   warnings: string[];
   /**
    * Contrôle de complétude (lot G) — méta-donnée d'IMPORT uniquement,
-   * jamais reprise dans `ImportRecipeDraft` (voir `ImporterWizard.applyDemoExtraction`,
+   * jamais reprise dans `ImportRecipeDraft` (voir `ImporterWizard.applyExtractedDraft`,
    * qui ne copie que les champs de contenu réel de la recette).
    */
   completeness: ExtractionCompleteness;
@@ -141,6 +144,7 @@ export async function buildImportDraft(
   }));
 
   return {
+    method: raw.method,
     // Titre absent de l'extraction → jamais inventé, placeholder explicite laissé à charge du formulaire (voir ImporterWizard).
     title: raw.title ?? "",
     procedure: raw.procedure,

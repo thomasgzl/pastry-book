@@ -25,12 +25,14 @@ import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
+import type { DemoExtractionDraft } from "@/lib/ai/import/runDemoExtraction";
 import type { ImportDuplicateMatch } from "@/lib/import/store";
 import {
   checkDuplicateAction,
   checkImportDuplicatesAction,
   createCategoryAction,
   createImportBatchAction,
+  extractRecipeAction,
   getCategoriesAction,
   getImportReferenceDataAction,
   saveImportRecipeAction,
@@ -46,6 +48,21 @@ import { ReviewStep } from "./steps/ReviewStep";
 
 const STEP_LABELS = ["Entreprise", "Catégorie", "Fichiers", "Informations", "Vérification"] as const;
 type Step = 0 | 1 | 2 | 3 | 4;
+
+/** Fusionne un brouillon extrait (IA réelle) dans le brouillon en cours — jamais `originalFiles` (déjà correct côté `draft`, `extracted.originalFiles` serait une reconstruction redondante avec `sizeBytes: 0`). */
+function applyExtractedDraft(draft: ImportRecipeDraft, extracted: DemoExtractionDraft): ImportRecipeDraft {
+  return {
+    ...draft,
+    title: extracted.title,
+    procedure: extracted.procedure,
+    temperature: extracted.temperature,
+    additionalInformation: extracted.additionalInformation,
+    sections: extracted.sections,
+    specificities: extracted.specificities,
+    allergens: extracted.allergens,
+    warnings: extracted.warnings,
+  };
+}
 
 export function ImporterWizard() {
   const [step, setStep] = useState<Step>(0);
@@ -65,6 +82,8 @@ export function ImporterWizard() {
   const [categoryCreating, setCategoryCreating] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [draft, setDraft] = useState<ImportRecipeDraft | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
   const [providerName, setProviderName] = useState("manual");
   const [rawExtraction, setRawExtraction] = useState<unknown>(null);
   const [acknowledgeDuplicate, setAcknowledgeDuplicate] = useState(false);
@@ -221,9 +240,41 @@ export function ImporterWizard() {
     goTo(2);
   }
 
-  function handleGoToDetails() {
-    ensureDraft();
-    goTo(3);
+  /**
+   * Seul déclencheur de l'extraction IA réelle (K3-IMPORT) : sans fichier ni
+   * texte collé, la saisie manuelle reste possible telle quelle (comportement
+   * existant préservé, aucun appel réseau). Le brouillon et les fichiers déjà
+   * ajoutés restent intacts en cas d'échec — permet de réessayer sans tout
+   * ressaisir (CLAUDE.md, jamais un échec silencieux).
+   */
+  async function handleGoToDetails() {
+    const current = ensureDraft();
+    const hasSource = current.originalFiles.length > 0 || Boolean(current.pastedText?.trim());
+    if (!hasSource) {
+      goTo(3);
+      return;
+    }
+
+    setExtractionError(null);
+    setExtracting(true);
+    try {
+      const result = await extractRecipeAction({ files: current.originalFiles, pastedText: current.pastedText });
+      if (result.status !== "success") {
+        setExtractionError(result.message);
+        return;
+      }
+      setDraft(applyExtractedDraft(current, result.draft));
+      setProviderName("openai");
+      setRawExtraction(result.draft);
+      setCompleteness(result.draft.completeness);
+      setAcknowledgeIncomplete(false);
+      goTo(3);
+    } catch {
+      // Échec de l'appel réseau lui-même (Server Action injoignable) — jamais silencieux, distinct des échecs d'extraction déjà typés par `extractRecipeAction`.
+      setExtractionError("L'envoi vers le serveur a échoué. Vérifiez la connexion et réessayez.");
+    } finally {
+      setExtracting(false);
+    }
   }
 
   /** Jamais un repli silencieux vers « aucun doublon » en cas d'échec réseau (CLAUDE.md) — réutilisée à l'entrée de l'étape 4 et pour une nouvelle tentative explicite depuis `ReviewStep`. */
@@ -300,6 +351,8 @@ export function ImporterWizard() {
     setCategoriesError(null);
     setCategoryError(null);
     setDraft(null);
+    setExtracting(false);
+    setExtractionError(null);
     setProviderName("manual");
     setRawExtraction(null);
     setAcknowledgeDuplicate(false);
@@ -455,13 +508,17 @@ export function ImporterWizard() {
       )}
 
       {step === 2 && draft && (
-        <FilesStep
-          files={draft.originalFiles}
-          pastedText={draft.pastedText}
-          onFilesChange={(files) => setDraft((d) => (d ? { ...d, originalFiles: files } : d))}
-          onPastedTextChange={(text) => setDraft((d) => (d ? { ...d, pastedText: text } : d))}
-          importBatchId={batchId}
-        />
+        <>
+          <FilesStep
+            files={draft.originalFiles}
+            pastedText={draft.pastedText}
+            onFilesChange={(files) => setDraft((d) => (d ? { ...d, originalFiles: files } : d))}
+            onPastedTextChange={(text) => setDraft((d) => (d ? { ...d, pastedText: text } : d))}
+            importBatchId={batchId}
+          />
+          {extracting && <LoadingState message="Analyse de la recette en cours…" />}
+          {extractionError && <ErrorState message={extractionError} />}
+        </>
       )}
 
       {step === 3 && draft && (
@@ -499,7 +556,7 @@ export function ImporterWizard() {
       )}
 
       <div className="flex flex-wrap justify-between gap-2 border-t border-grise pt-4">
-        <Button type="button" variant="secondary" disabled={step === 0} onClick={() => goTo((step - 1) as Step)}>
+        <Button type="button" variant="secondary" disabled={step === 0 || extracting} onClick={() => goTo((step - 1) as Step)}>
           Précédent
         </Button>
 
@@ -514,8 +571,8 @@ export function ImporterWizard() {
           </Button>
         )}
         {step === 2 && (
-          <Button type="button" onClick={handleGoToDetails}>
-            Suivant
+          <Button type="button" onClick={handleGoToDetails} disabled={extracting}>
+            {extracting ? "Analyse en cours…" : "Suivant"}
           </Button>
         )}
         {step === 3 && (

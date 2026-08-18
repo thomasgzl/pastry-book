@@ -25,6 +25,11 @@ import {
 import { getSources } from "@/lib/data/sources";
 import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
 import { getAllergens, getSpecificities } from "@/lib/data/specificities";
+import {
+  extractRecipeFromSources,
+  type ExtractRecipeParams,
+  type ExtractRecipeResult,
+} from "@/lib/import/extraction";
 import type { Allergen, CanonicalIngredient, ImportBatch, Source, SourceCategory, Specificity } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 
@@ -50,6 +55,13 @@ export async function getImportReferenceDataAction(): Promise<ImportReferenceDat
 
 export async function createImportBatchAction(): Promise<ImportBatch> {
   return createImportBatch();
+}
+
+export type { ExtractRecipeParams, ExtractRecipeResult } from "@/lib/import/extraction";
+
+/** Extraction IA réelle (K3-IMPORT) — jamais appelée depuis le navigateur : `extractRecipeFromSources` lit `OPENAI_API_KEY` et retélécharge les fichiers archivés via la clé de service, toutes deux réservées au serveur. */
+export async function extractRecipeAction(params: ExtractRecipeParams): Promise<ExtractRecipeResult> {
+  return extractRecipeFromSources(params);
 }
 
 export async function getCategoriesAction(sourceId: string): Promise<SourceCategory[]> {
