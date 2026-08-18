@@ -3,7 +3,7 @@
 /**
  * Fiche recette adaptative (C5) — porte l'état du coefficient (C6) et
  * affiche chaque ingrédient recalculé via `getIngredientQuantityDisplay`.
- * Chaque bloc optionnel (photo, allergènes, matières premières clés,
+ * Chaque bloc optionnel (photo, spécificités, matières premières clés,
  * informations complémentaires) ne se rend que si la donnée existe
  * (CLAUDE.md, principe 2 : aucune section vide).
  *
@@ -23,7 +23,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { RecipeIngredient } from "@/lib/domain/schemas";
-import { AllergenBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
+import { SpecificityBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
 import { WarningIcon } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { CoefficientControl } from "@/components/ui/CoefficientControl";
@@ -32,7 +32,7 @@ import { IllustrationAction } from "@/components/ui/IllustrationAction";
 import { getIngredientQuantityDisplay, isValidCoefficient } from "@/lib/recipes/coefficient";
 import type { RecipeKeyIngredient, RecipeSectionWithIngredients } from "@/lib/data/recipes";
 
-interface RecipeSheetAllergen {
+interface RecipeSheetSpecificity {
   id: string;
   name: string;
   status: BadgeStatus;
@@ -51,7 +51,7 @@ interface RecipeSheetProps {
    * placeholder). */
   hasApprovedVisual: boolean;
   sections: RecipeSectionWithIngredients[];
-  allergens: RecipeSheetAllergen[];
+  specificities: RecipeSheetSpecificity[];
   keyIngredients: RecipeKeyIngredient[];
   additionalInformation?: string | null;
 }
@@ -87,7 +87,7 @@ export function RecipeSheet({
   visual,
   hasApprovedVisual,
   sections,
-  allergens,
+  specificities,
   keyIngredients,
   additionalInformation,
 }: RecipeSheetProps) {
@@ -145,12 +145,12 @@ export function RecipeSheet({
         ))}
       </div>
 
-      {allergens.length > 0 && (
+      {specificities.length > 0 && (
         <Card className="flex flex-col gap-3">
-          <EditorialTitle as="h2">Allergènes détectés</EditorialTitle>
+          <EditorialTitle as="h2">Spécificités</EditorialTitle>
           <div className="flex flex-wrap gap-2">
-            {allergens.map((allergen) => (
-              <AllergenBadge key={allergen.id} name={allergen.name} status={allergen.status} />
+            {specificities.map((specificity) => (
+              <SpecificityBadge key={specificity.id} name={specificity.name} status={specificity.status} />
             ))}
           </div>
         </Card>

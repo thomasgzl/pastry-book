@@ -21,8 +21,18 @@ import {
   loadSpecificities,
 } from "./supabaseSource";
 
+/**
+ * Interface volontairement restreinte à ces quatre spécificités (allergènes
+ * exclus) — filtrage central ici plutôt que dans chaque page/étape d'import :
+ * toute autre spécificité déjà présente en base (compatibilité, jamais
+ * supprimée) reste invisible dans l'application sans nécessiter de
+ * migration destructive.
+ */
+const VISIBLE_SPECIFICITY_SLUGS = new Set(["sans-gluten", "vegan", "sans-lactose", "sans-fruits-a-coque"]);
+
 export async function getSpecificities(): Promise<Specificity[]> {
-  return hasSupabaseConfig() ? loadSpecificities() : demoSpecificities;
+  const all = hasSupabaseConfig() ? await loadSpecificities() : demoSpecificities;
+  return all.filter((specificity) => VISIBLE_SPECIFICITY_SLUGS.has(specificity.slug));
 }
 
 export async function getSpecificityBySlug(slug: string): Promise<Specificity | undefined> {

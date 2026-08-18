@@ -1,11 +1,9 @@
 /**
  * Fiche recette adaptative (C5). Assemble la recette (`getRecipeDetail`,
- * C6 dépendant) et ses allergènes (`getRecipeAllergens`, réutilisé de C8),
- * puis délègue l'affichage — coefficient compris — à `RecipeSheet`.
- *
- * Les spécificités (vegan, sans gluten…) ne font PAS partie de l'ordre
- * d'affichage demandé pour cette fiche (seulement les allergènes) : voir
- * la tâche C5, `getRecipeSpecificities` n'est donc pas utilisé ici.
+ * C6 dépendant) et ses spécificités (`getRecipeSpecificities`), puis délègue
+ * l'affichage — coefficient compris — à `RecipeSheet`. Les allergènes ne sont
+ * plus affichés sur la fiche : les données restent en base pour compatibilité
+ * (`getRecipeAllergens` toujours disponible), simplement plus lues ici.
  */
 
 import { notFound } from "next/navigation";
@@ -13,16 +11,11 @@ import { ApprovedVisual } from "@/components/ui/ApprovedVisual";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import type { BadgeStatus } from "@/components/ui/StatusBadge";
 import { getRecipeDetail } from "@/lib/data/recipes";
-import { getAllergens, getRecipeAllergens } from "@/lib/data/specificities";
+import { getRecipeSpecificities, getSpecificities } from "@/lib/data/specificities";
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 import { RecipeSheet } from "./RecipeSheet";
 
-/**
- * `AllergenBadge` ne porte que deux états visuels (`confirmed`/`proposed`).
- * `needs_review` — un allergène détecté mais dont la liaison reste à
- * vérifier — est donc affiché comme `proposed`, jamais comme `confirmed`
- * (même choix que `specificites/allergenes/[allergene]/page.tsx`, C8).
- */
+/** `rejected` n'est jamais affiché (CLAUDE.md, principe 9) ; `SpecificityBadge` ne porte que `confirmed`/`proposed`. */
 function toBadgeStatus(status: string): BadgeStatus {
   return status === "confirmed" ? "confirmed" : "proposed";
 }
@@ -67,12 +60,16 @@ export default async function RecettePage({
   const detail = await getRecipeDetail(slug);
   if (!detail) notFound();
 
-  const [allAllergens, recipeAllergens] = await Promise.all([getAllergens(), getRecipeAllergens(detail.recipe.id)]);
-  const allergenById = new Map(allAllergens.map((allergen) => [allergen.id, allergen]));
-  const allergens = recipeAllergens.flatMap((entry) => {
-    const allergen = allergenById.get(entry.allergenId);
-    if (!allergen) return [];
-    return [{ id: allergen.id, name: allergen.name, status: toBadgeStatus(entry.status) }];
+  const [allSpecificities, recipeSpecificities] = await Promise.all([
+    getSpecificities(),
+    getRecipeSpecificities(detail.recipe.id),
+  ]);
+  const specificityById = new Map(allSpecificities.map((specificity) => [specificity.id, specificity]));
+  const specificities = recipeSpecificities.flatMap((entry) => {
+    if (entry.status === "rejected") return [];
+    const specificity = specificityById.get(entry.specificityId);
+    if (!specificity) return [];
+    return [{ id: specificity.id, name: specificity.name, status: toBadgeStatus(entry.status) }];
   });
 
   // Visuel toujours affiché (K12) : visuel approuvé si présent, repli
@@ -103,7 +100,7 @@ export default async function RecettePage({
         visual={visual}
         hasApprovedVisual={hasApprovedVisual}
         sections={detail.sections}
-        allergens={allergens}
+        specificities={specificities}
         keyIngredients={detail.keyIngredients}
         additionalInformation={detail.recipe.additionalInformation}
       />

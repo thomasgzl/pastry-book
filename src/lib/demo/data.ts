@@ -174,12 +174,18 @@ const SPECIFICITY_ID = {
   vegan: "00000000-0000-4000-8000-000000000501",
   sansGluten: "00000000-0000-4000-8000-000000000502",
   sansLactose: "00000000-0000-4000-8000-000000000503",
+  sansFruitsACoque: "00000000-0000-4000-8000-000000000504",
 } as const;
 
+// Interface restreinte à ces quatre spécificités (allergènes exclus, voir
+// src/lib/data/specificities.ts). Slug `sans-gluten` conservé tel quel
+// (compatibilité `rules.ts`/imports existants) — seul le libellé affiché
+// change en « Gluten free ».
 export const specificities: Specificity[] = [
   { id: SPECIFICITY_ID.vegan, name: "Vegan", slug: "vegan" },
-  { id: SPECIFICITY_ID.sansGluten, name: "Sans gluten", slug: "sans-gluten" },
+  { id: SPECIFICITY_ID.sansGluten, name: "Gluten free", slug: "sans-gluten" },
   { id: SPECIFICITY_ID.sansLactose, name: "Sans lactose", slug: "sans-lactose" },
+  { id: SPECIFICITY_ID.sansFruitsACoque, name: "Sans fruits à coque", slug: "sans-fruits-a-coque" },
 ];
 
 // ============================================================
