@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * Recherche globale groupée (C9). Branchée sur `searchAll` (recherche 100 %
- * locale sur les données démo, aucun appel réseau/IA). État porté par l'URL
- * (`?q=`), même schéma que `/recettes` (C4) : un clic sur un résultat puis
- * retour arrière retrouve la même requête. Navigable au clavier : les liens
- * de résultats sont des `<a>` natifs, le champ un `<input>` natif —
- * `SearchInput` ne fait rien de plus qu'un champ standard.
+ * Recherche globale groupée (C9). Branchée sur `searchAllAction` — Server
+ * Action qui lit les données réelles Supabase en production (démo seulement
+ * si `hasSupabaseConfig()` est faux, voir `src/lib/data/search.ts`), jamais
+ * les données de démonstration en production. État de requête porté par
+ * l'URL (`?q=`), même schéma que `/recettes` (C4) : un clic sur un résultat
+ * puis retour arrière retrouve la même requête. `SearchInput.onSearch` fait
+ * le round-trip serveur, débouncé — `value`/`onChange` restent synchrones
+ * pour un champ réactif à la frappe. Navigable au clavier : les liens de
+ * résultats sont des `<a>` natifs, le champ un `<input>` natif.
  */
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -18,7 +21,9 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
-import { searchAll, type SearchResults } from "@/lib/recipes/search";
+import { LoadingState } from "@/components/states/LoadingState";
+import type { SearchResults } from "@/lib/recipes/search";
+import { searchAllAction } from "./searchActions";
 
 function ResultGroup({ title, items }: { title: string; items: { href: string; label: string; hint?: string }[] }) {
   if (items.length === 0) return null;
@@ -50,6 +55,14 @@ function RechercheContent() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
 
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  // Ignore une réponse encore en vol devenue obsolète (frappe rapide déclenchant
+  // deux requêtes qui se doublent) — jamais un résultat plus ancien n'écrase un
+  // résultat plus récent.
+  const requestIdRef = useRef(0);
+
   function updateQuery(value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set("q", value);
@@ -57,13 +70,43 @@ function RechercheContent() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  let results: SearchResults | null = null;
-  let hasError = false;
-  try {
-    results = searchAll(q);
-  } catch {
-    hasError = true;
+  async function handleSearch(query: string) {
+    const trimmed = query.trim();
+    const requestId = ++requestIdRef.current;
+
+    if (!trimmed) {
+      setResults(null);
+      setHasError(false);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    setHasError(false);
+    try {
+      const data = await searchAllAction(trimmed);
+      if (requestId !== requestIdRef.current) return;
+      setResults(data);
+    } catch {
+      if (requestId !== requestIdRef.current) return;
+      setHasError(true);
+      setResults(null);
+    } finally {
+      if (requestId === requestIdRef.current) setSearching(false);
+    }
   }
+
+  // `SearchInput` débounce déjà son propre appel `onSearch` — pas besoin d'un
+  // second minuteur ici. `q.trim()` vidé (champ effacé) réinitialise sans
+  // attendre le round-trip serveur.
+  useEffect(() => {
+    if (!q.trim()) {
+      requestIdRef.current += 1;
+      setResults(null);
+      setHasError(false);
+      setSearching(false);
+    }
+  }, [q]);
 
   const totalCount = results
     ? results.sources.length + results.recipes.length + results.canonicalIngredients.length + results.categories.length
@@ -78,6 +121,7 @@ function RechercheContent() {
       <SearchInput
         value={q}
         onChange={updateQuery}
+        onSearch={handleSearch}
         label="Recherche globale"
         placeholder="Rechercher une recette, une entreprise, une matière première…"
         className="w-full max-w-lg sm:max-w-xl"
@@ -87,11 +131,13 @@ function RechercheContent() {
 
       {!hasError && !q.trim() && <EmptyState message="Tapez une recherche pour commencer." />}
 
-      {!hasError && q.trim() && totalCount === 0 && (
+      {!hasError && q.trim() && searching && <LoadingState message="Recherche en cours…" />}
+
+      {!hasError && q.trim() && !searching && results && totalCount === 0 && (
         <EmptyState message="Aucun résultat pour cette recherche." />
       )}
 
-      {!hasError && results && totalCount > 0 && (
+      {!hasError && !searching && results && totalCount > 0 && (
         <div className="flex flex-col gap-6">
           <ResultGroup
             title="Entreprises"

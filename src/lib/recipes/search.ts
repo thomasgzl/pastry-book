@@ -1,19 +1,51 @@
 /**
  * Normalisation et recherche — logique pure, sans effet de bord, testée
- * unitairement. Recherche 100 % locale sur les données démo (aucun appel
- * réseau/IA), conformément au périmètre de la tâche C9.
+ * unitairement. `searchAll`/`recipeIdsForCanonicalIngredientId` opèrent sur
+ * un `SearchDataset` explicite ; le paramètre par défaut reste les données
+ * démo (compatibilité des appels existants et des tests), mais l'appelant
+ * réel (`src/lib/data/search.ts`) fournit toujours les données Supabase en
+ * production — jamais un mélange silencieux des deux (CLAUDE.md).
  */
 
 import {
-  canonicalIngredients,
-  ingredientAliases,
-  recipeIngredients,
-  recipeSections,
-  recipes,
-  sourceCategories,
-  sources,
+  canonicalIngredients as demoCanonicalIngredients,
+  ingredientAliases as demoIngredientAliases,
+  recipeIngredients as demoRecipeIngredients,
+  recipeSections as demoRecipeSections,
+  recipes as demoRecipes,
+  sourceCategories as demoSourceCategories,
+  sources as demoSources,
 } from "@/lib/demo/data";
-import type { IngredientAlias } from "@/lib/domain/schemas";
+import type {
+  CanonicalIngredient,
+  IngredientAlias,
+  Recipe,
+  RecipeIngredient,
+  RecipeSection,
+  Source,
+  SourceCategory,
+} from "@/lib/domain/schemas";
+
+/** Jeu de données complet sur lequel porte la recherche/résolution — un seul jeu à la fois, jamais démo + réel combinés. */
+export interface SearchDataset {
+  sources: Source[];
+  sourceCategories: SourceCategory[];
+  recipes: Recipe[];
+  canonicalIngredients: CanonicalIngredient[];
+  recipeSections: RecipeSection[];
+  recipeIngredients: RecipeIngredient[];
+  ingredientAliases: IngredientAlias[];
+}
+
+const DEMO_DATASET: SearchDataset = {
+  sources: demoSources,
+  sourceCategories: demoSourceCategories,
+  recipes: demoRecipes,
+  canonicalIngredients: demoCanonicalIngredients,
+  recipeSections: demoRecipeSections,
+  recipeIngredients: demoRecipeIngredients,
+  ingredientAliases: demoIngredientAliases,
+};
 
 /**
  * Normalise un libellé pour comparaison : minuscules, accents retirés,
@@ -37,7 +69,7 @@ export function normalizeText(text: string): string {
  */
 export function resolveCanonicalIngredientId(
   label: string,
-  aliases: IngredientAlias[] = ingredientAliases,
+  aliases: IngredientAlias[] = demoIngredientAliases,
 ): string | null {
   const normalized = normalizeText(label);
   const match = aliases.find((alias) => alias.normalizedAlias === normalized);
@@ -49,25 +81,20 @@ function includesNormalized(haystack: string, needle: string): boolean {
   return normalizeText(haystack).includes(normalizeText(needle));
 }
 
-/**
- * Matière canonique reliée à un ingrédient de recette, par liaison directe
- * (`canonicalIngredientId`) ou, à défaut, par résolution de son libellé
- * d'origine via les alias. Ne modifie jamais `originalName`.
- */
-function canonicalIdForIngredient(ingredient: {
-  originalName: string;
-  canonicalIngredientId: string | null;
-}): string | null {
-  return ingredient.canonicalIngredientId ?? resolveCanonicalIngredientId(ingredient.originalName);
-}
-
 /** Ids de recettes utilisant, directement ou via ses alias, une matière canonique donnée. */
-export function recipeIdsForCanonicalIngredientId(canonicalIngredientId: string): Set<string> {
-  const sectionIdToRecipeId = new Map(recipeSections.map((section) => [section.id, section.recipeId]));
+export function recipeIdsForCanonicalIngredientId(
+  canonicalIngredientId: string,
+  dataset: Pick<SearchDataset, "recipeSections" | "recipeIngredients" | "ingredientAliases"> = DEMO_DATASET,
+): Set<string> {
+  const sectionIdToRecipeId = new Map(dataset.recipeSections.map((section) => [section.id, section.recipeId]));
   const matches = new Set<string>();
 
-  for (const ingredient of recipeIngredients) {
-    if (canonicalIdForIngredient(ingredient) !== canonicalIngredientId) continue;
+  for (const ingredient of dataset.recipeIngredients) {
+    if (
+      (ingredient.canonicalIngredientId ?? resolveCanonicalIngredientId(ingredient.originalName, dataset.ingredientAliases)) !==
+      canonicalIngredientId
+    )
+      continue;
     const recipeId = sectionIdToRecipeId.get(ingredient.recipeSectionId);
     if (recipeId) matches.add(recipeId);
   }
@@ -121,11 +148,15 @@ const EMPTY_RESULTS: SearchResults = { sources: [], recipes: [], canonicalIngred
  * recettes, retrouve aussi via une matière première canonique correspondante
  * (ex. « citron » retrouve les recettes utilisant jus/zeste/purée de
  * citron). Chaque résultat de catégorie indique son entreprise parente.
- * Fonction pure : mêmes données démo à chaque appel, aucun effet de bord.
+ * Fonction pure : le `dataset` fourni (démo par défaut, réel en production
+ * via `src/lib/data/search.ts`) détermine entièrement le résultat, aucun
+ * effet de bord, jamais démo et réel mélangés.
  */
-export function searchAll(query: string): SearchResults {
+export function searchAll(query: string, dataset: SearchDataset = DEMO_DATASET): SearchResults {
   const trimmed = query.trim();
   if (!trimmed) return EMPTY_RESULTS;
+
+  const { sources, sourceCategories, recipes, canonicalIngredients } = dataset;
 
   const sourceById = new Map(sources.map((source) => [source.id, source]));
   const categoryById = new Map(sourceCategories.map((category) => [category.id, category]));
@@ -152,7 +183,7 @@ export function searchAll(query: string): SearchResults {
 
   const recipeIdsFromIngredients = new Set<string>();
   for (const ingredient of matchedCanonicalIngredients) {
-    for (const recipeId of recipeIdsForCanonicalIngredientId(ingredient.id)) {
+    for (const recipeId of recipeIdsForCanonicalIngredientId(ingredient.id, dataset)) {
       recipeIdsFromIngredients.add(recipeId);
     }
   }
