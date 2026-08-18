@@ -16,6 +16,8 @@ interface CategoryStepProps {
   creating?: boolean;
   /** Échec explicite de la création (jamais un doublon silencieux ni une catégorie inventée localement). */
   error?: string | null;
+  /** Faux tant que l'entreprise elle-même n'existe pas encore en base (« + Nouvelle entreprise » en attente) — une catégorie locale ne peut référencer qu'une source déjà réelle. */
+  canCreateCategory?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function CategoryStep({
   onCreateCategory,
   creating = false,
   error = null,
+  canCreateCategory = true,
 }: CategoryStepProps) {
   const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -79,25 +82,27 @@ export function CategoryStep({
         })}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-dashed border-grise p-3">
-        <label htmlFor="new-category" className="text-sm font-medium text-cacao">
-          Créer une nouvelle catégorie locale
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <input
-            id="new-category"
-            type="text"
-            value={newCategoryName}
-            onChange={(event) => setNewCategoryName(event.target.value)}
-            placeholder="Ex. Viennoiseries"
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
-          />
-          <Button type="button" variant="secondary" onClick={handleCreate} disabled={!newCategoryName.trim() || creating}>
-            {creating ? "Création…" : "Créer et sélectionner"}
-          </Button>
+      {canCreateCategory && (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-grise p-3">
+          <label htmlFor="new-category" className="text-sm font-medium text-cacao">
+            Créer une nouvelle catégorie locale
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="new-category"
+              type="text"
+              value={newCategoryName}
+              onChange={(event) => setNewCategoryName(event.target.value)}
+              placeholder="Ex. Viennoiseries"
+              className="min-h-11 min-w-0 flex-1 rounded-lg border border-grise bg-coquille px-3 py-2 text-base text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+            />
+            <Button type="button" variant="secondary" onClick={handleCreate} disabled={!newCategoryName.trim() || creating}>
+              {creating ? "Création…" : "Créer et sélectionner"}
+            </Button>
+          </div>
+          {error && <ErrorState message={error} />}
         </div>
-        {error && <ErrorState message={error} />}
-      </div>
+      )}
     </div>
   );
 }

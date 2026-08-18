@@ -92,6 +92,7 @@ export async function saveImportRecipeAction(params: {
   rawExtraction: unknown;
   providerName: string;
   acknowledgeDuplicate?: boolean;
+  newSourceName?: string | null;
 }): Promise<SaveImportRecipeResult> {
   return saveImportRecipe(params);
 }

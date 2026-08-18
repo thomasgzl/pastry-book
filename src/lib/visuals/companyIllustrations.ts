@@ -38,6 +38,10 @@ export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> =
     path: "/visuals/company/06-auberge-du-pere-bise.png",
     position: "40% 87%",
   },
+  personnel: {
+    path: "/visuals/company/personnel.png",
+    position: "50% 46%",
+  },
 };
 
 export function getCompanyIllustration(slug: string): CompanyIllustration | undefined {

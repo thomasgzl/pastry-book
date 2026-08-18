@@ -56,8 +56,10 @@ import type {
   ImportBatch,
   ImportItem,
   Recipe,
+  Source,
   SourceCategory,
 } from "@/lib/domain/schemas";
+import { getSources } from "@/lib/data/sources";
 import { combineAdditionalInformation, IMPORT_SCHEMA_VERSION, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { findDuplicateRecipe, slugify } from "@/lib/import/model";
 import { normalizeText } from "@/lib/recipes/search";
@@ -145,6 +147,8 @@ interface SaveImportRecipeParams {
   rawExtraction: unknown;
   providerName: string;
   acknowledgeDuplicate?: boolean;
+  /** Nom saisi à l'étape « + Nouvelle entreprise ou source » — remplace `draft.sourceId` (simple UUID local sans signification côté serveur) pour la résolution/création de la source, dans la même transaction que la recette. `null`/absent = source existante déjà sélectionnée. */
+  newSourceName?: string | null;
 }
 
 /**
@@ -189,6 +193,8 @@ let memoryItems: ImportItem[] = [];
 /** `sections` conservé uniquement pour la détection de préparation homonyme (K4) en mode mémoire — jamais persisté tel quel côté Supabase (voir `recipe_sections`, table réelle). */
 let memorySavedRecipes: { recipe: Recipe; sections: ImportSectionDraft[] }[] = [];
 let memorySessionCategories: SourceCategory[] = [];
+/** Entreprises créées via « + Nouvelle entreprise ou source » pendant cette session mémoire (dev local sans Supabase / tests uniquement — en Preview/production, Supabase est toujours configuré, voir `hasSupabaseConfig()`). */
+let memorySessionSources: Source[] = [];
 
 /** Réinitialise le repli en mémoire — réservé aux tests. */
 export function resetImportStoreForTests(): void {
@@ -196,6 +202,7 @@ export function resetImportStoreForTests(): void {
   memoryItems = [];
   memorySavedRecipes = [];
   memorySessionCategories = [];
+  memorySessionSources = [];
 }
 
 function createImportBatchMemory(): ImportBatch {
@@ -299,6 +306,28 @@ async function uniqueSlugMemory(title: string): Promise<string> {
   return `${base}-${suffix}`;
 }
 
+/** Résout la source à utiliser pour la recette : entreprise déjà sélectionnée (id réel), ou nouvelle entreprise créée/réutilisée sans doublon (comparaison insensible casse) — même logique que `createLocalCategoryMemory`. */
+async function resolveSourceIdMemory(fallbackSourceId: string, newSourceName?: string | null): Promise<string> {
+  const trimmed = newSourceName?.trim();
+  if (!trimmed) return fallbackSourceId;
+
+  const existing = [...(await getSources()), ...memorySessionSources].find(
+    (source) => source.name.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (existing) return existing.id;
+
+  const created: Source = {
+    id: crypto.randomUUID(),
+    name: trimmed,
+    slug: slugify(trimmed),
+    description: null,
+    illustrationUrl: null,
+    createdAt: CREATED_AT(),
+  };
+  memorySessionSources.push(created);
+  return created.id;
+}
+
 /** Nom du fichier local choisi, le cas échéant — aucun fichier n'étant réellement stocké en mode mémoire, jamais une URL. */
 function sourceFileNameFor(draft: ImportRecipeDraft): string | null {
   return draft.originalFiles[0]?.name ?? null;
@@ -333,7 +362,7 @@ function findItemForDraftIdMemory(draftId: string): ImportItem | undefined {
  * crée jamais une seconde recette, retourne celle déjà enregistrée.
  */
 async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<SaveImportRecipeResult> {
-  const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false } = params;
+  const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false, newSourceName } = params;
 
   const alreadySaved = findItemForDraftIdMemory(draft.id);
   if (alreadySaved && alreadySaved.recipeId) {
@@ -346,12 +375,13 @@ async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<S
     return { status: "duplicate", duplicate };
   }
 
+  const sourceId = await resolveSourceIdMemory(draft.sourceId, newSourceName);
   const now = CREATED_AT();
   const recipeId = crypto.randomUUID();
 
   const recipe: Recipe = {
     id: recipeId,
-    sourceId: draft.sourceId,
+    sourceId,
     sourceCategoryId: draft.sourceCategoryId,
     title: draft.title,
     slug: await uniqueSlugMemory(draft.title),
@@ -635,7 +665,8 @@ async function saveImportRecipeSupabase(
   client: SupabaseAdminClient,
   params: SaveImportRecipeParams,
 ): Promise<SaveImportRecipeResult> {
-  const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false } = params;
+  const { batchId, draft, rawExtraction, providerName, acknowledgeDuplicate = false, newSourceName } = params;
+  const trimmedNewSourceName = newSourceName?.trim() || null;
 
   const duplicate = await checkDuplicateSupabase(client, draft.title, draft.sourceId);
   if (duplicate && !acknowledgeDuplicate) {
@@ -648,7 +679,13 @@ async function saveImportRecipeSupabase(
   const payload: Record<string, unknown> = {
     draftId: draft.id,
     batchId,
+    // `draft.sourceId` reste un UUID local sans signification côté serveur
+    // tant qu'une nouvelle entreprise est en attente de création — la
+    // fonction Postgres `save_import_recipe` l'ignore alors et résout la
+    // vraie source à partir de `newSourceName`/`newSourceSlugBase`.
     sourceId: draft.sourceId,
+    newSourceName: trimmedNewSourceName,
+    newSourceSlugBase: trimmedNewSourceName ? slugify(trimmedNewSourceName) : null,
     sourceCategoryId: draft.sourceCategoryId,
     title: draft.title,
     slugBase: slugify(draft.title),

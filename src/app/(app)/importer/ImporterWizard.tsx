@@ -38,7 +38,7 @@ import {
   type SaveImportRecipeResult,
 } from "./importActions";
 import { createEmptyDraft } from "./draftFactory";
-import { SourceStep } from "./steps/SourceStep";
+import { PENDING_NEW_SOURCE_ID, SourceStep } from "./steps/SourceStep";
 import { CategoryStep } from "./steps/CategoryStep";
 import { FilesStep } from "./steps/FilesStep";
 import { RecipeDetailsStep } from "./steps/RecipeDetailsStep";
@@ -71,6 +71,8 @@ export function ImporterWizard() {
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchAttempt, setBatchAttempt] = useState(0);
   const [sourceId, setSourceId] = useState<string | null>(null);
+  /** `null` = panneau « + Nouvelle entreprise » fermé. Conservé pendant tout le parcours (D3, exigence explicite) même une fois l'étape 0 quittée. */
+  const [newSourceName, setNewSourceName] = useState<string | null>(null);
   const [sourceCategoryId, setSourceCategoryId] = useState<string | null>(null);
   const [categories, setCategories] = useState<SourceCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -95,6 +97,9 @@ export function ImporterWizard() {
 
   const selectedSource = reference?.sources.find((source) => source.id === sourceId) ?? null;
   const selectedCategory = categories.find((category) => category.id === sourceCategoryId) ?? null;
+  const isPendingNewSource = sourceId === PENDING_NEW_SOURCE_ID;
+  const trimmedNewSourceName = newSourceName?.trim() ?? "";
+  const sourceStepValid = sourceId !== null && (!isPendingNewSource || trimmedNewSourceName.length > 0);
 
   const validation = useMemo(() => (draft ? importRecipeDraftSchema.safeParse(draft) : null), [draft]);
   const validationErrors = validation && !validation.success ? [...new Set(validation.error.issues.map((i) => i.message))] : [];
@@ -139,6 +144,7 @@ export function ImporterWizard() {
 
   async function handleSourceChange(nextSourceId: string) {
     setSourceId(nextSourceId);
+    setNewSourceName(null);
     setSourceCategoryId(null);
     setCategories([]);
     setCategoriesError(null);
@@ -151,6 +157,47 @@ export function ImporterWizard() {
     } finally {
       setCategoriesLoading(false);
     }
+  }
+
+  /** Ouvre le panneau « + Nouvelle entreprise ou source » — aucune écriture, seule la sélection en attente change (CLAUDE.md, création seulement à la confirmation finale). */
+  function handleOpenNewSource() {
+    setSourceId(PENDING_NEW_SOURCE_ID);
+    setNewSourceName("");
+    setSourceCategoryId(null);
+    setCategories([]);
+    setCategoriesError(null);
+  }
+
+  function handleCancelNewSource() {
+    setNewSourceName(null);
+    if (sourceId === PENDING_NEW_SOURCE_ID) {
+      setSourceId(null);
+      setSourceCategoryId(null);
+      setCategories([]);
+      setCategoriesError(null);
+    }
+  }
+
+  /** Détection d'une entreprise déjà existante, insensible à la casse (D1) — la sélectionne au lieu de préparer une création en double. */
+  function handleNewSourceNameChange(name: string) {
+    setNewSourceName(name);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setSourceId(PENDING_NEW_SOURCE_ID);
+      setSourceCategoryId(null);
+      setCategories([]);
+      setCategoriesError(null);
+      return;
+    }
+    const existing = reference?.sources.find((source) => source.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      void handleSourceChange(existing.id);
+      return;
+    }
+    setSourceId(PENDING_NEW_SOURCE_ID);
+    setSourceCategoryId(null);
+    setCategories([]);
+    setCategoriesError(null);
   }
 
   async function handleCreateCategory(name: string) {
@@ -171,7 +218,14 @@ export function ImporterWizard() {
   function ensureDraft(): ImportRecipeDraft {
     if (draft) return draft;
     if (!sourceId) throw new Error("Source non sélectionnée.");
-    const created = createEmptyDraft(sourceId);
+    // Pour une nouvelle entreprise en attente, `sourceId` vaut PENDING_NEW_SOURCE_ID
+    // (pas un UUID valide, rejeté par `sourceSchema`) : un UUID local est généré
+    // ici uniquement pour satisfaire la validation du brouillon et les
+    // vérifications de doublon (qui ne trouveront jamais rien pour une entreprise
+    // qui n'existe pas encore, ce qui est correct) — jamais transmis tel quel à
+    // Supabase, remplacé par le vrai id à l'enregistrement final (`newSourceName`).
+    const effectiveSourceId = sourceId === PENDING_NEW_SOURCE_ID ? crypto.randomUUID() : sourceId;
+    const created = createEmptyDraft(effectiveSourceId);
     const withCategory = { ...created, sourceCategoryId };
     setDraft(withCategory);
     return withCategory;
@@ -247,6 +301,7 @@ export function ImporterWizard() {
         rawExtraction,
         providerName,
         acknowledgeDuplicate,
+        newSourceName: isPendingNewSource ? trimmedNewSourceName : null,
       });
       if (result.status === "duplicate") {
         // Le doublon est déjà affiché par ReviewStep ; rien d'autre à faire
@@ -264,6 +319,7 @@ export function ImporterWizard() {
   function handleImportAnother() {
     setStep(0);
     setSourceId(null);
+    setNewSourceName(null);
     setSourceCategoryId(null);
     setCategories([]);
     setCategoriesError(null);
@@ -285,6 +341,11 @@ export function ImporterWizard() {
     setBatchId(null);
     setBatchError(null);
     setBatchAttempt((n) => n + 1);
+    // Recharge les référentiels : une entreprise créée pendant l'import qui
+    // vient de se terminer doit apparaître dans la liste des sources dès le
+    // prochain import (CLAUDE.md).
+    setReference(null);
+    setReferenceAttempt((n) => n + 1);
   }
 
   if (saveResult && (saveResult.status === "saved" || saveResult.status === "already_saved")) {
@@ -388,7 +449,17 @@ export function ImporterWizard() {
         </p>
       </div>
 
-      {step === 0 && <SourceStep sources={reference.sources} sourceId={sourceId} onChange={handleSourceChange} />}
+      {step === 0 && (
+        <SourceStep
+          sources={reference.sources}
+          sourceId={sourceId}
+          onChange={handleSourceChange}
+          newSourceName={newSourceName}
+          onOpenNewSource={handleOpenNewSource}
+          onNewSourceNameChange={handleNewSourceNameChange}
+          onCancelNewSource={handleCancelNewSource}
+        />
+      )}
 
       {step === 1 && sourceId && (
         <>
@@ -402,6 +473,7 @@ export function ImporterWizard() {
               onCreateCategory={handleCreateCategory}
               creating={categoryCreating}
               error={categoryError}
+              canCreateCategory={!isPendingNewSource}
             />
           )}
         </>
@@ -434,7 +506,7 @@ export function ImporterWizard() {
           canonicalIngredients={reference.canonicalIngredients}
           specificities={reference.specificities}
           allergens={reference.allergens}
-          sourceName={selectedSource?.name ?? "À vérifier"}
+          sourceName={selectedSource?.name || (isPendingNewSource ? trimmedNewSourceName : "") || "À vérifier"}
           categoryName={selectedCategory?.name ?? null}
           validationErrors={validationErrors}
           duplicate={duplicate}
@@ -458,7 +530,7 @@ export function ImporterWizard() {
         </Button>
 
         {step === 0 && (
-          <Button type="button" disabled={!sourceId} onClick={() => goTo(1)}>
+          <Button type="button" disabled={!sourceStepValid} onClick={() => goTo(1)}>
             Suivant
           </Button>
         )}
