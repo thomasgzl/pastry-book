@@ -105,6 +105,28 @@ export const canonicalIngredientSchema = z.object({
 });
 export type CanonicalIngredient = z.infer<typeof canonicalIngredientSchema>;
 
+export const recipeKeyIngredientSchema = z.object({
+  recipeId: z.uuid(),
+  canonicalIngredientId: z.uuid(),
+  position: z.number().int(),
+});
+export type RecipeKeyIngredient = z.infer<typeof recipeKeyIngredientSchema>;
+
+/**
+ * Premier jet : matière première principale (tag de recherche gustatif)
+ * proposée pendant l'import — 3 à 6 par recette (fruits, agrumes,
+ * chocolats, pralinés, cafés, vanilles, épices, alcools, caramels, thés,
+ * herbes aromatiques...), distincte de `recipeIngredientSchema` (qui couvre
+ * CHAQUE ligne d'ingrédient d'une préparation, farine/beurre/œufs compris).
+ * Structure minimale seulement — `ai-import-agent` étend ce schéma pour ses
+ * besoins d'extraction dans `src/lib/import/schema.ts`.
+ */
+export const proposedKeyIngredientTagSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("existing"), canonicalIngredientId: z.uuid(), name: z.string().min(1) }),
+  z.object({ kind: z.literal("new"), name: z.string().min(1), slug: z.string().min(1) }),
+]);
+export type ProposedKeyIngredientTag = z.infer<typeof proposedKeyIngredientTagSchema>;
+
 export const ingredientAliasSchema = z.object({
   id: z.uuid(),
   canonicalIngredientId: z.uuid(),

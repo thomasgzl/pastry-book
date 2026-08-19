@@ -29,6 +29,7 @@ import type {
   Recipe,
   RecipeAllergen,
   RecipeIngredient,
+  RecipeKeyIngredient,
   RecipeSection,
   RecipeSpecificity,
   Source,
@@ -41,6 +42,7 @@ import type {
   IngredientAliasRow,
   RecipeAllergenRow,
   RecipeIngredientRow,
+  RecipeKeyIngredientRow,
   RecipeRow,
   RecipeSectionRow,
   RecipeSpecificityRow,
@@ -131,6 +133,10 @@ function recipeIngredientFromRow(row: RecipeIngredientRow): RecipeIngredient {
   };
 }
 
+function recipeKeyIngredientFromRow(row: RecipeKeyIngredientRow): RecipeKeyIngredient {
+  return { recipeId: row.recipe_id, canonicalIngredientId: row.canonical_ingredient_id, position: row.position };
+}
+
 function recipeAllergenFromRow(row: RecipeAllergenRow): RecipeAllergen {
   return { recipeId: row.recipe_id, allergenId: row.allergen_id, status: row.status };
 }
@@ -206,6 +212,14 @@ export async function loadRecipeIngredients(): Promise<RecipeIngredient[]> {
   const { data, error } = await supabase.from("recipe_ingredients").select("*");
   if (error) throw new DataAccessError(`Lecture des ingrédients impossible : ${error.message}`);
   return (data ?? []).map(recipeIngredientFromRow);
+}
+
+/** Tags de matière première principale curatés (recipe_key_ingredients) — voir `20260819110000_recipe_key_ingredients.sql` : distinct de `loadRecipeIngredients` (chaque ligne d'ingrédient). */
+export async function loadRecipeKeyIngredients(): Promise<RecipeKeyIngredient[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("recipe_key_ingredients").select("*");
+  if (error) throw new DataAccessError(`Lecture des matières premières principales impossible : ${error.message}`);
+  return (data ?? []).map(recipeKeyIngredientFromRow);
 }
 
 export async function loadRecipeAllergens(): Promise<RecipeAllergen[]> {

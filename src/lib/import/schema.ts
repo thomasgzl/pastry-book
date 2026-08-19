@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  proposedKeyIngredientTagSchema,
   specificitySourceSchema,
   specificityStatusSchema,
   verificationStatusSchema,
@@ -111,6 +112,17 @@ export const importRecipeDraftSchema = z.object({
   sections: z.array(importSectionDraftSchema).min(1, "Au moins une préparation (ou liste d'ingrédients) est requise."),
   specificities: z.array(importSpecificityDraftSchema).default([]),
   allergens: z.array(importAllergenDraftSchema).default([]),
+  /**
+   * Matières premières principales (tags de recherche gustatifs, 3 à 6,
+   * F-KEY1) — distinct de `sections[].ingredients[].canonicalIngredientId`
+   * (qui couvre CHAQUE ligne d'ingrédient, farine/beurre/œufs compris).
+   * Déjà dédoublonné contre le référentiel au moment de la proposition
+   * (`resolveKeyIngredientTags`) ; les entrées `kind: "new"` ne deviennent
+   * une vraie matière première canonique qu'à la confirmation finale
+   * (`saveImportRecipe`/`updateRecipe`, `find_or_create_canonical_ingredient`),
+   * jamais avant.
+   */
+  proposedKeyIngredients: z.array(proposedKeyIngredientTagSchema).default([]),
   originalFiles: z.array(importFileRefSchema).default([]),
   /** Texte collé directement (étape 3), conservé tel quel pour traçabilité — jamais réécrit. */
   pastedText: optionalText(),

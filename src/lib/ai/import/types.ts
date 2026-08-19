@@ -61,6 +61,17 @@ export interface RawExtractionResult {
   warnings: string[];
   /** Absent pour l'adaptateur de démonstration et le repli manuel — `buildImportDraft` applique un défaut « complet » déterministe dans ce cas (sections canned/vides, rien à réconcilier). */
   completeness?: ExtractionCompleteness;
+  /**
+   * Matières premières principales proposées (tags de recherche gustatifs,
+   * F-KEY1) — noms bruts déjà censés respecter les règles de
+   * sélection/regroupement/normalisation du prompt (3 à 6, 0 si aucun
+   * ingrédient gustatif pertinent), PAS encore résolus vers un identifiant
+   * canonique : `buildImportDraft` fait cette résolution/ce dédoublonnage
+   * (`resolveKeyIngredientTags`, `rules.ts`) contre le référentiel déjà
+   * chargé. `undefined`/absent pour l'adaptateur de démonstration classique
+   * et le repli manuel — traité comme un tableau vide, jamais une erreur.
+   */
+  proposedKeyIngredientNames?: string[];
 }
 
 export interface CanonicalIngredientProposal {

@@ -10,14 +10,24 @@
  * et leur modification n'est pas demandée pour cette tâche — ne pas les
  * inclure évite un formulaire qui donnerait l'illusion de pouvoir les
  * modifier alors que rien ne serait enregistré.
+ *
+ * Les matières premières principales (F-KEY1), elles, SONT reprises
+ * (`proposedKeyIngredients`) : `update_recipe` remplace toujours
+ * `recipe_key_ingredients` par ce que le formulaire renvoie, les omettre les
+ * effacerait silencieusement à chaque modification manuelle — `canonicalIngredients`
+ * sert uniquement à résoudre le nom affiché de chaque tag déjà enregistré.
  */
 
-import type { RecipeSpecificity } from "@/lib/domain/schemas";
+import type { CanonicalIngredient, ProposedKeyIngredientTag, RecipeSpecificity } from "@/lib/domain/schemas";
 import type { RecipeEditData } from "@/lib/data/recipes";
 import { splitAdditionalInformation, type ImportRecipeDraft } from "@/lib/import/schema";
 import { createEmptyIngredient, createEmptySection } from "@/app/(app)/importer/draftFactory";
 
-export function buildEditDraft(data: RecipeEditData, specificities: RecipeSpecificity[]): ImportRecipeDraft {
+export function buildEditDraft(
+  data: RecipeEditData,
+  specificities: RecipeSpecificity[],
+  canonicalIngredients: CanonicalIngredient[] = [],
+): ImportRecipeDraft {
   const { recipe, sections, ingredients } = data;
   const { procedure, temperature, additionalInformation } = splitAdditionalInformation(recipe.additionalInformation);
 
@@ -64,6 +74,16 @@ export function buildEditDraft(data: RecipeEditData, specificities: RecipeSpecif
         source: entry.source,
       })),
     allergens: [],
+    // Matières premières principales déjà enregistrées (F-KEY1) — reprises
+    // telles quelles (toutes `kind: "existing"`, jamais recréées) : à
+    // repasser telles quelles à `update_recipe` si la personne ne les touche
+    // pas, jamais effacées silencieusement (voir `resolveKeyIngredientsForSaveSupabase`).
+    proposedKeyIngredients: data.keyIngredients
+      .map((link): ProposedKeyIngredientTag | null => {
+        const canonical = canonicalIngredients.find((ingredient) => ingredient.id === link.canonicalIngredientId);
+        return canonical ? { kind: "existing", canonicalIngredientId: canonical.id, name: canonical.name } : null;
+      })
+      .filter((tag): tag is ProposedKeyIngredientTag => tag !== null),
     originalFiles: [],
     pastedText: null,
     warnings: [],

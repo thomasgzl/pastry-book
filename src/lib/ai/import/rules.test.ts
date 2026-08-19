@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { CanonicalIngredient, IngredientAlias } from "@/lib/domain/schemas";
 import {
   ambiguousIngredientWarnings,
+  normalizeKeyIngredientName,
   proposeAllergensFromIngredients,
   proposeCanonicalIngredientsFromNames,
   proposeSpecificitiesFromIngredients,
+  resolveKeyIngredientTags,
 } from "./rules";
 import type { ExtractedIngredient } from "./types";
 
@@ -67,5 +70,72 @@ describe("proposeCanonicalIngredientsFromNames", () => {
   it("retourne null si aucune correspondance n'existe (jamais une supposition)", () => {
     const [proposal] = proposeCanonicalIngredientsFromNames([ingredient("Farine T55")]);
     expect(proposal.canonicalIngredientSlug).toBeNull();
+  });
+});
+
+describe("normalizeKeyIngredientName (F-KEY1)", () => {
+  it("retire les préfixes jus/zeste/purée/poudre/pâte de, sans toucher au libellé original de la recette", () => {
+    expect(normalizeKeyIngredientName("jus de citron")).toBe("Citron");
+    expect(normalizeKeyIngredientName("Zeste de citron")).toBe("Citron");
+    expect(normalizeKeyIngredientName("purée de framboise")).toBe("Framboise");
+    expect(normalizeKeyIngredientName("Poudre de noisette")).toBe("Noisette");
+    expect(normalizeKeyIngredientName("pâte de pistache")).toBe("Pistache");
+  });
+
+  it("regroupe les variantes de chocolat vers les 4 tags attendus, jamais si une variante est explicitement nommée", () => {
+    expect(normalizeKeyIngredientName("Chocolat")).toBe("Chocolat noir");
+    expect(normalizeKeyIngredientName("Chocolat 70%")).toBe("Chocolat noir");
+    expect(normalizeKeyIngredientName("Chocolat noir")).toBe("Chocolat noir");
+    expect(normalizeKeyIngredientName("Couverture 64%")).toBe("Chocolat noir");
+    expect(normalizeKeyIngredientName("Chocolat au lait")).toBe("Chocolat au lait");
+    expect(normalizeKeyIngredientName("Chocolat blanc")).toBe("Chocolat blanc");
+    expect(normalizeKeyIngredientName("Dulcey")).toBe("Chocolat blond Dulcey");
+    expect(normalizeKeyIngredientName("Chocolat noisette")).toBe("Chocolat noisette");
+  });
+
+  it("retourne null pour un nom vide après nettoyage, jamais un tag inventé", () => {
+    expect(normalizeKeyIngredientName("   ")).toBeNull();
+  });
+});
+
+describe("resolveKeyIngredientTags (F-KEY1, dédoublonnage à la proposition)", () => {
+  const CITRON: CanonicalIngredient = { id: "id-citron", name: "Citron", slug: "citron", parentId: null };
+  const NOISETTE: CanonicalIngredient = { id: "id-noisette", name: "Noisette", slug: "noisette", parentId: null };
+  const CANONICAL = [CITRON, NOISETTE];
+  const ALIASES: IngredientAlias[] = [
+    { id: "alias-1", canonicalIngredientId: NOISETTE.id, alias: "éclats de noisette", normalizedAlias: "eclats de noisette", status: "confirmed" },
+  ];
+
+  it("résout un nom déjà proche du canonique existant (comparaison directe, insensible casse/accents)", () => {
+    const [tag] = resolveKeyIngredientTags(["citron"], CANONICAL, []);
+    expect(tag).toEqual({ kind: "existing", canonicalIngredientId: CITRON.id, name: CITRON.name });
+  });
+
+  it("résout via un alias déjà enregistré quand le nom ne correspond pas directement au canonique", () => {
+    const [tag] = resolveKeyIngredientTags(["éclats de noisette"], CANONICAL, ALIASES);
+    expect(tag).toEqual({ kind: "existing", canonicalIngredientId: NOISETTE.id, name: NOISETTE.name });
+  });
+
+  it("propose un nouveau tag quand aucune correspondance n'existe (jamais une supposition)", () => {
+    const [tag] = resolveKeyIngredientTags(["Framboise"], CANONICAL, []);
+    expect(tag).toEqual({ kind: "new", name: "Framboise", slug: "framboise" });
+  });
+
+  it("dédoublonne deux propositions équivalentes (même slug), jamais deux tags pour la même matière", () => {
+    const tags = resolveKeyIngredientTags(["Framboise", "framboises"], CANONICAL, []);
+    expect(tags).toHaveLength(1);
+  });
+
+  it("jamais plus de 6 tags", () => {
+    const tags = resolveKeyIngredientTags(
+      ["A", "B", "C", "D", "E", "F", "G", "H"].map((letter) => `Ingrédient ${letter}`),
+      [],
+      [],
+    );
+    expect(tags).toHaveLength(6);
+  });
+
+  it("liste vide → aucun tag (zéro accepté, jamais une invention pour atteindre un minimum)", () => {
+    expect(resolveKeyIngredientTags([], CANONICAL, [])).toEqual([]);
   });
 });

@@ -1,8 +1,8 @@
 /**
  * Recettes correspondant à une matière première (C7), toutes sources
- * confondues, retrouvées via alias (« jus de citron », « zeste de citron »,
- * « purée de citron » → Citron) sans jamais modifier ces libellés — ils
- * restent affichés tels quels sur la fiche recette (C5, batch suivant).
+ * confondues, retrouvées via les tags curatés `recipe_key_ingredients` — pas
+ * une simple mention en ligne d'ingrédient — sans jamais modifier les
+ * libellés d'origine, qui restent affichés tels quels sur la fiche recette.
  */
 
 import { notFound } from "next/navigation";

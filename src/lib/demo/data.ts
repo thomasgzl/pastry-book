@@ -24,6 +24,7 @@ import type {
   Recipe,
   RecipeAllergen,
   RecipeIngredient,
+  RecipeKeyIngredient,
   RecipeSection,
   RecipeSpecificity,
   Source,
@@ -421,6 +422,23 @@ export const recipeIngredients: RecipeIngredient[] = [
   { id: ingredientId(), recipeSectionId: SECTION_ID.painNoisettes, originalName: "Levure fraîche", canonicalIngredientId: null, originalQuantityText: "10", quantityDecimal: "10", unit: "g", position: 2, verificationStatus: "confirmed", confidence: null },
   { id: ingredientId(), recipeSectionId: SECTION_ID.painNoisettes, originalName: "Sel", canonicalIngredientId: null, originalQuantityText: "10", quantityDecimal: "10", unit: "g", position: 3, verificationStatus: "confirmed", confidence: null },
   { id: ingredientId(), recipeSectionId: SECTION_ID.painNoisettes, originalName: "Noisettes concassées", canonicalIngredientId: INGREDIENT_ID.noisette, originalQuantityText: "80", quantityDecimal: "80", unit: "g", position: 4, verificationStatus: "confirmed", confidence: null },
+];
+
+// ============================================================
+// recipe_key_ingredients — tags de matière première principale, curatés
+// (fictif) : sélection éditoriale, PAS une dérivation automatique de tous les
+// canonicalIngredientId présents dans recipeIngredients (voir
+// `20260819110000_recipe_key_ingredients.sql`). Un seul tag par recette de
+// démo (le jeu réel vise 3 à 6) suffit à couvrir les cas testés : présence,
+// absence (Pâte sablée CAP, Crème pâtissière CAP), et une matière première
+// partagée par deux sources différentes (Noisette).
+// ============================================================
+
+export const recipeKeyIngredients: RecipeKeyIngredient[] = [
+  { recipeId: RECIPE_ID.tarteCitronHennessy, canonicalIngredientId: INGREDIENT_ID.citron, position: 0 },
+  { recipeId: RECIPE_ID.cremePatissiereHennessy, canonicalIngredientId: INGREDIENT_ID.vanille, position: 0 },
+  { recipeId: RECIPE_ID.financiersNoisetteDemo, canonicalIngredientId: INGREDIENT_ID.noisette, position: 0 },
+  { recipeId: RECIPE_ID.painNoisettesDemo, canonicalIngredientId: INGREDIENT_ID.noisette, position: 0 },
 ];
 
 // ============================================================

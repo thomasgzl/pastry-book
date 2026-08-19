@@ -88,6 +88,14 @@ L'IA ou les règles proposent une liaison vers un ingrédient canonique :
 
 Le libellé original reste affiché dans la recette. Une nouvelle correspondance confirmée peut enrichir le dictionnaire d'alias pour les imports suivants.
 
+## Matières premières principales (tags de recherche gustatifs)
+
+Distinct de la normalisation ci-dessus, qui couvre CHAQUE ligne d'ingrédient (farine, beurre, œufs compris). Les matières premières principales sont une sélection restreinte (3 à 6, 0 accepté si aucune n'est pertinente) des ingrédients qui définissent le goût de la recette — fruits, agrumes, fruits à coque, chocolats, pralinés, cafés, vanilles, épices, alcools, caramels, thés, herbes aromatiques. Farine, beurre, œufs, lait, crème, sucre, glucose, sel, huiles neutres, levures, gélifiants, épaississants, stabilisants, poudres à lever et eau ne deviennent jamais un tag, sauf exception rarissime où l'un d'eux constitue la saveur principale affichée.
+
+Le même appel d'extraction (pas un second appel payant) propose ces tags en même temps que le reste de la recette. Chaque nom proposé est ensuite dédoublonné contre le référentiel de matières premières déjà chargé (nom canonique ou alias existant, comparaison insensible casse/accents/pluriel simple/préfixes « jus/zeste/purée/poudre/pâte de ») : une correspondance devient un tag existant, sinon une nouvelle matière première est proposée (`kind: "new"`), corrigible et remplaçable par une matière première existante avant validation. Elle n'est réellement créée en base qu'à la confirmation finale de la personne, jamais avant.
+
+Règle chocolat : « chocolat » seul, « chocolat 55/64/70 % », « couverture » suivi d'un pourcentage et « chocolat noir » sont regroupés vers un seul tag « Chocolat noir ». « chocolat au lait » → « Chocolat au lait ». « chocolat blanc » → « Chocolat blanc ». « Dulcey »/« chocolat blond » → « Chocolat blond Dulcey ». Une variante explicitement nommée (ex. « chocolat noisette ») n'est jamais regroupée.
+
 ## Allergènes
 
 Approche recommandée : règles déterministes d'abord, IA pour les cas ambigus.

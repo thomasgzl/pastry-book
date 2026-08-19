@@ -31,7 +31,7 @@ export default async function ModifierRecettePage({ params }: { params: Promise<
     getCategoriesForSource(editData.recipe.sourceId),
   ]);
 
-  const draft = buildEditDraft(editData, recipeSpecificities);
+  const draft = buildEditDraft(editData, recipeSpecificities, canonicalIngredients);
 
   const breadcrumb: BreadcrumbItem[] = [
     { label: "Accueil", href: "/" },

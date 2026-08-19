@@ -15,9 +15,10 @@ import type { ImportRecipeDraft } from "@/lib/import/schema";
  *   Postgres vers le domaine.
  */
 
-const { rpcMock, recipesSelectEqMock } = vi.hoisted(() => ({
+const { rpcMock, recipesSelectEqMock, ingredientAliasesInsertMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
   recipesSelectEqMock: vi.fn(),
+  ingredientAliasesInsertMock: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/env", () => ({
@@ -29,6 +30,12 @@ vi.mock("@/lib/supabase/admin", () => ({
     from(table: string) {
       if (table === "recipes") {
         return { select: () => ({ eq: recipesSelectEqMock }) };
+      }
+      // F-KEY1 : alias opportuniste d'une nouvelle matière première
+      // principale — non exercé par la plupart des tests de ce fichier
+      // (`draft()` n'a par défaut aucune matière première proposée).
+      if (table === "ingredient_aliases") {
+        return { insert: ingredientAliasesInsertMock };
       }
       throw new Error(`from("${table}") inattendu dans ce test mocké — aucune écriture de compensation attendue`);
     },
@@ -74,6 +81,7 @@ function draft(overrides: Partial<ImportRecipeDraft> = {}): ImportRecipeDraft {
     ],
     specificities: [],
     allergens: [],
+    proposedKeyIngredients: [],
     originalFiles: [],
     pastedText: null,
     warnings: [],
@@ -112,6 +120,8 @@ beforeEach(() => {
   rpcMock.mockReset();
   recipesSelectEqMock.mockReset();
   recipesSelectEqMock.mockResolvedValue({ data: [], error: null }); // aucun doublon titre+source par défaut
+  ingredientAliasesInsertMock.mockReset();
+  ingredientAliasesInsertMock.mockResolvedValue({ data: null, error: null });
 });
 
 describe("saveImportRecipe — voie Supabase mockée (K3-DATA, atomicité)", () => {
@@ -177,5 +187,47 @@ describe("saveImportRecipe — voie Supabase mockée (K3-DATA, atomicité)", () 
 
     expect(result.status).toBe("duplicate");
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveImportRecipe — matières premières principales (F-KEY1)", () => {
+  it("crée une nouvelle matière première via find_or_create_canonical_ingredient et la passe à save_import_recipe", async () => {
+    rpcMock.mockImplementation(async (fn: string) => {
+      if (fn === "find_or_create_canonical_ingredient") {
+        return { data: "canonical-nouveau", error: null };
+      }
+      if (fn === "save_import_recipe") {
+        return { data: { outcome: "saved", recipe: RECIPE_ROW, item: ITEM_ROW }, error: null };
+      }
+      throw new Error(`rpc("${fn}") inattendu`);
+    });
+
+    await saveImportRecipe({
+      batchId: "batch-1",
+      draft: draft({ proposedKeyIngredients: [{ kind: "new", name: "Framboise", slug: "framboise" }] }),
+      rawExtraction: null,
+      providerName: "manual",
+    });
+
+    const findOrCreateCall = rpcMock.mock.calls.find(([fn]) => fn === "find_or_create_canonical_ingredient");
+    expect(findOrCreateCall?.[1]).toEqual({ p_name: "Framboise", p_slug: "framboise" });
+
+    const saveCall = rpcMock.mock.calls.find(([fn]) => fn === "save_import_recipe");
+    expect(saveCall?.[1].payload.keyIngredients).toEqual([{ canonicalIngredientId: "canonical-nouveau", position: 0 }]);
+  });
+
+  it("reprend un tag déjà résolu (kind: existing) tel quel, sans appeler find_or_create_canonical_ingredient", async () => {
+    rpcMock.mockResolvedValue({ data: { outcome: "saved", recipe: RECIPE_ROW, item: ITEM_ROW }, error: null });
+
+    await saveImportRecipe({
+      batchId: "batch-1",
+      draft: draft({ proposedKeyIngredients: [{ kind: "existing", canonicalIngredientId: "canonical-existant", name: "Citron" }] }),
+      rawExtraction: null,
+      providerName: "manual",
+    });
+
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    const [, args] = rpcMock.mock.calls[0];
+    expect(args.payload.keyIngredients).toEqual([{ canonicalIngredientId: "canonical-existant", position: 0 }]);
   });
 });

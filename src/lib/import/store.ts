@@ -63,6 +63,7 @@ import { getSources } from "@/lib/data/sources";
 import { combineAdditionalInformation, IMPORT_SCHEMA_VERSION, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { findDuplicateRecipe, slugify } from "@/lib/import/model";
 import { normalizeText } from "@/lib/recipes/search";
+import { normalizeKeyIngredientName } from "@/lib/ai/import/rules";
 import { SOURCE_BUCKET } from "@/lib/import/sourceUpload";
 
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
@@ -656,6 +657,128 @@ async function callSaveImportRecipeRpc(
 }
 
 /**
+ * Miroir minimal de `.rpc()` pour `find_or_create_canonical_ingredient`
+ * (F-KEY1, `supabase/migrations/20260819110000_recipe_key_ingredients.sql`)
+ * — même raison que `UntypedRpcClient` ci-dessus. Les noms de paramètres
+ * (`p_name`/`p_slug`) doivent correspondre exactement à la signature SQL.
+ */
+type UntypedFindOrCreateIngredientRpcClient = {
+  rpc(
+    fn: "find_or_create_canonical_ingredient",
+    args: { p_name: string; p_slug: string },
+  ): Promise<{ data: string | null; error: { message: string } | null }>;
+};
+
+/**
+ * Résout une matière première principale « nouvelle » (F-KEY1) vers un vrai
+ * `canonical_ingredient_id`, jamais avant la confirmation finale de la
+ * personne : `find_or_create_canonical_ingredient` garantit qu'un import
+ * concurrent proposant le même nom obtient le même id (contrainte unique sur
+ * `slug`), jamais un doublon silencieux.
+ */
+async function callFindOrCreateCanonicalIngredientRpc(
+  client: SupabaseAdminClient,
+  name: string,
+  slug: string,
+): Promise<string> {
+  const { data, error } = await (client as unknown as UntypedFindOrCreateIngredientRpcClient).rpc(
+    "find_or_create_canonical_ingredient",
+    { p_name: name, p_slug: slug },
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Réponse vide de find_or_create_canonical_ingredient.");
+  }
+  return data;
+}
+
+/**
+ * Alias opportuniste (F-KEY1) : relie un libellé d'ingrédient déjà présent
+ * dans CETTE recette (ex. « Poudre de noisette ») à la matière première
+ * principale nouvellement créée (ex. « Noisette »), pour qu'un futur import
+ * du même libellé se résolve directement — jamais un alias auto-référentiel
+ * identique au nom canonique lui-même (voir l'appelant, qui filtre déjà ce
+ * cas). Jamais bloquant pour l'enregistrement de la recette : un alias déjà
+ * existant (contrainte unique `canonical_ingredient_id` + `normalized_alias`)
+ * est seulement journalisé, jamais une erreur remontée à la personne.
+ */
+async function insertProposedAliasSupabase(
+  client: SupabaseAdminClient,
+  canonicalIngredientId: string,
+  originalName: string,
+): Promise<void> {
+  const normalizedAlias = normalizeText(originalName);
+  if (!normalizedAlias) return;
+  const result = await client
+    .from("ingredient_aliases")
+    .insert({ canonical_ingredient_id: canonicalIngredientId, alias: originalName, normalized_alias: normalizedAlias, status: "proposed" });
+  if (result.error) {
+    console.warn(
+      "[import] alias de matière première principale non enregistré (non bloquant, recette tout de même enregistrée)",
+      { canonicalIngredientId, cause: result.error.message },
+    );
+  }
+}
+
+/**
+ * Résout `draft.proposedKeyIngredients` (F-KEY1) vers le tableau
+ * `keyIngredients` attendu par `save_import_recipe`/`update_recipe` : les
+ * tags déjà `kind: "existing"` sont repris tels quels ; les tags
+ * `kind: "new"` sont créés maintenant, à la confirmation finale (jamais
+ * avant), via `find_or_create_canonical_ingredient` — jamais une seconde
+ * fois pour un slug déjà vu dans CE brouillon. Ajoute aussi, quand c'est
+ * pertinent, un alias reliant un libellé d'ingrédient déjà écrit dans la
+ * recette (ex. « Poudre de noisette ») à la nouvelle matière première créée
+ * (ex. « Noisette ») — jamais un alias identique au nom canonique lui-même.
+ */
+async function resolveKeyIngredientsForSaveSupabase(
+  client: SupabaseAdminClient,
+  draft: ImportRecipeDraft,
+): Promise<{ canonicalIngredientId: string; position: number }[]> {
+  const allOriginalNames = draft.sections.flatMap((section) => section.ingredients.map((ingredient) => ingredient.originalName));
+  const resolvedBySlug = new Map<string, string>();
+  // `recipe_key_ingredients` a une clé primaire (recipe_id, canonical_ingredient_id) :
+  // deux tags résolus vers le même canonique (édition manuelle malencontreuse
+  // avant l'enregistrement, ex. deux « nouveaux » tags renommés vers le même
+  // nom) violeraient cette contrainte — filtrés ici plutôt que de laisser
+  // l'écriture entière échouer pour ce détail.
+  const seenCanonicalIds = new Set<string>();
+  const result: { canonicalIngredientId: string; position: number }[] = [];
+
+  for (const [index, tag] of draft.proposedKeyIngredients.entries()) {
+    if (tag.kind === "existing") {
+      if (seenCanonicalIds.has(tag.canonicalIngredientId)) continue;
+      seenCanonicalIds.add(tag.canonicalIngredientId);
+      result.push({ canonicalIngredientId: tag.canonicalIngredientId, position: index });
+      continue;
+    }
+
+    let canonicalIngredientId = resolvedBySlug.get(tag.slug);
+    if (!canonicalIngredientId) {
+      canonicalIngredientId = await callFindOrCreateCanonicalIngredientRpc(client, tag.name, tag.slug);
+      resolvedBySlug.set(tag.slug, canonicalIngredientId);
+
+      const normalizedTagName = normalizeText(tag.name);
+      const matchingOriginalName = allOriginalNames.find((name) => {
+        const cleaned = normalizeKeyIngredientName(name);
+        return cleaned !== null && normalizeText(cleaned) === normalizedTagName && normalizeText(name) !== normalizedTagName;
+      });
+      if (matchingOriginalName) {
+        await insertProposedAliasSupabase(client, canonicalIngredientId, matchingOriginalName);
+      }
+    }
+
+    if (seenCanonicalIds.has(canonicalIngredientId)) continue;
+    seenCanonicalIds.add(canonicalIngredientId);
+    result.push({ canonicalIngredientId, position: index });
+  }
+
+  return result;
+}
+
+/**
  * Enregistre une recette validée par la personne dans Supabase — écriture
  * unique via `save_import_recipe` (fonction Postgres, voir l'en-tête de ce
  * fichier), réellement atomique et idempotente par `draft.id` (vérifié à
@@ -676,48 +799,56 @@ async function saveImportRecipeSupabase(
   const sourceFileUrl = sourceFileUrlFor(draft);
   const sourceFileHash = sourceFileUrl ? await fetchAndHashSourceFile(client, sourceFileUrl) : null;
 
-  const payload: Record<string, unknown> = {
-    draftId: draft.id,
-    batchId,
-    // `draft.sourceId` reste un UUID local sans signification côté serveur
-    // tant qu'une nouvelle entreprise est en attente de création — la
-    // fonction Postgres `save_import_recipe` l'ignore alors et résout la
-    // vraie source à partir de `newSourceName`/`newSourceSlugBase`.
-    sourceId: draft.sourceId,
-    newSourceName: trimmedNewSourceName,
-    newSourceSlugBase: trimmedNewSourceName ? slugify(trimmedNewSourceName) : null,
-    sourceCategoryId: draft.sourceCategoryId,
-    title: draft.title,
-    slugBase: slugify(draft.title),
-    additionalInformation: combineAdditionalInformation(draft),
-    sourceFileUrl,
-    sourceFileHash,
-    rawExtraction,
-    proposedRecipe: draft,
-    sections: draft.sections.map((section) => ({
-      name: section.name,
-      originalText: section.originalText,
-      ingredients: section.ingredients.map((ingredient, index) => ({
-        originalName: ingredient.originalName,
-        canonicalIngredientId: ingredient.canonicalIngredientId,
-        originalQuantityText: ingredient.originalQuantityText,
-        quantityDecimal: ingredient.quantityDecimal,
-        unit: ingredient.unit,
-        position: index,
-        verificationStatus: ingredient.verificationStatus,
-      })),
-    })),
-    allergens: draft.allergens.map((entry) => ({ allergenId: entry.allergenId, status: entry.status })),
-    specificities: draft.specificities.map((entry) => ({
-      specificityId: entry.specificityId,
-      status: entry.status,
-      reason: entry.reason,
-      source: entry.source,
-    })),
-  };
-
   let rpcResult: SaveImportRecipeRpcRow;
   try {
+    // Résolution des matières premières principales (F-KEY1) — DANS le même
+    // bloc `try` que l'appel RPC : un échec ici (ex. `find_or_create_canonical_ingredient`
+    // indisponible) doit déclencher le même repli (avertissement de fichier
+    // potentiellement orphelin, message lisible) que l'échec de l'écriture
+    // elle-même, jamais un état différent non journalisé.
+    const keyIngredients = await resolveKeyIngredientsForSaveSupabase(client, draft);
+
+    const payload: Record<string, unknown> = {
+      draftId: draft.id,
+      batchId,
+      // `draft.sourceId` reste un UUID local sans signification côté serveur
+      // tant qu'une nouvelle entreprise est en attente de création — la
+      // fonction Postgres `save_import_recipe` l'ignore alors et résout la
+      // vraie source à partir de `newSourceName`/`newSourceSlugBase`.
+      sourceId: draft.sourceId,
+      newSourceName: trimmedNewSourceName,
+      newSourceSlugBase: trimmedNewSourceName ? slugify(trimmedNewSourceName) : null,
+      sourceCategoryId: draft.sourceCategoryId,
+      title: draft.title,
+      slugBase: slugify(draft.title),
+      additionalInformation: combineAdditionalInformation(draft),
+      sourceFileUrl,
+      sourceFileHash,
+      rawExtraction,
+      proposedRecipe: draft,
+      sections: draft.sections.map((section) => ({
+        name: section.name,
+        originalText: section.originalText,
+        ingredients: section.ingredients.map((ingredient, index) => ({
+          originalName: ingredient.originalName,
+          canonicalIngredientId: ingredient.canonicalIngredientId,
+          originalQuantityText: ingredient.originalQuantityText,
+          quantityDecimal: ingredient.quantityDecimal,
+          unit: ingredient.unit,
+          position: index,
+          verificationStatus: ingredient.verificationStatus,
+        })),
+      })),
+      allergens: draft.allergens.map((entry) => ({ allergenId: entry.allergenId, status: entry.status })),
+      specificities: draft.specificities.map((entry) => ({
+        specificityId: entry.specificityId,
+        status: entry.status,
+        reason: entry.reason,
+        source: entry.source,
+      })),
+      keyIngredients,
+    };
+
     rpcResult = await callSaveImportRecipeRpc(client, payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -852,6 +983,16 @@ async function callUpdateRecipeRpc(client: SupabaseAdminClient, payload: Record<
 async function updateRecipeSupabase(client: SupabaseAdminClient, params: UpdateRecipeParams): Promise<Recipe> {
   const { recipeId, draft } = params;
 
+  // `update_recipe` remplace TOUJOURS `recipe_key_ingredients` par le contenu
+  // de `keyIngredients` (suppression puis réinsertion, voir la migration) :
+  // omettre ce champ effacerait silencieusement les matières premières
+  // principales existantes à chaque modification manuelle de recette — jamais
+  // acceptable (CLAUDE.md, aucune perte silencieuse). `buildEditDraft`
+  // pré-remplit `draft.proposedKeyIngredients` avec les tags déjà enregistrés
+  // pour cette recette ; ils sont donc repris ici comme pour l'enregistrement
+  // initial (F-KEY1).
+  const keyIngredients = await resolveKeyIngredientsForSaveSupabase(client, draft);
+
   const payload: Record<string, unknown> = {
     recipeId,
     sourceId: draft.sourceId,
@@ -877,6 +1018,7 @@ async function updateRecipeSupabase(client: SupabaseAdminClient, params: UpdateR
       reason: entry.reason,
       source: entry.source,
     })),
+    keyIngredients,
   };
 
   const row = await callUpdateRecipeRpc(client, payload);

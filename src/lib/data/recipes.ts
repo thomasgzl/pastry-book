@@ -9,6 +9,7 @@
 import {
   canonicalIngredients as demoCanonicalIngredients,
   recipeIngredients as demoRecipeIngredients,
+  recipeKeyIngredients as demoRecipeKeyIngredients,
   recipeSections as demoRecipeSections,
   recipes as demoRecipes,
   sourceCategories as demoSourceCategories,
@@ -18,6 +19,11 @@ import type {
   CanonicalIngredient,
   Recipe,
   RecipeIngredient,
+  // Alias : distinct de l'interface locale `RecipeKeyIngredient` plus bas
+  // (assemblage d'affichage `{ name, slug }` consommé par `RecipeSheet`) —
+  // celui-ci est la ligne brute de jonction `recipe_key_ingredients`
+  // (`{ recipeId, canonicalIngredientId, position }`).
+  RecipeKeyIngredient as RecipeKeyIngredientLink,
   RecipeSection,
   Source,
   SourceCategory,
@@ -29,6 +35,7 @@ import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 import {
   loadCanonicalIngredients,
   loadRecipeIngredients,
+  loadRecipeKeyIngredients,
   loadRecipeSections,
   loadRecipes,
   loadSourceCategories,
@@ -52,6 +59,9 @@ async function allRecipeSections(): Promise<RecipeSection[]> {
 }
 async function allRecipeIngredients(): Promise<RecipeIngredient[]> {
   return hasSupabaseConfig() ? loadRecipeIngredients() : demoRecipeIngredients;
+}
+async function allRecipeKeyIngredients(): Promise<RecipeKeyIngredientLink[]> {
+  return hasSupabaseConfig() ? loadRecipeKeyIngredients() : demoRecipeKeyIngredients;
 }
 
 export async function getRecipes(): Promise<Recipe[]> {
@@ -88,29 +98,26 @@ export async function getRecipesWithoutCategoryForSource(sourceSlug: string): Pr
 }
 
 /**
- * Noms de matière première (canonique si liée, sinon libellé d'origine) pour
- * une recette, dédupliqués et dans l'ordre d'apparition. `RecipeCard` limite
- * déjà l'affichage aux deux premiers — cette fonction n'applique aucune
- * limite pour laisser ce choix au composant.
+ * Noms des matières premières principales (tags gustatifs curatés) d'une
+ * recette, dans leur ordre `position` — lus depuis `recipe_key_ingredients`
+ * (sélection éditoriale/IA, 3 à 6 par recette), jamais dérivés de toutes les
+ * lignes d'ingrédients (`recipe_ingredients`, qui contient aussi
+ * farine/beurre/œufs — bruit inexploitable comme tag). `RecipeCard` limite
+ * déjà l'affichage à deux tags — cette fonction n'applique aucune limite pour
+ * laisser ce choix au composant.
  */
 export async function getIngredientTagsForRecipe(recipeId: string): Promise<string[]> {
-  const [canonicalIngredients, recipeSections, recipeIngredients] = await Promise.all([
+  const [canonicalIngredients, recipeKeyIngredients] = await Promise.all([
     allCanonicalIngredients(),
-    allRecipeSections(),
-    allRecipeIngredients(),
+    allRecipeKeyIngredients(),
   ]);
   const canonicalNameById = new Map(canonicalIngredients.map((ingredient) => [ingredient.id, ingredient.name]));
-  const sectionIds = new Set(
-    recipeSections.filter((section) => section.recipeId === recipeId).map((section) => section.id),
-  );
 
-  const tags: string[] = [];
-  for (const ingredient of recipeIngredients) {
-    if (!sectionIds.has(ingredient.recipeSectionId)) continue;
-    const name = ingredient.canonicalIngredientId ? canonicalNameById.get(ingredient.canonicalIngredientId) : null;
-    if (name && !tags.includes(name)) tags.push(name);
-  }
-  return tags;
+  return recipeKeyIngredients
+    .filter((link) => link.recipeId === recipeId)
+    .sort((a, b) => a.position - b.position)
+    .map((link) => canonicalNameById.get(link.canonicalIngredientId))
+    .filter((name): name is string => Boolean(name));
 }
 
 export interface RecipeCardData {
@@ -180,10 +187,12 @@ export interface RecipeDetail {
    * propres ingrédients (CLAUDE.md, principe 7 : une préparation
    * appartient à une recette précise, jamais globalisée entre entreprises). */
   sections: RecipeSectionWithIngredients[];
-  /** Matières premières canoniques résolues pour cette recette,
-   * dédupliquées et dans l'ordre d'apparition — pour les liens vers
-   * `/matieres-premieres/[slug]`. Vide si aucun ingrédient n'est relié à une
-   * matière canonique. */
+  /** Matières premières principales (tags gustatifs curatés), lues depuis
+   * `recipe_key_ingredients` et triées par `position` — pour les liens vers
+   * `/matieres-premieres/[slug]`. Distinct de toute dérivation depuis les
+   * lignes d'ingrédients : c'est une sélection éditoriale/IA restreinte
+   * (3 à 6), pas la liste complète des ingrédients canoniques de la recette.
+   * Vide si aucun tag n'a été confirmé pour cette recette. */
   keyIngredients: RecipeKeyIngredient[];
 }
 
@@ -197,6 +206,15 @@ export interface RecipeEditData {
   sections: RecipeSection[];
   /** Ingrédients de toutes les préparations ci-dessus, dans leur ordre `position` d'origine. */
   ingredients: RecipeIngredient[];
+  /**
+   * Liens bruts `recipe_key_ingredients` (matières premières principales,
+   * F-KEY1), triés par `position` — repris tels quels par `buildEditDraft`
+   * pour pré-remplir `ImportRecipeDraft.proposedKeyIngredients`. Indispensable
+   * ici : `update_recipe` remplace TOUJOURS ces liens par ce que le
+   * formulaire renvoie, les omettre les effacerait silencieusement à chaque
+   * modification manuelle de recette.
+   */
+  keyIngredients: RecipeKeyIngredientLink[];
 }
 
 /**
@@ -211,14 +229,21 @@ export async function getRecipeEditData(slug: string): Promise<RecipeEditData | 
   const recipe = await getRecipeBySlug(slug);
   if (!recipe) return undefined;
 
-  const [allSections, allIngredients] = await Promise.all([allRecipeSections(), allRecipeIngredients()]);
+  const [allSections, allIngredients, allKeyIngredients] = await Promise.all([
+    allRecipeSections(),
+    allRecipeIngredients(),
+    allRecipeKeyIngredients(),
+  ]);
   const sections = allSections.filter((section) => section.recipeId === recipe.id).sort((a, b) => a.position - b.position);
   const sectionIds = new Set(sections.map((section) => section.id));
   const ingredients = allIngredients
     .filter((ingredient) => sectionIds.has(ingredient.recipeSectionId))
     .sort((a, b) => a.position - b.position);
+  const keyIngredients = allKeyIngredients
+    .filter((link) => link.recipeId === recipe.id)
+    .sort((a, b) => a.position - b.position);
 
-  return { recipe, sections, ingredients };
+  return { recipe, sections, ingredients, keyIngredients };
 }
 
 /**
@@ -232,13 +257,15 @@ export async function getRecipeDetail(slug: string): Promise<RecipeDetail | unde
   const recipe = await getRecipeBySlug(slug);
   if (!recipe) return undefined;
 
-  const [sources, sourceCategories, allSections, allIngredients, canonicalIngredients] = await Promise.all([
-    allSources(),
-    allSourceCategories(),
-    allRecipeSections(),
-    allRecipeIngredients(),
-    allCanonicalIngredients(),
-  ]);
+  const [sources, sourceCategories, allSections, allIngredients, canonicalIngredients, recipeKeyIngredientLinks] =
+    await Promise.all([
+      allSources(),
+      allSourceCategories(),
+      allRecipeSections(),
+      allRecipeIngredients(),
+      allCanonicalIngredients(),
+      allRecipeKeyIngredients(),
+    ]);
 
   // Invariants garantis en démo par data.test.ts, et par les clés étrangères
   // côté Supabase : pas de repli défensif ici, voir `toRecipeCardData`.
@@ -259,16 +286,12 @@ export async function getRecipeDetail(slug: string): Promise<RecipeDetail | unde
     }));
 
   const canonicalById = new Map(canonicalIngredients.map((ingredient) => [ingredient.id, ingredient]));
-  const keyIngredients: RecipeKeyIngredient[] = [];
-  for (const section of sections) {
-    for (const ingredient of section.ingredients) {
-      if (!ingredient.canonicalIngredientId) continue;
-      const canonical = canonicalById.get(ingredient.canonicalIngredientId);
-      if (canonical && !keyIngredients.some((entry) => entry.slug === canonical.slug)) {
-        keyIngredients.push({ name: canonical.name, slug: canonical.slug });
-      }
-    }
-  }
+  const keyIngredients: RecipeKeyIngredient[] = recipeKeyIngredientLinks
+    .filter((link) => link.recipeId === recipe.id)
+    .sort((a, b) => a.position - b.position)
+    .map((link) => canonicalById.get(link.canonicalIngredientId))
+    .filter((ingredient): ingredient is CanonicalIngredient => Boolean(ingredient))
+    .map((ingredient) => ({ name: ingredient.name, slug: ingredient.slug }));
 
   return {
     recipe,

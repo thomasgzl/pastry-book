@@ -11,6 +11,7 @@ import {
   canonicalIngredients as demoCanonicalIngredients,
   ingredientAliases as demoIngredientAliases,
   recipeIngredients as demoRecipeIngredients,
+  recipeKeyIngredients as demoRecipeKeyIngredients,
   recipeSections as demoRecipeSections,
   recipes as demoRecipes,
   sourceCategories as demoSourceCategories,
@@ -22,6 +23,7 @@ import {
   loadCanonicalIngredients,
   loadIngredientAliases,
   loadRecipeIngredients,
+  loadRecipeKeyIngredients,
   loadRecipeSections,
   loadRecipes,
   loadSourceCategories,
@@ -38,21 +40,40 @@ async function loadSearchDataset(): Promise<SearchDataset> {
       recipeSections: demoRecipeSections,
       recipeIngredients: demoRecipeIngredients,
       ingredientAliases: demoIngredientAliases,
+      recipeKeyIngredients: demoRecipeKeyIngredients,
     };
   }
 
-  const [sources, sourceCategories, recipes, canonicalIngredients, recipeSections, recipeIngredients, ingredientAliases] =
-    await Promise.all([
-      loadSources(),
-      loadSourceCategories(),
-      loadRecipes(),
-      loadCanonicalIngredients(),
-      loadRecipeSections(),
-      loadRecipeIngredients(),
-      loadIngredientAliases(),
-    ]);
+  const [
+    sources,
+    sourceCategories,
+    recipes,
+    canonicalIngredients,
+    recipeSections,
+    recipeIngredients,
+    ingredientAliases,
+    recipeKeyIngredients,
+  ] = await Promise.all([
+    loadSources(),
+    loadSourceCategories(),
+    loadRecipes(),
+    loadCanonicalIngredients(),
+    loadRecipeSections(),
+    loadRecipeIngredients(),
+    loadIngredientAliases(),
+    loadRecipeKeyIngredients(),
+  ]);
 
-  return { sources, sourceCategories, recipes, canonicalIngredients, recipeSections, recipeIngredients, ingredientAliases };
+  return {
+    sources,
+    sourceCategories,
+    recipes,
+    canonicalIngredients,
+    recipeSections,
+    recipeIngredients,
+    ingredientAliases,
+    recipeKeyIngredients,
+  };
 }
 
 /** Point d'entrée réel de la recherche globale — toujours le jeu de données courant (Supabase en production), jamais figé/caché au-delà de la requête en cours. */

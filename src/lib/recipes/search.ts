@@ -11,6 +11,7 @@ import {
   canonicalIngredients as demoCanonicalIngredients,
   ingredientAliases as demoIngredientAliases,
   recipeIngredients as demoRecipeIngredients,
+  recipeKeyIngredients as demoRecipeKeyIngredients,
   recipeSections as demoRecipeSections,
   recipes as demoRecipes,
   sourceCategories as demoSourceCategories,
@@ -21,6 +22,7 @@ import type {
   IngredientAlias,
   Recipe,
   RecipeIngredient,
+  RecipeKeyIngredient,
   RecipeSection,
   Source,
   SourceCategory,
@@ -35,6 +37,10 @@ export interface SearchDataset {
   recipeSections: RecipeSection[];
   recipeIngredients: RecipeIngredient[];
   ingredientAliases: IngredientAlias[];
+  /** Tags de matière première principale curatés (`recipe_key_ingredients`) —
+   * signal plus fort qu'une simple mention en ligne d'ingrédient, voir
+   * `searchAll`. */
+  recipeKeyIngredients: RecipeKeyIngredient[];
 }
 
 const DEMO_DATASET: SearchDataset = {
@@ -45,6 +51,7 @@ const DEMO_DATASET: SearchDataset = {
   recipeSections: demoRecipeSections,
   recipeIngredients: demoRecipeIngredients,
   ingredientAliases: demoIngredientAliases,
+  recipeKeyIngredients: demoRecipeKeyIngredients,
 };
 
 /**
@@ -181,6 +188,17 @@ export function searchAll(query: string, dataset: SearchDataset = DEMO_DATASET):
     includesNormalized(ingredient.name, trimmed),
   );
 
+  const matchedCanonicalIngredientIds = new Set(matchedCanonicalIngredients.map((ingredient) => ingredient.id));
+
+  // Tags curatés (`recipe_key_ingredients`) : signal d'identité gustative
+  // plus fort qu'une simple ligne d'ingrédient (ex. farine reliée à un
+  // canonique technique) — priorisés dans le tri des résultats ci-dessous.
+  const recipeIdsFromKeyIngredients = new Set(
+    dataset.recipeKeyIngredients
+      .filter((link) => matchedCanonicalIngredientIds.has(link.canonicalIngredientId))
+      .map((link) => link.recipeId),
+  );
+
   const recipeIdsFromIngredients = new Set<string>();
   for (const ingredient of matchedCanonicalIngredients) {
     for (const recipeId of recipeIdsForCanonicalIngredientId(ingredient.id, dataset)) {
@@ -189,7 +207,16 @@ export function searchAll(query: string, dataset: SearchDataset = DEMO_DATASET):
   }
 
   const matchedRecipes = recipes
-    .filter((recipe) => includesNormalized(recipe.title, trimmed) || recipeIdsFromIngredients.has(recipe.id))
+    .filter(
+      (recipe) =>
+        includesNormalized(recipe.title, trimmed) ||
+        recipeIdsFromKeyIngredients.has(recipe.id) ||
+        recipeIdsFromIngredients.has(recipe.id),
+    )
+    // Tags curatés d'abord, puis titre/ligne d'ingrédient — tri stable
+    // (`Array.prototype.sort` est stable depuis ES2019), donc l'ordre relatif
+    // des autres résultats reste l'ordre d'apparition d'origine.
+    .sort((a, b) => Number(recipeIdsFromKeyIngredients.has(b.id)) - Number(recipeIdsFromKeyIngredients.has(a.id)))
     .map((recipe) => {
       const source = sourceById.get(recipe.sourceId)!;
       const category = recipe.sourceCategoryId ? categoryById.get(recipe.sourceCategoryId) : undefined;

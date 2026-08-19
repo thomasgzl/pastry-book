@@ -217,6 +217,23 @@ export function ReviewStep({
         ))}
       </div>
 
+      {draft.proposedKeyIngredients.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-cacao">Matières premières principales</p>
+          <div className="flex flex-wrap gap-2 text-sm text-cacao">
+            {draft.proposedKeyIngredients.map((tag, index) => (
+              <span
+                key={tag.kind === "existing" ? tag.canonicalIngredientId : `new-${index}`}
+                className="flex items-center gap-1.5 rounded-full border border-grise bg-avoine px-2.5 py-1"
+              >
+                {tag.name}
+                {tag.kind === "new" && <Badge className="px-1.5 py-0.5 text-xs">Nouvelle matière première proposée</Badge>}
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {draft.allergens.length > 0 && (
         <Card className="flex flex-col gap-2">
           <p className="text-sm font-medium text-cacao">Allergènes détectés</p>

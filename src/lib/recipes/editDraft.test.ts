@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Recipe, RecipeIngredient, RecipeSection, RecipeSpecificity } from "@/lib/domain/schemas";
+import type { CanonicalIngredient, Recipe, RecipeIngredient, RecipeSection, RecipeSpecificity } from "@/lib/domain/schemas";
 import { buildEditDraft } from "./editDraft";
 
 const RECIPE: Recipe = {
@@ -34,9 +34,11 @@ const INGREDIENT: RecipeIngredient = {
 
 const SPECIFICITY: RecipeSpecificity = { recipeId: "recipe-1", specificityId: "spec-1", status: "confirmed", reason: null, source: "manual" };
 
+const NOISETTE: CanonicalIngredient = { id: "canonical-noisette", name: "Noisette", slug: "noisette", parentId: null };
+
 describe("buildEditDraft", () => {
   it("repeuple titre/source/catégorie/procédé/température/informations à partir du champ combiné", () => {
-    const draft = buildEditDraft({ recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT] }, [SPECIFICITY]);
+    const draft = buildEditDraft({ recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT], keyIngredients: [] }, [SPECIFICITY]);
     expect(draft.title).toBe("Tarte aux pommes");
     expect(draft.sourceId).toBe("source-1");
     expect(draft.sourceCategoryId).toBe("category-1");
@@ -46,7 +48,7 @@ describe("buildEditDraft", () => {
   });
 
   it("conserve le texte source d'une préparation (originalText) même s'il n'est pas éditable dans le formulaire", () => {
-    const draft = buildEditDraft({ recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT] }, []);
+    const draft = buildEditDraft({ recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT], keyIngredients: [] }, []);
     expect(draft.sections[0].originalText).toBe("texte source d'origine");
     expect(draft.sections[0].ingredients).toHaveLength(1);
     expect(draft.sections[0].ingredients[0].originalName).toBe("Farine T55");
@@ -54,8 +56,39 @@ describe("buildEditDraft", () => {
 
   it("exclut les allergènes (hors périmètre de cette modification) et les spécificités rejetées", () => {
     const rejected: RecipeSpecificity = { ...SPECIFICITY, specificityId: "spec-2", status: "rejected" };
-    const draft = buildEditDraft({ recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT] }, [SPECIFICITY, rejected]);
+    const draft = buildEditDraft(
+      { recipe: RECIPE, sections: [SECTION], ingredients: [INGREDIENT], keyIngredients: [] },
+      [SPECIFICITY, rejected],
+    );
     expect(draft.allergens).toEqual([]);
     expect(draft.specificities).toEqual([{ specificityId: "spec-1", status: "confirmed", reason: null, source: "manual" }]);
+  });
+
+  it("repeuple les matières premières principales déjà enregistrées (F-KEY1), jamais recréées (kind: existing)", () => {
+    const draft = buildEditDraft(
+      {
+        recipe: RECIPE,
+        sections: [SECTION],
+        ingredients: [INGREDIENT],
+        keyIngredients: [{ recipeId: "recipe-1", canonicalIngredientId: "canonical-noisette", position: 0 }],
+      },
+      [],
+      [NOISETTE],
+    );
+    expect(draft.proposedKeyIngredients).toEqual([{ kind: "existing", canonicalIngredientId: "canonical-noisette", name: "Noisette" }]);
+  });
+
+  it("ignore un lien de matière première dont le canonique n'est pas trouvé dans le référentiel chargé (jamais un tag inventé)", () => {
+    const draft = buildEditDraft(
+      {
+        recipe: RECIPE,
+        sections: [SECTION],
+        ingredients: [INGREDIENT],
+        keyIngredients: [{ recipeId: "recipe-1", canonicalIngredientId: "canonical-inconnu", position: 0 }],
+      },
+      [],
+      [NOISETTE],
+    );
+    expect(draft.proposedKeyIngredients).toEqual([]);
   });
 });

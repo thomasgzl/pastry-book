@@ -60,6 +60,7 @@ function applyExtractedDraft(draft: ImportRecipeDraft, extracted: DemoExtraction
     sections: extracted.sections,
     specificities: extracted.specificities,
     allergens: extracted.allergens,
+    proposedKeyIngredients: extracted.proposedKeyIngredients,
     warnings: extracted.warnings,
   };
 }

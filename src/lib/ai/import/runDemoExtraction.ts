@@ -9,7 +9,7 @@
  */
 
 import { getAllergens, getSpecificities } from "@/lib/data/specificities";
-import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import { getCanonicalIngredients, getIngredientAliases } from "@/lib/data/canonical-ingredients";
 import type {
   ImportAllergenDraft,
   ImportFileRef,
@@ -18,8 +18,9 @@ import type {
   ImportSpecificityDraft,
 } from "@/lib/import/schema";
 import { deriveQuantity } from "@/lib/import/model";
+import type { ProposedKeyIngredientTag } from "@/lib/domain/schemas";
 import { demoImportProvider } from "./demoProvider";
-import { ambiguousIngredientWarnings } from "./rules";
+import { ambiguousIngredientWarnings, resolveKeyIngredientTags } from "./rules";
 import { DEMO_FIXTURES, type DemoFixture, type DemoFixtureId } from "./fixtures";
 import type {
   ExtractedIngredient,
@@ -41,6 +42,8 @@ export interface DemoExtractionDraft {
   sections: ImportSectionDraft[];
   specificities: ImportSpecificityDraft[];
   allergens: ImportAllergenDraft[];
+  /** Matières premières principales déjà dédoublonnées contre le référentiel (F-KEY1) — voir `resolveKeyIngredientTags`. */
+  proposedKeyIngredients: ProposedKeyIngredientTag[];
   originalFiles: ImportFileRef[];
   warnings: string[];
   /**
@@ -143,6 +146,20 @@ export async function buildImportDraft(
     sourceFileUrl: file.sourceFileUrl ?? null,
   }));
 
+  // Dédoublonnage à la proposition (F-KEY1) : noms bruts déjà censés
+  // respecter les règles de sélection/regroupement/normalisation du prompt,
+  // résolus ici contre le référentiel réellement chargé (démo ou Supabase,
+  // jamais un référentiel figé) — jamais avant ce point.
+  const [keyIngredientCanonicalIngredients, keyIngredientAliases] = await Promise.all([
+    getCanonicalIngredients(),
+    getIngredientAliases(),
+  ]);
+  const proposedKeyIngredients = resolveKeyIngredientTags(
+    raw.proposedKeyIngredientNames ?? [],
+    keyIngredientCanonicalIngredients,
+    keyIngredientAliases,
+  );
+
   return {
     method: raw.method,
     // Titre absent de l'extraction → jamais inventé, placeholder explicite laissé à charge du formulaire (voir ImporterWizard).
@@ -153,6 +170,7 @@ export async function buildImportDraft(
     sections,
     specificities,
     allergens,
+    proposedKeyIngredients,
     originalFiles,
     warnings: [...raw.warnings, ...ambiguousIngredientWarnings(allIngredients)],
     completeness: raw.completeness ?? defaultCompleteness(sections),

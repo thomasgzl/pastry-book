@@ -60,6 +60,7 @@ const FOUR_SECTIONS_RESPONSE = {
   extractedPreparationTitles: ["Riz au lait", "Caramel", "Opaline", "Sorbet au lait"],
   completenessStatus: "complete",
   missingOrUnclearSections: [],
+  proposedKeyIngredientNames: ["Vanille", "Caramel"],
 };
 
 /** Reproduit exactement le défaut observé par le pilote : le modèle n'extrait que la première préparation. */

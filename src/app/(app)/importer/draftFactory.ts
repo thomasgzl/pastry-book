@@ -39,6 +39,7 @@ export function createEmptyDraft(sourceId: string): ImportRecipeDraft {
     sections: [createEmptySection()],
     specificities: [],
     allergens: [],
+    proposedKeyIngredients: [],
     originalFiles: [],
     pastedText: null,
     warnings: [],

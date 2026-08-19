@@ -127,6 +127,13 @@ export type RecipeIngredientRow = {
   confidence: Nullable<string>;
 };
 
+/** `recipe_key_ingredients` — tags de matière première principale curatés (3 à 6 par recette), distinct de `recipe_ingredients` (chaque ligne d'ingrédient). Pas de colonne `id` : clé primaire composite `(recipe_id, canonical_ingredient_id)`. */
+export type RecipeKeyIngredientRow = {
+  recipe_id: string;
+  canonical_ingredient_id: string;
+  position: number;
+};
+
 export type RecipeSpecificityRow = {
   recipe_id: string;
   specificity_id: string;
@@ -214,6 +221,7 @@ export interface Database {
         | "verification_status"
         | "confidence"
       >;
+      recipe_key_ingredients: Table<RecipeKeyIngredientRow, "position">;
       recipe_specificities: Table<RecipeSpecificityRow, "status" | "reason" | "source">;
       recipe_allergens: Table<RecipeAllergenRow, "status">;
       import_batches: Table<ImportBatchRow, "id" | "status" | "created_at">;

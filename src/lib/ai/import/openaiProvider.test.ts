@@ -36,6 +36,7 @@ function minimalParsed(overrides: Record<string, unknown> = {}) {
     extractedPreparationTitles: [],
     completenessStatus: "complete",
     missingOrUnclearSections: [],
+    proposedKeyIngredientNames: [],
     ...overrides,
   };
 }

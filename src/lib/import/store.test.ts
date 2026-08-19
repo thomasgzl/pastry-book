@@ -44,6 +44,7 @@ function draft(overrides: Partial<ImportRecipeDraft> = {}): ImportRecipeDraft {
     ],
     specificities: [],
     allergens: [],
+    proposedKeyIngredients: [],
     originalFiles: [],
     pastedText: null,
     warnings: [],

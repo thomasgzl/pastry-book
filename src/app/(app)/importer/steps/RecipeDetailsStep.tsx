@@ -2,11 +2,15 @@
 
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
-import { deriveQuantity } from "@/lib/import/model";
+import { deriveQuantity, slugify } from "@/lib/import/model";
 import { TITLE_PLACEHOLDER, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { createEmptyIngredient, createEmptySection } from "../draftFactory";
+
+/** Nombre maximal de matières premières principales (F-KEY1, règle produit) — jamais dépassé, même par ajout manuel. */
+const MAX_KEY_INGREDIENTS = 6;
 
 interface RecipeDetailsStepProps {
   draft: ImportRecipeDraft;
@@ -298,6 +302,114 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
           Ajouter une préparation
         </Button>
       </div>
+
+      <Card className="flex flex-col gap-3">
+        <EditorialTitle as="h2">Matières premières principales</EditorialTitle>
+        <p className="text-sm text-cacao/70">
+          3 à 6 ingrédients qui définissent le goût de la recette (fruits, chocolats, épices, alcools…) — jamais farine,
+          beurre, œufs, sucre, sauf exception. Zéro proposition reste normal si aucun ingrédient gustatif n&rsquo;est
+          pertinent.
+        </p>
+        {draft.proposedKeyIngredients.length === 0 && <p className="text-sm text-cacao/60">Aucune proposition pour l&rsquo;instant.</p>}
+        <ul className="flex flex-col gap-2">
+          {draft.proposedKeyIngredients.map((tag, index) => (
+            <li
+              key={tag.kind === "existing" ? tag.canonicalIngredientId : `new-${tag.slug}`}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-grise p-3"
+            >
+              {tag.kind === "new" ? (
+                <>
+                  <Badge>Nouvelle matière première proposée</Badge>
+                  <input
+                    aria-label="Nom de la nouvelle matière première proposée"
+                    type="text"
+                    value={tag.name}
+                    onChange={(event) => {
+                      const name = event.target.value;
+                      onChange((d) => ({
+                        ...d,
+                        proposedKeyIngredients: d.proposedKeyIngredients.map((t, i) =>
+                          i === index && t.kind === "new" ? { ...t, name, slug: slugify(name) } : t,
+                        ),
+                      }));
+                    }}
+                    className={`${inputClasses} max-w-xs`}
+                  />
+                  <select
+                    aria-label="Remplacer par une matière première existante"
+                    value=""
+                    onChange={(event) => {
+                      const canonical = canonicalIngredients.find((c) => c.id === event.target.value);
+                      if (!canonical) return;
+                      onChange((d) => ({
+                        ...d,
+                        proposedKeyIngredients: d.proposedKeyIngredients.map((t, i) =>
+                          i === index
+                            ? { kind: "existing" as const, canonicalIngredientId: canonical.id, name: canonical.name }
+                            : t,
+                        ),
+                      }));
+                    }}
+                    className={`${inputClasses} max-w-xs`}
+                  >
+                    <option value="">Remplacer par une matière première existante…</option>
+                    {canonicalIngredients.map((canonical) => (
+                      <option key={canonical.id} value={canonical.id}>
+                        {canonical.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <span className="text-sm text-cacao">{tag.name}</span>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  onChange((d) => ({
+                    ...d,
+                    proposedKeyIngredients: d.proposedKeyIngredients.filter((_, i) => i !== index),
+                  }))
+                }
+              >
+                Retirer
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Ajouter une matière première principale existante"
+            value=""
+            disabled={draft.proposedKeyIngredients.length >= MAX_KEY_INGREDIENTS}
+            onChange={(event) => {
+              const canonical = canonicalIngredients.find((c) => c.id === event.target.value);
+              if (!canonical) return;
+              onChange((d) => ({
+                ...d,
+                proposedKeyIngredients: [
+                  ...d.proposedKeyIngredients,
+                  { kind: "existing" as const, canonicalIngredientId: canonical.id, name: canonical.name },
+                ],
+              }));
+            }}
+            className={`${inputClasses} max-w-xs`}
+          >
+            <option value="">+ Ajouter une matière première existante</option>
+            {canonicalIngredients
+              .filter((c) => !draft.proposedKeyIngredients.some((tag) => tag.kind === "existing" && tag.canonicalIngredientId === c.id))
+              .map((canonical) => (
+                <option key={canonical.id} value={canonical.id}>
+                  {canonical.name}
+                </option>
+              ))}
+          </select>
+          {draft.proposedKeyIngredients.length >= MAX_KEY_INGREDIENTS && (
+            <p className="text-xs text-cacao/60">Maximum de {MAX_KEY_INGREDIENTS} matières premières principales atteint.</p>
+          )}
+        </div>
+      </Card>
 
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Spécificités</EditorialTitle>

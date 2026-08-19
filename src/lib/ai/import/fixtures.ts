@@ -46,6 +46,9 @@ export const DEMO_FIXTURES: Record<DemoFixtureId, DemoFixture> = {
         },
       ],
       warnings: [],
+      // Pommes/Cannelle : gustatifs, aucune correspondance dans le
+      // référentiel de démonstration → deux propositions "new" (F-KEY1).
+      proposedKeyIngredientNames: ["Pommes", "Cannelle"],
     },
   },
   "hennessy-tartelette-citron": {
@@ -88,6 +91,9 @@ export const DEMO_FIXTURES: Record<DemoFixtureId, DemoFixture> = {
         },
       ],
       warnings: [],
+      // "Jus de citron" → préfixe retiré, résolu vers le canonique existant
+      // "Citron" (F-KEY1, démonstration du dédoublonnage).
+      proposedKeyIngredientNames: ["Jus de citron"],
     },
   },
   "capture-illisible": {
@@ -114,6 +120,9 @@ export const DEMO_FIXTURES: Record<DemoFixtureId, DemoFixture> = {
         },
       ],
       warnings: ["Quantité du « Beurre » illisible sur la capture — laissée « À vérifier », jamais estimée."],
+      // "Poudre de noisette" → préfixe retiré, résolu vers le canonique
+      // existant "Noisette" (F-KEY1).
+      proposedKeyIngredientNames: ["Poudre de noisette"],
     },
   },
 };

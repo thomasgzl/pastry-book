@@ -105,7 +105,16 @@ Contrôle de complétude — obligatoire à chaque réponse, jamais optionnel :
 - "extractedPreparationTitles" : les titres pour lesquels tu as effectivement produit une entrée dans "sections" — même ordre, même nombre que "sections".
 - "completenessStatus" : "complete" SEULEMENT si "detectedPreparationTitles" et "extractedPreparationTitles" contiennent exactement les mêmes titres, dans le même nombre, et que le document ne semble pas coupé/tronqué. "possibly_incomplete" en cas de doute (ex. bas de page qui semble manquant). "needs_review" si tu sais qu'au moins un titre détecté n'a pas été extrait.
 - "missingOrUnclearSections" : titres détectés mais non extraits, ou zones illisibles empêchant une extraction complète — tableau vide si aucun.
-Ne déclare jamais "complete" uniquement parce que la structure JSON est valide : ce champ reflète la complétude RÉELLE par rapport au document, pas la validité du format.`;
+Ne déclare jamais "complete" uniquement parce que la structure JSON est valide : ce champ reflète la complétude RÉELLE par rapport au document, pas la validité du format.
+
+Matières premières principales — "proposedKeyIngredientNames", obligatoire à chaque réponse (tableau vide si aucune) :
+- Sélectionne UNIQUEMENT les ingrédients qui définissent l'identité gustative de la recette : fruits, agrumes, fruits à coque, chocolats, pralinés, cafés, vanilles, épices, alcools, caramels, thés, herbes aromatiques, ou tout autre ingrédient à identité gustative claire.
+- Ignore TOUJOURS farine, beurre, œufs, lait, crème, sucre, glucose, sel, huiles neutres, levures, gélifiants, épaississants, stabilisants, poudres à lever, eau — sauf si l'un de ces ingrédients constitue EXCEPTIONNELLEMENT la saveur principale affichée de la recette (rarissime).
+- Un ingrédient présent en quantité minime ou purement technique (texture, conservation) ne devient jamais un tag.
+- Entre 0 et 6 tags, idéalement 3 à 6 quand assez d'ingrédients gustatifs pertinents existent réellement dans la recette. Ne complète JAMAIS artificiellement jusqu'à 3 : 0, 1 ou 2 tags sont des réponses valides si la recette n'a pas assez d'ingrédients gustatifs distincts.
+- Règle chocolat : regroupe TOUJOURS "chocolat" seul, "chocolat 55/64/70 %" (ou toute autre teneur, sans mention de lait), "couverture" suivi seulement d'un pourcentage, et "chocolat noir" vers le même tag "Chocolat noir". "chocolat au lait" devient "Chocolat au lait". "chocolat blanc" devient "Chocolat blanc". "Dulcey" ou "chocolat blond" devient "Chocolat blond Dulcey". Ne regroupe JAMAIS si une variante est explicitement nommée (ex. "chocolat noisette", "chocolat praliné" restent des tags distincts, jamais fondus dans "Chocolat noir").
+- Normalise chaque nom de tag avant de le renvoyer : ignore casse/accents/singulier-pluriel simple/variations typographiques, retire les préfixes "jus de", "zeste de", "purée de", "poudre de", "pâte de" quand ils désignent le même ingrédient principal (ex. "jus de citron"/"zeste de citron"/"purée de citron" → "Citron" ; "gousse de vanille"/"vanille liquide"/"poudre de vanille" → "Vanille" ; "café soluble"/"extrait de café"/"grains de café" → "Café" ; "pâte de pistache"/"pistaches torréfiées" → "Pistache"). Cette normalisation ne s'applique QU'au nom du tag renvoyé ici, jamais au libellé original d'un ingrédient dans "sections".
+- N'invente jamais un ingrédient qui n'est pas explicitement dans la recette.`;
 
 const EXTRACTION_INSTRUCTIONS =
   "Extrait la recette ci-dessous selon les règles strictes définies dans les instructions système. Réponds uniquement avec la structure demandée.";
@@ -155,6 +164,8 @@ const modelExtractionSchema = z.object({
   extractedPreparationTitles: z.array(z.string().min(1)),
   completenessStatus: completenessStatusSchema,
   missingOrUnclearSections: z.array(z.string().min(1)),
+  /** Noms bruts (pas encore résolus vers un identifiant canonique) — voir `RawExtractionResult.proposedKeyIngredientNames`. Requis (jamais `.optional()`, même raison que les champs de complétude ci-dessus) ; tableau vide accepté et attendu quand aucun ingrédient gustatif pertinent n'existe. */
+  proposedKeyIngredientNames: z.array(z.string().min(1)),
 });
 type ModelExtraction = z.infer<typeof modelExtractionSchema>;
 
@@ -263,6 +274,7 @@ function toRawExtractionResult(
     sections: data.sections,
     warnings: [...withMissingQuantityWarnings(data), ...extraWarnings],
     completeness,
+    proposedKeyIngredientNames: data.proposedKeyIngredientNames,
   };
 }
 
