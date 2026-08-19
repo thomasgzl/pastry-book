@@ -127,3 +127,44 @@ export function combineAdditionalInformation(draft: Pick<ImportRecipeDraft, "pro
   if (draft.additionalInformation) parts.push(draft.additionalInformation);
   return parts.length > 0 ? parts.join("\n\n") : null;
 }
+
+/**
+ * Inverse de `combineAdditionalInformation` — utilisé par la modification
+ * manuelle d'une recette déjà enregistrée pour repeupler les trois champs
+ * séparés du formulaire à partir du seul champ combiné stocké en base.
+ * Round-trip stable avec `combineAdditionalInformation` tant que le texte
+ * combiné n'a pas été modifié ailleurs (ex. directement en base) : dans ce
+ * cas plus rare, tout le texte retombe dans `additionalInformation`, jamais
+ * perdu ni deviné.
+ * ponytail: repère les préfixes seulement à leur première occurrence, pas de
+ * vrai parseur — un paragraphe d'information complémentaire qui commencerait
+ * lui-même par « Procédé : » ou « Température : » serait mal reclassé ; à
+ * durcir si ce cas réel se présente.
+ */
+export function splitAdditionalInformation(combined: string | null): {
+  procedure: string | null;
+  temperature: string | null;
+  additionalInformation: string | null;
+} {
+  if (!combined) return { procedure: null, temperature: null, additionalInformation: null };
+
+  const PROCEDURE_PREFIX = "Procédé : ";
+  const TEMPERATURE_PREFIX = "Température : ";
+  let procedure: string | null = null;
+  let temperature: string | null = null;
+  const rest: string[] = [];
+
+  for (const part of combined.split("\n\n")) {
+    if (procedure === null && part.startsWith(PROCEDURE_PREFIX)) {
+      procedure = part.slice(PROCEDURE_PREFIX.length);
+      continue;
+    }
+    if (temperature === null && part.startsWith(TEMPERATURE_PREFIX)) {
+      temperature = part.slice(TEMPERATURE_PREFIX.length);
+      continue;
+    }
+    rest.push(part);
+  }
+
+  return { procedure, temperature, additionalInformation: rest.length > 0 ? rest.join("\n\n") : null };
+}

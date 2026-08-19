@@ -187,6 +187,40 @@ export interface RecipeDetail {
   keyIngredients: RecipeKeyIngredient[];
 }
 
+export interface RecipeEditData {
+  recipe: Recipe;
+  /** Préparations complètes (avec `originalText`, jamais tronquées) dans
+   * leur ordre `position` d'origine — distinct de `RecipeSectionWithIngredients`
+   * (assemblage d'affichage de `getRecipeDetail`, qui omet `originalText`) :
+   * la modification manuelle doit pouvoir reconduire ce texte source
+   * inchangé si la personne ne le touche pas (CLAUDE.md, principe 4). */
+  sections: RecipeSection[];
+  /** Ingrédients de toutes les préparations ci-dessus, dans leur ordre `position` d'origine. */
+  ingredients: RecipeIngredient[];
+}
+
+/**
+ * Données brutes nécessaires à la modification manuelle d'une recette déjà
+ * enregistrée — distinct de `getRecipeDetail` (assemblage d'AFFICHAGE de la
+ * fiche, pas d'édition). Le brouillon d'édition proprement dit
+ * (`ImportRecipeDraft`) est construit à partir de ceci par
+ * `src/lib/recipes/editDraft.ts` (hors de cette couche de lecture, pour ne
+ * pas faire dépendre `src/lib/data/*` du module d'import).
+ */
+export async function getRecipeEditData(slug: string): Promise<RecipeEditData | undefined> {
+  const recipe = await getRecipeBySlug(slug);
+  if (!recipe) return undefined;
+
+  const [allSections, allIngredients] = await Promise.all([allRecipeSections(), allRecipeIngredients()]);
+  const sections = allSections.filter((section) => section.recipeId === recipe.id).sort((a, b) => a.position - b.position);
+  const sectionIds = new Set(sections.map((section) => section.id));
+  const ingredients = allIngredients
+    .filter((ingredient) => sectionIds.has(ingredient.recipeSectionId))
+    .sort((a, b) => a.position - b.position);
+
+  return { recipe, sections, ingredients };
+}
+
 /**
  * Assemble la fiche recette complète (C5) : recette, source, catégorie
  * locale (si présente), préparations ordonnées avec leurs ingrédients

@@ -3,6 +3,7 @@ import {
   combineAdditionalInformation,
   importIngredientDraftSchema,
   importRecipeDraftSchema,
+  splitAdditionalInformation,
   TITLE_PLACEHOLDER,
 } from "./schema";
 
@@ -99,5 +100,25 @@ describe("combineAdditionalInformation", () => {
     expect(combined).toContain("Procédé : Cuisson à blanc 15 min");
     expect(combined).toContain("Dresser juste avant le service.");
     expect(combined).not.toContain("Température");
+  });
+});
+
+describe("splitAdditionalInformation", () => {
+  it("retourne trois champs null quand le texte combiné est absent", () => {
+    expect(splitAdditionalInformation(null)).toEqual({ procedure: null, temperature: null, additionalInformation: null });
+  });
+
+  it("est l'inverse de combineAdditionalInformation (round-trip)", () => {
+    const original = { procedure: "Cuisson à blanc 15 min", temperature: "180°C", additionalInformation: "Dresser juste avant le service." };
+    const combined = combineAdditionalInformation(original);
+    expect(splitAdditionalInformation(combined)).toEqual(original);
+  });
+
+  it("texte libre sans préfixe reconnu → tout dans additionalInformation, jamais perdu", () => {
+    expect(splitAdditionalInformation("Un texte libre déjà en base avant ce format.")).toEqual({
+      procedure: null,
+      temperature: null,
+      additionalInformation: "Un texte libre déjà en base avant ce format.",
+    });
   });
 });

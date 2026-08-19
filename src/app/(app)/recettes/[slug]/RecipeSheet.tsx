@@ -25,6 +25,7 @@ import type { ReactNode } from "react";
 import type { RecipeIngredient } from "@/lib/domain/schemas";
 import { SpecificityBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
 import { WarningIcon } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CoefficientControl } from "@/components/ui/CoefficientControl";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
@@ -112,12 +113,19 @@ export function RecipeSheet({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <EditorialTitle>{title}</EditorialTitle>
-        <p className="text-cacao/70">
-          {sourceName}
-          {categoryName ? ` · ${categoryName}` : ""}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <EditorialTitle>{title}</EditorialTitle>
+          <p className="text-cacao/70">
+            {sourceName}
+            {categoryName ? ` · ${categoryName}` : ""}
+          </p>
+        </div>
+        <Link href={`/recettes/${slug}/modifier`}>
+          <Button type="button" variant="secondary">
+            Modifier
+          </Button>
+        </Link>
       </div>
 
       <div className="mx-auto w-full sm:max-w-xl lg:max-w-md">{visual}</div>

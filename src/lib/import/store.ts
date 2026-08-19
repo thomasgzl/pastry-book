@@ -808,3 +808,94 @@ export async function getSavedRecipes(): Promise<Recipe[]> {
   if (!hasSupabaseConfig()) return getSavedRecipesMemory();
   return getSavedRecipesSupabase(createSupabaseAdminClient());
 }
+
+// ============================================================
+// Modification manuelle d'une recette déjà enregistrée
+// ============================================================
+
+export interface UpdateRecipeParams {
+  recipeId: string;
+  draft: ImportRecipeDraft;
+}
+
+/**
+ * Miroir minimal de `.rpc()` pour `update_recipe` — même raison que
+ * `UntypedRpcClient` ci-dessus (contrat `Database["public"]["Functions"]`
+ * gelé, cast local à ce seul appel serveur privilégié).
+ */
+type UntypedUpdateRpcClient = {
+  rpc(fn: "update_recipe", args: { payload: Record<string, unknown> }): Promise<{
+    data: RecipeRow | null;
+    error: { message: string } | null;
+  }>;
+};
+
+async function callUpdateRecipeRpc(client: SupabaseAdminClient, payload: Record<string, unknown>): Promise<RecipeRow> {
+  const { data, error } = await (client as unknown as UntypedUpdateRpcClient).rpc("update_recipe", { payload });
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Réponse vide de la transaction de mise à jour de la recette.");
+  }
+  return data;
+}
+
+/**
+ * Met à jour une recette déjà enregistrée — écriture unique via
+ * `update_recipe` (fonction Postgres, voir
+ * `supabase/migrations/20260819100000_update_recipe_rpc.sql`), atomique :
+ * recette + préparations + ingrédients + spécificités remplacés ensemble ou
+ * pas du tout. Ne touche jamais le slug, la photo, l'illustration, le
+ * document source ni les allergènes (voir l'en-tête de la migration).
+ */
+async function updateRecipeSupabase(client: SupabaseAdminClient, params: UpdateRecipeParams): Promise<Recipe> {
+  const { recipeId, draft } = params;
+
+  const payload: Record<string, unknown> = {
+    recipeId,
+    sourceId: draft.sourceId,
+    sourceCategoryId: draft.sourceCategoryId,
+    title: draft.title,
+    additionalInformation: combineAdditionalInformation(draft),
+    sections: draft.sections.map((section) => ({
+      name: section.name,
+      originalText: section.originalText,
+      ingredients: section.ingredients.map((ingredient, index) => ({
+        originalName: ingredient.originalName,
+        canonicalIngredientId: ingredient.canonicalIngredientId,
+        originalQuantityText: ingredient.originalQuantityText,
+        quantityDecimal: ingredient.quantityDecimal,
+        unit: ingredient.unit,
+        position: index,
+        verificationStatus: ingredient.verificationStatus,
+      })),
+    })),
+    specificities: draft.specificities.map((entry) => ({
+      specificityId: entry.specificityId,
+      status: entry.status,
+      reason: entry.reason,
+      source: entry.source,
+    })),
+  };
+
+  const row = await callUpdateRecipeRpc(client, payload);
+  return mapRecipeRow(row);
+}
+
+/**
+ * Repli mémoire (dev local sans Supabase configuré) : la modification
+ * manuelle n'y est pas prise en charge — le jeu de démonstration
+ * (`@/lib/demo/data`) est un tableau statique en lecture seule, et rien de
+ * réel n'est jamais persisté sans Supabase configuré. Échec explicite plutôt
+ * qu'une modification qui semblerait fonctionner sans jamais rien
+ * enregistrer (CLAUDE.md : jamais un échec silencieux).
+ */
+export async function updateRecipe(params: UpdateRecipeParams): Promise<Recipe> {
+  if (!hasSupabaseConfig()) {
+    throw new Error(
+      "Modification d'une recette indisponible sans Supabase configuré (mode démonstration, lecture seule).",
+    );
+  }
+  return updateRecipeSupabase(createSupabaseAdminClient(), params);
+}

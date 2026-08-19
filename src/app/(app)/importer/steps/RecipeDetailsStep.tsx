@@ -14,6 +14,13 @@ interface RecipeDetailsStepProps {
   specificities: Specificity[];
   allergens: Allergen[];
   onChange: (updater: (draft: ImportRecipeDraft) => ImportRecipeDraft) => void;
+  /** Faux pour la modification manuelle d'une recette déjà enregistrée : la
+   * fiche recette n'affiche plus les allergènes (voir `RecipeSheet`) et leur
+   * modification n'est pas prise en charge par ce formulaire dans ce
+   * contexte — masquer plutôt qu'afficher un bloc dont les changements ne
+   * seraient jamais enregistrés (CLAUDE.md, aucune rubrique trompeuse).
+   * Vrai par défaut (comportement de l'import, inchangé). */
+  showAllergens?: boolean;
 }
 
 const inputClasses =
@@ -41,7 +48,7 @@ function moveSection(draft: ImportRecipeDraft, index: number, direction: -1 | 1)
  * modifiable, pas d'écran séparé purement en lecture). Aucune section
  * n'impose de préparation nommée (liste simple valide, CAP minimale).
  */
-export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, allergens, onChange }: RecipeDetailsStepProps) {
+export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, allergens, onChange, showAllergens = true }: RecipeDetailsStepProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -357,6 +364,7 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
         </div>
       </Card>
 
+      {showAllergens && (
       <Card className="flex flex-col gap-3">
         <EditorialTitle as="h2">Allergènes</EditorialTitle>
         {draft.allergens.length === 0 && <p className="text-sm text-cacao/60">Aucune proposition pour l&rsquo;instant.</p>}
@@ -410,6 +418,7 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
             ))}
         </div>
       </Card>
+      )}
     </div>
   );
 }
