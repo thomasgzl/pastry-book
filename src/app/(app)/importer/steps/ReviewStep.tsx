@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,6 +9,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
+import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
 import type { ImportDuplicateMatch } from "@/lib/import/store";
 
 /** Libellé humain par nature de différence K4 — jamais un identifiant technique affiché tel quel. */
@@ -76,6 +78,14 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const canonicalById = new Map(canonicalIngredients.map((c) => [c.id, c]));
   const hasAdditional = Boolean(draft.additionalInformation || draft.procedure || draft.temperature);
+  // Même autorité déterministe que `RecipeDetailsStep` (aucun appel IA) —
+  // purement informatif ici, l'écran de vérification n'édite plus les
+  // ingrédients : une spécificité incompatible a déjà été retirée des
+  // spécificités confirmées à l'étape précédente (CLAUDE.md, principe 9).
+  const specificityEvaluation = useMemo(
+    () => evaluateRecipeSpecificities(draft.sections, canonicalIngredients),
+    [draft.sections, canonicalIngredients],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -253,13 +263,22 @@ export function ReviewStep({
       {draft.specificities.length > 0 && (
         <Card className="flex flex-col gap-2">
           <p className="text-sm font-medium text-cacao">Spécificités</p>
-          <div className="flex flex-wrap gap-2 text-sm text-cacao">
+          <div className="flex flex-col gap-1.5 text-sm text-cacao">
             {draft.specificities.map((entry) => {
               const specificity = specificities.find((s) => s.id === entry.specificityId);
+              const evalEntry =
+                specificity && isValidatedSpecificitySlug(specificity.slug) ? specificityEvaluation[specificity.slug] : undefined;
               return (
-                <span key={entry.specificityId} className="rounded-full border border-grise bg-avoine px-2.5 py-1">
-                  {specificity?.name} ({entry.status === "confirmed" ? "confirmé" : entry.status === "rejected" ? "rejeté" : "à vérifier"})
-                </span>
+                <div key={entry.specificityId} className="flex flex-col gap-0.5">
+                  <span className="w-fit rounded-full border border-grise bg-avoine px-2.5 py-1">
+                    {specificity?.name} ({entry.status === "confirmed" ? "confirmé" : entry.status === "rejected" ? "rejeté" : "à vérifier"})
+                  </span>
+                  {evalEntry && evalEntry.state !== "unverified" && (
+                    <span className={`text-xs ${evalEntry.state === "incompatible" ? "font-medium text-brunrouge" : "text-brunrouge/80"}`}>
+                      {evalEntry.message}
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -97,11 +97,29 @@ export const recipeIngredientSchema = z.object({
 });
 export type RecipeIngredient = z.infer<typeof recipeIngredientSchema>;
 
+/**
+ * Tri-état de classification allergène : `true` (présence certaine), `false`
+ * (absence certaine / version explicitement compatible), `unknown`
+ * (information insuffisante). Volontairement pas un booléen JS pour éviter
+ * toute confusion `null`/`false`.
+ */
+export const tristateSchema = z.enum(["true", "false", "unknown"]);
+export type Tristate = z.infer<typeof tristateSchema>;
+
 export const canonicalIngredientSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
   slug: z.string().min(1),
   parentId: z.uuid().nullable(),
+  /**
+   * Source de vérité unique par matière première canonique — ne pas
+   * disperser de recherche par mots-clés ailleurs dans le code applicatif.
+   * Un alias (`ingredient_aliases`) hérite toujours de cette classification
+   * via son `canonicalIngredientId`, sans colonne dupliquée.
+   */
+  containsGluten: tristateSchema,
+  containsLactose: tristateSchema,
+  containsTreeNuts: tristateSchema,
 });
 export type CanonicalIngredient = z.infer<typeof canonicalIngredientSchema>;
 

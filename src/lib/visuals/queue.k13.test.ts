@@ -19,6 +19,9 @@ const NEW_CANONICAL_INGREDIENT: CanonicalIngredient = {
   name: "Fruit de la passion (K13 test)",
   slug: "fruit-de-la-passion-k13-test",
   parentId: null,
+  containsGluten: "unknown",
+  containsLactose: "unknown",
+  containsTreeNuts: "unknown",
 };
 
 vi.mock("@/lib/data/canonical-ingredients", async (importOriginal) => {

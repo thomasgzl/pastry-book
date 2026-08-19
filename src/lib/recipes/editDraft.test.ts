@@ -34,7 +34,7 @@ const INGREDIENT: RecipeIngredient = {
 
 const SPECIFICITY: RecipeSpecificity = { recipeId: "recipe-1", specificityId: "spec-1", status: "confirmed", reason: null, source: "manual" };
 
-const NOISETTE: CanonicalIngredient = { id: "canonical-noisette", name: "Noisette", slug: "noisette", parentId: null };
+const NOISETTE: CanonicalIngredient = { id: "canonical-noisette", name: "Noisette", slug: "noisette", parentId: null, containsGluten: "unknown", containsLactose: "unknown", containsTreeNuts: "true" };
 
 describe("buildEditDraft", () => {
   it("repeuple titre/source/catégorie/procédé/température/informations à partir du champ combiné", () => {

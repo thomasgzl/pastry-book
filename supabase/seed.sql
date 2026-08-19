@@ -56,13 +56,18 @@ insert into source_categories (source_id, name, slug, position) values
 -- canonical_ingredients
 -- ============================================================
 
-insert into canonical_ingredients (name, slug) values
-  ('Citron', 'citron'),
-  ('Pistache', 'pistache'),
-  ('Chocolat', 'chocolat'),
-  ('Vanille', 'vanille'),
-  ('Noisette', 'noisette'),
-  ('Poire', 'poire');
+-- contains_tree_nuts renseigné explicitement pour Pistache et Noisette
+-- (fruits à coque sans ambiguïté). Les autres colonnes de classification et
+-- les autres ingrédients restent au défaut 'unknown' : aucune mention
+-- explicite ne permet de trancher sans risque d'invention (ex. « Chocolat »
+-- générique, sans précision « au lait », reste 'unknown' pour le lactose).
+insert into canonical_ingredients (name, slug, contains_tree_nuts) values
+  ('Citron', 'citron', default),
+  ('Pistache', 'pistache', 'true'),
+  ('Chocolat', 'chocolat', default),
+  ('Vanille', 'vanille', default),
+  ('Noisette', 'noisette', 'true'),
+  ('Poire', 'poire', default);
 
 -- ============================================================
 -- ingredient_aliases — tous reliés au canonique Citron. Ces libellés exacts

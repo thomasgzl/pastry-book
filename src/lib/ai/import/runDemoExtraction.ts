@@ -18,7 +18,12 @@ import type {
   ImportSpecificityDraft,
 } from "@/lib/import/schema";
 import { deriveQuantity } from "@/lib/import/model";
-import type { ProposedKeyIngredientTag } from "@/lib/domain/schemas";
+import {
+  evaluateRecipeSpecificities,
+  isValidatedSpecificitySlug,
+  VALIDATED_SPECIFICITY_SLUGS,
+} from "@/lib/import/specificityValidation";
+import type { ProposedKeyIngredientTag, Specificity } from "@/lib/domain/schemas";
 import { demoImportProvider } from "./demoProvider";
 import { ambiguousIngredientWarnings, resolveKeyIngredientTags } from "./rules";
 import { DEMO_FIXTURES, type DemoFixture, type DemoFixtureId } from "./fixtures";
@@ -95,6 +100,38 @@ async function buildSectionDraft(provider: ImportAIProvider, section: ExtractedS
   };
 }
 
+/**
+ * Traduit l'évaluation déterministe (`evaluateRecipeSpecificities`) en
+ * propositions d'import pour les 3 spécificités contrôlées — jamais
+ * `confirmed` (seule une action humaine explicite confirme, CLAUDE.md
+ * principe 8) : `incompatible` n'est même pas proposée (rien à confirmer,
+ * l'incompatibilité est certaine) ; `needs_review`/`unverified` restent
+ * `proposed`, avec la raison réellement calculée (jamais le texte générique
+ * de l'ancienne règle par mot-clé pour ces 3 slugs).
+ */
+function buildControlledSpecificityDrafts(
+  evaluation: ReturnType<typeof evaluateRecipeSpecificities>,
+  specificityBySlug: Map<string, Specificity>,
+): ImportSpecificityDraft[] {
+  const drafts: ImportSpecificityDraft[] = [];
+  for (const slug of Object.values(VALIDATED_SPECIFICITY_SLUGS)) {
+    const specificity = specificityBySlug.get(slug);
+    if (!specificity) continue; // spécificité non disponible dans ce référentiel — rien à proposer
+    const result = evaluation[slug];
+    if (result.state === "incompatible") continue;
+    drafts.push({
+      specificityId: specificity.id,
+      status: "proposed",
+      reason:
+        result.state === "needs_review"
+          ? result.message
+          : "Aucun ingrédient incompatible identifié dans la liste — liste possiblement incomplète, à vérifier.",
+      source: "rule",
+    });
+  }
+  return drafts;
+}
+
 /** Défaut déterministe quand le fournisseur ne calcule pas de contrôle de complétude (démonstration, repli manuel) — toutes les préparations produites sont par construction celles attendues. */
 function defaultCompleteness(sections: ImportSectionDraft[]): ExtractionCompleteness {
   const titles = sections.map((section, index) => section.name ?? `Préparation ${index + 1}`);
@@ -119,6 +156,11 @@ export async function buildImportDraft(
   const allIngredients = raw.sections.flatMap((section) => section.ingredients);
   const sections = await Promise.all(raw.sections.map((section) => buildSectionDraft(provider, section)));
 
+  // Chargé une seule fois, réutilisé ci-dessous pour la validation des
+  // spécificités contrôlées ET la résolution des matières premières
+  // principales (F-KEY1) — jamais un second appel redondant.
+  const canonicalIngredients = await getCanonicalIngredients();
+
   const allergenProposals = await provider.proposeAllergens(allIngredients);
   const allergenBySlug = new Map((await getAllergens()).map((a) => [a.slug, a]));
   const allergens: ImportAllergenDraft[] = allergenProposals
@@ -128,9 +170,18 @@ export async function buildImportDraft(
     })
     .filter((entry): entry is ImportAllergenDraft => entry !== null);
 
+  // Gluten free / Sans lactose / Sans fruits à coque : autorité EXCLUSIVE de
+  // `evaluateRecipeSpecificities` (déterministe, aucun appel IA) — les
+  // propositions du fournisseur pour ces 3 slugs sont ignorées, jamais
+  // fusionnées avec cette évaluation (CLAUDE.md, principe 9). Les autres
+  // spécificités (ex. Vegan) restent inchangées, portées par
+  // `proposeSpecificitiesFromIngredients` (rules.ts).
   const specificityProposals = await provider.proposeSpecificities(allIngredients);
-  const specificityBySlug = new Map((await getSpecificities()).map((s) => [s.slug, s]));
-  const specificities: ImportSpecificityDraft[] = specificityProposals
+  const allSpecificities = await getSpecificities();
+  const specificityBySlug = new Map(allSpecificities.map((s) => [s.slug, s]));
+
+  const nonControlledSpecificities: ImportSpecificityDraft[] = specificityProposals
+    .filter((proposal) => !isValidatedSpecificitySlug(proposal.specificitySlug))
     .map((proposal) => {
       const specificity = specificityBySlug.get(proposal.specificitySlug);
       return specificity
@@ -138,6 +189,10 @@ export async function buildImportDraft(
         : null;
     })
     .filter((entry): entry is ImportSpecificityDraft => entry !== null);
+
+  const specificityEvaluation = evaluateRecipeSpecificities(sections, canonicalIngredients);
+  const controlledSpecificities = buildControlledSpecificityDrafts(specificityEvaluation, specificityBySlug);
+  const specificities: ImportSpecificityDraft[] = [...nonControlledSpecificities, ...controlledSpecificities];
 
   const originalFiles: ImportFileRef[] = fileList.map((file) => ({
     name: file.name,
@@ -150,13 +205,10 @@ export async function buildImportDraft(
   // respecter les règles de sélection/regroupement/normalisation du prompt,
   // résolus ici contre le référentiel réellement chargé (démo ou Supabase,
   // jamais un référentiel figé) — jamais avant ce point.
-  const [keyIngredientCanonicalIngredients, keyIngredientAliases] = await Promise.all([
-    getCanonicalIngredients(),
-    getIngredientAliases(),
-  ]);
+  const keyIngredientAliases = await getIngredientAliases();
   const proposedKeyIngredients = resolveKeyIngredientTags(
     raw.proposedKeyIngredientNames ?? [],
-    keyIngredientCanonicalIngredients,
+    canonicalIngredients,
     keyIngredientAliases,
   );
 

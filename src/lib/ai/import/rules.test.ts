@@ -99,8 +99,8 @@ describe("normalizeKeyIngredientName (F-KEY1)", () => {
 });
 
 describe("resolveKeyIngredientTags (F-KEY1, dédoublonnage à la proposition)", () => {
-  const CITRON: CanonicalIngredient = { id: "id-citron", name: "Citron", slug: "citron", parentId: null };
-  const NOISETTE: CanonicalIngredient = { id: "id-noisette", name: "Noisette", slug: "noisette", parentId: null };
+  const CITRON: CanonicalIngredient = { id: "id-citron", name: "Citron", slug: "citron", parentId: null, containsGluten: "unknown", containsLactose: "unknown", containsTreeNuts: "unknown" };
+  const NOISETTE: CanonicalIngredient = { id: "id-noisette", name: "Noisette", slug: "noisette", parentId: null, containsGluten: "unknown", containsLactose: "unknown", containsTreeNuts: "unknown" };
   const CANONICAL = [CITRON, NOISETTE];
   const ALIASES: IngredientAlias[] = [
     { id: "alias-1", canonicalIngredientId: NOISETTE.id, alias: "éclats de noisette", normalizedAlias: "eclats de noisette", status: "confirmed" },

@@ -60,11 +60,46 @@ import type {
   SourceCategory,
 } from "@/lib/domain/schemas";
 import { getSources } from "@/lib/data/sources";
+import { getCanonicalIngredients } from "@/lib/data/canonical-ingredients";
+import { getSpecificities } from "@/lib/data/specificities";
 import { combineAdditionalInformation, IMPORT_SCHEMA_VERSION, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
 import { findDuplicateRecipe, slugify } from "@/lib/import/model";
 import { normalizeText } from "@/lib/recipes/search";
 import { normalizeKeyIngredientName } from "@/lib/ai/import/rules";
+import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
 import { SOURCE_BUCKET } from "@/lib/import/sourceUpload";
+
+/**
+ * Ré-exécute la validation déterministe de cohérence (Gluten free / Sans
+ * lactose / Sans fruits à coque, `specificityValidation.ts`) juste avant
+ * CHAQUE enregistrement définitif — jamais confiance dans ce qu'envoie le
+ * client, même un brouillon déjà passé par l'écran de vérification
+ * (contournement direct de la Server Action possible). Choix assumé : une
+ * spécificité `confirmed` réellement `incompatible` REJETTE tout
+ * l'enregistrement (erreur explicite), plutôt qu'une rétrogradation
+ * automatique et silencieuse — cohérent avec `unwrap()` plus haut dans ce
+ * fichier (jamais un enregistrement partiel ou une correction non signalée
+ * à la place de la personne, CLAUDE.md). L'écran de vérification empêche déjà
+ * ce cas en usage normal (voir `RecipeDetailsStep.tsx`) : cette fonction est
+ * la garantie de sécurité pour un appel direct qui l'aurait contourné.
+ */
+async function assertSpecificitiesCoherent(draft: ImportRecipeDraft): Promise<void> {
+  const [canonicalIngredients, allSpecificities] = await Promise.all([getCanonicalIngredients(), getSpecificities()]);
+  const specificityById = new Map(allSpecificities.map((s) => [s.id, s]));
+  const evaluation = evaluateRecipeSpecificities(draft.sections, canonicalIngredients);
+
+  for (const entry of draft.specificities) {
+    if (entry.status !== "confirmed") continue;
+    const specificity = specificityById.get(entry.specificityId);
+    if (!specificity || !isValidatedSpecificitySlug(specificity.slug)) continue;
+    const result = evaluation[specificity.slug];
+    if (result.state === "incompatible") {
+      throw new Error(
+        `Enregistrement refusé : « ${specificity.name} » est incompatible avec les ingrédients de la recette (${result.responsibleIngredients.join(", ")}). Retirez cette spécificité ou corrigez les ingrédients avant d'enregistrer.`,
+      );
+    }
+  }
+}
 
 type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
@@ -917,6 +952,7 @@ export async function checkDuplicate(title: string, sourceId: string): Promise<{
 }
 
 export async function saveImportRecipe(params: SaveImportRecipeParams): Promise<SaveImportRecipeResult> {
+  await assertSpecificitiesCoherent(params.draft);
   if (!hasSupabaseConfig()) return saveImportRecipeMemory(params);
   return saveImportRecipeSupabase(createSupabaseAdminClient(), params);
 }
@@ -1034,6 +1070,7 @@ async function updateRecipeSupabase(client: SupabaseAdminClient, params: UpdateR
  * enregistrer (CLAUDE.md : jamais un échec silencieux).
  */
 export async function updateRecipe(params: UpdateRecipeParams): Promise<Recipe> {
+  await assertSpecificitiesCoherent(params.draft);
   if (!hasSupabaseConfig()) {
     throw new Error(
       "Modification d'une recette indisponible sans Supabase configuré (mode démonstration, lecture seule).",

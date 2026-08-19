@@ -114,13 +114,19 @@ const INGREDIENT_ID = {
   poire: "00000000-0000-4000-8000-000000000206",
 } as const;
 
+// Classification allergène (tâche K17, migration 20260819130000) : source de
+// vérité par matière première canonique — voir `specificityValidation.ts`
+// pour la logique de résolution ligne par ligne. Chocolat générique reste
+// `containsLactose: "unknown"` (composition — noir/lait/blanc — non précisée
+// tant que la variante n'est pas indiquée) ; Pistache/Noisette portent
+// `containsTreeNuts: "true"` (même backfill que `supabase/seed.sql`).
 export const canonicalIngredients: CanonicalIngredient[] = [
-  { id: INGREDIENT_ID.citron, name: "Citron", slug: "citron", parentId: null },
-  { id: INGREDIENT_ID.pistache, name: "Pistache", slug: "pistache", parentId: null },
-  { id: INGREDIENT_ID.chocolat, name: "Chocolat", slug: "chocolat", parentId: null },
-  { id: INGREDIENT_ID.vanille, name: "Vanille", slug: "vanille", parentId: null },
-  { id: INGREDIENT_ID.noisette, name: "Noisette", slug: "noisette", parentId: null },
-  { id: INGREDIENT_ID.poire, name: "Poire", slug: "poire", parentId: null },
+  { id: INGREDIENT_ID.citron, name: "Citron", slug: "citron", parentId: null, containsGluten: "false", containsLactose: "false", containsTreeNuts: "false" },
+  { id: INGREDIENT_ID.pistache, name: "Pistache", slug: "pistache", parentId: null, containsGluten: "false", containsLactose: "false", containsTreeNuts: "true" },
+  { id: INGREDIENT_ID.chocolat, name: "Chocolat", slug: "chocolat", parentId: null, containsGluten: "false", containsLactose: "unknown", containsTreeNuts: "false" },
+  { id: INGREDIENT_ID.vanille, name: "Vanille", slug: "vanille", parentId: null, containsGluten: "false", containsLactose: "false", containsTreeNuts: "false" },
+  { id: INGREDIENT_ID.noisette, name: "Noisette", slug: "noisette", parentId: null, containsGluten: "false", containsLactose: "false", containsTreeNuts: "true" },
+  { id: INGREDIENT_ID.poire, name: "Poire", slug: "poire", parentId: null, containsGluten: "false", containsLactose: "false", containsTreeNuts: "false" },
 ];
 
 // ============================================================

@@ -39,6 +39,7 @@ export type AliasStatus = "confirmed" | "proposed";
 export type JobStatus = "pending" | "processing" | "needs_review" | "done" | "error";
 /** `source_category` en snake_case côté base ; `sourceCategory` côté contrat Zod (schemas.ts). */
 export type VisualSubjectType = "ingredient" | "recipe" | "source" | "source_category";
+export type Tristate = "true" | "false" | "unknown";
 
 export type SourceRow = {
   id: string;
@@ -62,6 +63,10 @@ export type CanonicalIngredientRow = {
   name: string;
   slug: string;
   parent_id: Nullable<string>;
+  /** Source de vérité unique — voir commentaire de migration 20260819130000. */
+  contains_gluten: Tristate;
+  contains_lactose: Tristate;
+  contains_tree_nuts: Tristate;
 };
 
 export type IngredientAliasRow = {
@@ -200,7 +205,10 @@ export interface Database {
     Tables: {
       sources: Table<SourceRow, "id" | "created_at">;
       source_categories: Table<SourceCategoryRow, "id" | "position">;
-      canonical_ingredients: Table<CanonicalIngredientRow, "id">;
+      canonical_ingredients: Table<
+        CanonicalIngredientRow,
+        "id" | "contains_gluten" | "contains_lactose" | "contains_tree_nuts"
+      >;
       ingredient_aliases: Table<IngredientAliasRow, "id" | "status">;
       allergens: Table<AllergenRow, "id">;
       specificities: Table<SpecificityRow, "id">;

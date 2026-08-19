@@ -70,7 +70,15 @@ function sourceCategoryFromRow(row: SourceCategoryRow): SourceCategory {
 }
 
 function canonicalIngredientFromRow(row: CanonicalIngredientRow): CanonicalIngredient {
-  return { id: row.id, name: row.name, slug: row.slug, parentId: row.parent_id };
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    parentId: row.parent_id,
+    containsGluten: row.contains_gluten,
+    containsLactose: row.contains_lactose,
+    containsTreeNuts: row.contains_tree_nuts,
+  };
 }
 
 function ingredientAliasFromRow(row: IngredientAliasRow): IngredientAlias {

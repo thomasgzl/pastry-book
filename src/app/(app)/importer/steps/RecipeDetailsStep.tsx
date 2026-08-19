@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -7,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/schemas";
 import { deriveQuantity, slugify } from "@/lib/import/model";
 import { TITLE_PLACEHOLDER, type ImportRecipeDraft, type ImportSectionDraft } from "@/lib/import/schema";
+import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
 import { createEmptyIngredient, createEmptySection } from "../draftFactory";
 
 /** Nombre maximal de matières premières principales (F-KEY1, règle produit) — jamais dépassé, même par ajout manuel. */
@@ -53,6 +55,46 @@ function moveSection(draft: ImportRecipeDraft, index: number, direction: -1 | 1)
  * n'impose de préparation nommée (liste simple valide, CAP minimale).
  */
 export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, allergens, onChange, showAllergens = true }: RecipeDetailsStepProps) {
+  // Validation déterministe de cohérence (Gluten free / Sans lactose / Sans
+  // fruits à coque) — aucun appel IA, recalculée à chaque changement
+  // d'ingrédient ou de matière première canonique liée (CLAUDE.md, principe
+  // 9 : ce module est la seule autorité, jamais l'IA/les règles par
+  // mot-clé). Réutilisé tel quel par la modification manuelle
+  // (`RecipeEditForm`), qui rend ce même composant.
+  const specificityEvaluation = useMemo(
+    () => evaluateRecipeSpecificities(draft.sections, canonicalIngredients),
+    [draft.sections, canonicalIngredients],
+  );
+  const specificityById = useMemo(() => new Map(specificities.map((s) => [s.id, s])), [specificities]);
+
+  function evaluationForSpecificityId(specificityId: string) {
+    const specificity = specificityById.get(specificityId);
+    if (!specificity || !isValidatedSpecificitySlug(specificity.slug)) return undefined;
+    return specificityEvaluation[specificity.slug];
+  }
+
+  // Retire automatiquement des spécificités CONFIRMÉES toute spécificité
+  // devenue incompatible (ex. ingrédient contenant du gluten ajouté après
+  // confirmation) — jamais silencieux : le motif est conservé, l'entrée
+  // reste visible marquée « rejeté ». Ne boucle pas : une fois rétrogradée,
+  // la condition ci-dessous redevient fausse pour cette entrée.
+  useEffect(() => {
+    const needsDowngrade = draft.specificities.some(
+      (entry) => entry.status !== "rejected" && evaluationForSpecificityId(entry.specificityId)?.state === "incompatible",
+    );
+    if (!needsDowngrade) return;
+    onChange((d) => ({
+      ...d,
+      specificities: d.specificities.map((entry) => {
+        const evalEntry = evaluationForSpecificityId(entry.specificityId);
+        return entry.status !== "rejected" && evalEntry?.state === "incompatible"
+          ? { ...entry, status: "rejected" as const, reason: evalEntry.message }
+          : entry;
+      }),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.specificities, specificityEvaluation]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -417,13 +459,20 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
         <ul className="flex flex-col gap-2">
           {draft.specificities.map((entry) => {
             const specificity = specificities.find((s) => s.id === entry.specificityId);
+            const evalEntry = evaluationForSpecificityId(entry.specificityId);
+            const blocked = evalEntry?.state === "incompatible";
             return (
               <li key={entry.specificityId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-grise px-3 py-2">
                 <span className="text-sm text-cacao">
                   {specificity?.name ?? "Spécificité inconnue"} — <span className="italic">{entry.status === "confirmed" ? "confirmé" : entry.status === "rejected" ? "rejeté" : "proposé, à vérifier"}</span>
                   {entry.reason && <span className="block text-xs text-cacao/60">{entry.reason}</span>}
+                  {evalEntry && evalEntry.state !== "unverified" && (
+                    <span className={`block text-xs ${blocked ? "font-medium text-brunrouge" : "text-brunrouge/80"}`}>
+                      {evalEntry.message}
+                    </span>
+                  )}
                 </span>
-                {entry.status === "proposed" && (
+                {entry.status === "proposed" && !blocked && (
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -458,21 +507,37 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
         <div className="flex flex-wrap gap-2">
           {specificities
             .filter((s) => !draft.specificities.some((entry) => entry.specificityId === s.id))
-            .map((specificity) => (
-              <Button
-                key={specificity.id}
-                type="button"
-                variant="secondary"
-                onClick={() =>
-                  onChange((d) => ({
-                    ...d,
-                    specificities: [...d.specificities, { specificityId: specificity.id, status: "confirmed", reason: null, source: "manual" }],
-                  }))
-                }
-              >
-                + {specificity.name}
-              </Button>
-            ))}
+            // Une spécificité contrôlée déjà incompatible n'est jamais
+            // offerte à la confirmation manuelle (« bouton … masqué »,
+            // CLAUDE.md principe 9) — jamais de contournement par le « + ».
+            .filter((s) => !isValidatedSpecificitySlug(s.slug) || specificityEvaluation[s.slug].state !== "incompatible")
+            .map((specificity) => {
+              const evalEntry = isValidatedSpecificitySlug(specificity.slug) ? specificityEvaluation[specificity.slug] : undefined;
+              return (
+                <Button
+                  key={specificity.id}
+                  type="button"
+                  variant="secondary"
+                  onClick={() =>
+                    onChange((d) => ({
+                      ...d,
+                      specificities: [
+                        ...d.specificities,
+                        {
+                          specificityId: specificity.id,
+                          status: "confirmed",
+                          reason: evalEntry?.state === "needs_review" ? evalEntry.message : null,
+                          source: "manual",
+                        },
+                      ],
+                    }))
+                  }
+                >
+                  + {specificity.name}
+                  {evalEntry?.state === "needs_review" ? " (à vérifier)" : ""}
+                </Button>
+              );
+            })}
         </div>
       </Card>
 
