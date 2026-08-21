@@ -126,14 +126,21 @@ function recipeSectionFromRow(row: RecipeSectionRow): RecipeSection {
   };
 }
 
-function recipeIngredientFromRow(row: RecipeIngredientRow): RecipeIngredient {
+export function recipeIngredientFromRow(row: RecipeIngredientRow): RecipeIngredient {
   return {
     id: row.id,
     recipeSectionId: row.recipe_section_id,
     originalName: row.original_name,
     canonicalIngredientId: row.canonical_ingredient_id,
     originalQuantityText: row.original_quantity_text,
-    quantityDecimal: row.quantity_decimal,
+    // `quantity_decimal` est une colonne SQL `numeric` : PostgREST la sérialise
+    // en nombre JSON, jamais en chaîne, malgré le type `Nullable<string>`
+    // déclaré côté TS (`RecipeIngredientRow`, non vérifié au runtime). Jamais
+    // remarqué avant K21 (suppression de recette) : partout ailleurs (affichage,
+    // coefficient) un nombre JS se coerce silencieusement en chaîne ; seule la
+    // validation stricte `z.string().regex(...)` du formulaire de modification
+    // (`importRecipeDraftSchema`) le détecte réellement.
+    quantityDecimal: row.quantity_decimal === null ? null : String(row.quantity_decimal),
     unit: row.unit,
     position: row.position,
     verificationStatus: row.verification_status,
