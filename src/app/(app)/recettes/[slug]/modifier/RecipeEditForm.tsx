@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -25,7 +26,7 @@ import type { CanonicalIngredient, Source, SourceCategory, Specificity } from "@
 import { importRecipeDraftSchema, type ImportRecipeDraft } from "@/lib/import/schema";
 import { CategoryStep } from "@/app/(app)/importer/steps/CategoryStep";
 import { RecipeDetailsStep } from "@/app/(app)/importer/steps/RecipeDetailsStep";
-import { createEditCategoryAction, getEditCategoriesAction, updateRecipeAction } from "./editActions";
+import { createEditCategoryAction, deleteRecipeAction, getEditCategoriesAction, updateRecipeAction } from "./editActions";
 
 interface RecipeEditFormProps {
   recipeId: string;
@@ -59,6 +60,9 @@ export function RecipeEditForm({
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const validation = useMemo(() => importRecipeDraftSchema.safeParse(draft), [draft]);
   const validationErrors = validation.success ? [] : [...new Set(validation.error.issues.map((issue) => issue.message))];
@@ -129,6 +133,25 @@ export function RecipeEditForm({
     router.push(`/recettes/${slug}`);
   }
 
+  async function handleConfirmDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const { redirectTo } = await deleteRecipeAction({ recipeId, slug });
+      router.push(redirectTo);
+    } catch {
+      setDeleteError("La suppression a échoué. La recette n'a pas été supprimée, réessayez.");
+      setDeleting(false);
+    }
+  }
+
+  function handleCancelDelete() {
+    if (deleting) return;
+    setDeleteDialogOpen(false);
+    setDeleteError(null);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <EditorialTitle>Modifier la recette</EditorialTitle>
@@ -186,6 +209,31 @@ export function RecipeEditForm({
           {saving ? "Enregistrement…" : "Enregistrer les modifications"}
         </Button>
       </div>
+
+      <div className="flex flex-col gap-2 border-t border-grise pt-4">
+        <p className="text-sm font-medium text-brunrouge">Zone de suppression</p>
+        <Button
+          type="button"
+          variant="danger"
+          onClick={() => setDeleteDialogOpen(true)}
+          disabled={saving}
+          className="w-full sm:w-auto"
+        >
+          Supprimer cette recette
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title={`Supprimer définitivement « ${initialDraft.title} » ?`}
+        description="Cette action est irréversible. La recette, ses préparations et ses données associées seront supprimées."
+        confirmLabel="Supprimer définitivement"
+        pendingLabel="Suppression…"
+        pending={deleting}
+        error={deleteError}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }

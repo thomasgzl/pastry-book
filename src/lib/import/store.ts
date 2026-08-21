@@ -68,6 +68,7 @@ import { normalizeText } from "@/lib/recipes/search";
 import { normalizeKeyIngredientName } from "@/lib/ai/import/rules";
 import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
 import { SOURCE_BUCKET } from "@/lib/import/sourceUpload";
+import { VISUAL_ASSETS_BUCKET } from "@/lib/visuals/storage";
 
 /**
  * Ré-exécute la validation déterministe de cohérence (Gluten free / Sans
@@ -1077,4 +1078,110 @@ export async function updateRecipe(params: UpdateRecipeParams): Promise<Recipe> 
     );
   }
   return updateRecipeSupabase(createSupabaseAdminClient(), params);
+}
+
+// ============================================================
+// Suppression définitive d'une recette
+// ============================================================
+
+export interface DeleteRecipeResult {
+  sourceId: string;
+  sourceCategoryId: string | null;
+}
+
+/**
+ * Miroir minimal de `.rpc()` pour `delete_recipe` — même raison que
+ * `UntypedRpcClient`/`UntypedUpdateRpcClient` ci-dessus (contrat
+ * `Database["public"]["Functions"]` gelé, cast local à ce seul appel serveur
+ * privilégié). La fonction Postgres retourne du `jsonb` : supabase-js le
+ * désérialise déjà en objet JS, jamais une chaîne à re-parser ici.
+ */
+interface DeleteRecipeRpcRow {
+  source_id: string;
+  source_category_id: string | null;
+  /** Chemin Storage réel du document source (bucket `recipe-sources`) — `null` si aucun fichier, ou si un AUTRE enregistrement `recipes` le référence encore (voir la migration). */
+  original_document_url: string | null;
+  /** Chemins Storage réels des visuels de cette recette (bucket `visual-assets`) — jamais partagés entre recettes, la fonction Postgres a déjà supprimé les lignes `visual_assets` correspondantes. */
+  visual_urls: string[];
+}
+
+type UntypedDeleteRecipeRpcClient = {
+  rpc(fn: "delete_recipe", args: { p_recipe_id: string }): Promise<{
+    data: DeleteRecipeRpcRow | null;
+    error: { message: string } | null;
+  }>;
+};
+
+async function callDeleteRecipeRpc(client: SupabaseAdminClient, recipeId: string): Promise<DeleteRecipeRpcRow> {
+  const { data, error } = await (client as unknown as UntypedDeleteRecipeRpcClient).rpc("delete_recipe", {
+    p_recipe_id: recipeId,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Réponse vide de la transaction de suppression de recette.");
+  }
+  return data;
+}
+
+/**
+ * Une donnée générée par le fournisseur d'images en mode démonstration reste
+ * parfois une data URI directement en base (`image_url`), jamais un chemin
+ * Storage réel — voir `persistGeneratedVisual` (`src/lib/visuals/storage.ts`).
+ * Jamais transmise à `storage.remove(...)`, qui attend un chemin de bucket.
+ */
+function isRealStoragePath(url: string): boolean {
+  return !url.startsWith("data:");
+}
+
+/**
+ * Fichier Storage potentiellement orphelin après une suppression de recette
+ * déjà actée en base (CLAUDE.md : ne jamais restaurer une recette déjà
+ * supprimée si ce nettoyage échoue) — journalisé de façon structurée, jamais
+ * silencieux, jamais de contenu sensible.
+ */
+function logOrphanedStorageFileAfterDelete(bucket: string, paths: string[], recipeId: string, cause: string): void {
+  console.warn(
+    "[recipes] recette supprimée mais le nettoyage d'un fichier Storage associé a échoué — fichier potentiellement orphelin, à vérifier/supprimer manuellement",
+    { bucket, paths, recipeId, cause },
+  );
+}
+
+/**
+ * Supprime une recette déjà enregistrée — écriture unique via
+ * `delete_recipe` (fonction Postgres, voir
+ * `supabase/migrations/20260821090000_delete_recipe_rpc.sql`), atomique :
+ * recette + préparations + ingrédients + spécificités + allergènes +
+ * matières premières principales + visuels supprimés ensemble ou pas du
+ * tout. Le nettoyage Storage (fichiers désormais orphelins) n'intervient
+ * qu'APRÈS ce commit réussi, jamais avant (CLAUDE.md, ordre imposé) : un
+ * échec de nettoyage Storage est journalisé mais ne fait jamais échouer la
+ * suppression déjà actée en base.
+ */
+async function deleteRecipeSupabase(client: SupabaseAdminClient, recipeId: string): Promise<DeleteRecipeResult> {
+  const result = await callDeleteRecipeRpc(client, recipeId);
+
+  const visualPaths = result.visual_urls.filter(isRealStoragePath);
+  if (visualPaths.length > 0) {
+    const { error } = await client.storage.from(VISUAL_ASSETS_BUCKET).remove(visualPaths);
+    if (error) logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, recipeId, error.message);
+  }
+
+  if (result.original_document_url && isRealStoragePath(result.original_document_url)) {
+    const { error } = await client.storage.from(SOURCE_BUCKET).remove([result.original_document_url]);
+    if (error) logOrphanedStorageFileAfterDelete(SOURCE_BUCKET, [result.original_document_url], recipeId, error.message);
+  }
+
+  return { sourceId: result.source_id, sourceCategoryId: result.source_category_id };
+}
+
+/** Repli mémoire (dev local sans Supabase configuré) : même raison que `updateRecipe` — jamais de suppression qui semblerait fonctionner sans rien effacer réellement. */
+export async function deleteRecipe(recipeId: string): Promise<DeleteRecipeResult> {
+  if (!hasSupabaseConfig()) {
+    throw new Error(
+      "Suppression d'une recette indisponible sans Supabase configuré (mode démonstration, lecture seule).",
+    );
+  }
+  return deleteRecipeSupabase(createSupabaseAdminClient(), recipeId);
 }

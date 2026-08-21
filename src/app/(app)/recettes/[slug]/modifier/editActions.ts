@@ -12,9 +12,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createCategoryAction, getCategoriesAction } from "@/app/(app)/importer/importActions";
+import { getCategoriesForSource } from "@/lib/data/categories";
+import { getSources } from "@/lib/data/sources";
 import type { SourceCategory, Recipe } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
-import { updateRecipe } from "@/lib/import/store";
+import { deleteRecipe, updateRecipe } from "@/lib/import/store";
 
 export async function getEditCategoriesAction(sourceId: string): Promise<SourceCategory[]> {
   return getCategoriesAction(sourceId);
@@ -42,4 +44,39 @@ export async function updateRecipeAction(params: { recipeId: string; slug: strin
   revalidatePath("/entreprises");
   revalidatePath("/matieres-premieres");
   return recipe;
+}
+
+/**
+ * Supprime définitivement une recette (dernier clic explicite, après
+ * confirmation côté formulaire — jamais automatique). Résout la destination
+ * de redirection (catégorie de l'entreprise si elle existe, sinon
+ * `/recettes`) à partir de l'entreprise/catégorie AUXQUELLES LA RECETTE
+ * APPARTENAIT réellement en base (retournées par `deleteRecipe`), jamais
+ * depuis un brouillon de formulaire potentiellement modifié sans avoir été
+ * enregistré. Revalide toutes les pages où la recette supprimée pouvait
+ * apparaître — même liste que `updateRecipeAction`, plus la page
+ * d'entreprise et, si elle existe, la page de catégorie concernées.
+ */
+export async function deleteRecipeAction(params: { recipeId: string; slug: string }): Promise<{ redirectTo: string }> {
+  const { sourceId, sourceCategoryId } = await deleteRecipe(params.recipeId);
+
+  const [sources, categories] = await Promise.all([
+    getSources(),
+    sourceCategoryId ? getCategoriesForSource(sourceId) : Promise.resolve<SourceCategory[]>([]),
+  ]);
+  const source = sources.find((candidate) => candidate.id === sourceId);
+  const category = sourceCategoryId ? categories.find((candidate) => candidate.id === sourceCategoryId) : undefined;
+  const redirectTo = source && category ? `/entreprises/${source.slug}/${category.slug}` : "/recettes";
+
+  revalidatePath(`/recettes/${params.slug}`);
+  revalidatePath("/recettes");
+  revalidatePath("/specificites");
+  revalidatePath("/entreprises");
+  revalidatePath("/matieres-premieres");
+  if (source) {
+    revalidatePath(`/entreprises/${source.slug}`);
+    if (category) revalidatePath(`/entreprises/${source.slug}/${category.slug}`);
+  }
+
+  return { redirectTo };
 }
