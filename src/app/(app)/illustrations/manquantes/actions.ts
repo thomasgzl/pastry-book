@@ -1,14 +1,13 @@
 "use server";
 
 /**
- * Actions serveur de la file des illustrations manquantes (K8/K9). Seul point
- * d'entrée appelable depuis le navigateur pour cette page. Exécution
- * DÉMONSTRATION uniquement dans ce lot (`generateVisualDraft`, gratuit,
- * aucun réseau, aucune clé) — le moteur de file (`runVisualGenerationQueue`,
- * `src/lib/visuals/queue.ts`) est générique : brancher `generateRealVisualDraft`
- * (F-IA2, déjà prêt à recevoir les mêmes champs de prompt, voir
- * `real-generation.ts`) derrière ce même écran de confirmation revient à K10,
- * sans réécrire ce fichier ni le moteur lui-même.
+ * Actions serveur de la file des illustrations manquantes (K8/K9, appel réel
+ * OpenAI branché — 2026-09-19). Seul point d'entrée appelable depuis le
+ * navigateur pour cette page. `generateRealVisualDraft` (F-IA2,
+ * `real-generation.ts`) coûte réellement — jamais appelé sans la phrase de
+ * confirmation nommée ci-dessous, jamais en lot silencieux, jamais si
+ * `OPENAI_API_KEY` est absente (repli en erreur explicite par sujet dans ce
+ * cas, voir `real-generation.ts`).
  *
  * K9 : la génération d'un SEUL sujet passait auparavant par
  * `generateSingleMissingAction`, un bouton immédiat sans aucune phrase de
@@ -23,7 +22,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { visualAssetSchema } from "@/lib/domain/schemas";
 import { beginAiRequest, completeAiRequest } from "@/lib/domain/aiCostGuard";
-import { generateVisualDraft } from "@/lib/ai/visuals/service";
+import { generateRealVisualDraft } from "@/lib/ai/visuals/real-generation";
 import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
 import {
@@ -118,26 +117,20 @@ export async function runMissingQueueAction(
         generate: async (target) => {
           const subject = stillMissingByKey.get(`${target.type}:${target.id}`);
           if (!subject) return { ok: false, error: { code: "not_found", message: "Sujet introuvable." } };
-          try {
-            await generateVisualDraft({
-              subjectType: subject.type,
-              subjectId: subject.id,
-              subjectLabel: subject.label,
-              sourcePhotoUrl: subject.photoUrl,
-              categorySlug: subject.categorySlug,
-              recipeMode: subject.type === "recipe" ? recipeModeFor(subject.photoUrl) : undefined,
-              // Mêmes champs que ceux affichés dans le prompt repliable de l'écran de confirmation (K9, `MissingQueueBrowser`) — le prompt réellement envoyé est identique à celui montré avant confirmation.
-              preparationNames: subject.preparationNames,
-              validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
-              additionalInformation: subject.additionalInformation,
-            });
-            return { ok: true, data: undefined };
-          } catch (cause) {
-            return {
-              ok: false,
-              error: { code: "unknown", message: cause instanceof Error ? cause.message : "Échec de génération.", cause },
-            };
-          }
+          // Appel réel OpenAI (F-IA2) — mêmes champs que ceux affichés dans le
+          // prompt repliable de l'écran de confirmation (K9, `MissingQueueBrowser`) :
+          // le prompt réellement envoyé est identique à celui montré avant confirmation.
+          return generateRealVisualDraft({
+            subjectType: subject.type,
+            subjectId: subject.id,
+            subjectLabel: subject.label,
+            sourcePhotoUrl: subject.photoUrl,
+            categorySlug: subject.categorySlug,
+            recipeMode: subject.type === "recipe" ? recipeModeFor(subject.photoUrl) : undefined,
+            preparationNames: subject.preparationNames,
+            validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
+            additionalInformation: subject.additionalInformation,
+          });
         },
         // Journal serveur sans contenu sensible : type + id + statut uniquement (jamais le prompt ni le libellé).
         onEntry: (entry) => {

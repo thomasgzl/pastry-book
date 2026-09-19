@@ -355,8 +355,8 @@ export function MissingQueueBrowser({
             </details>
 
             <p className="text-xs text-cacao/60">
-              Exécution disponible dans cet écran : mode démonstration (gratuit, aucun appel OpenAI). Cet écran est
-              celui qui précédera tout futur appel réel payant, avec ce même nombre d&rsquo;appels et ce même coût.
+              Confirmer ci-dessous déclenche un appel réel et payant au fournisseur ({providerName}), un par sujet
+              sélectionné — aucun mode démonstration sur cet écran.
             </p>
 
             <label htmlFor="queue-confirmation" className="text-sm text-cacao/80">
