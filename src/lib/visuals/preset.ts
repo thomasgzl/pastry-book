@@ -50,7 +50,15 @@ interface SubjectFraming {
 const FRAMING: Record<VisualSubjectKind, SubjectFraming> = {
   ingredient: {
     ratio: "1:1",
-    background: "transparent",
+    // `gpt-image-2` rejette toute demande de fond transparent (erreur 400
+    // confirmée, voir `openai-provider.ts`) : le paramètre structuré est
+    // déjà forcé à `opaque` côté adaptateur, quel que soit ce champ. Le texte
+    // du prompt (`formatLine`, plus bas) doit donc demander « fond ivoire »,
+    // jamais « transparent » — sinon le modèle peint un vrai damier
+    // gris/blanc en guise de représentation littérale de la transparence
+    // demandée par le texte (constaté sur Cacao/Fromage/Fromage blanc,
+    // premières illustrations d'ingrédient générées par le fournisseur réel).
+    background: "ivoire",
     instruction:
       "Étude botanique isolée de {subject} : la plante, le fruit, la graine, la cabosse ou la gousse entière selon la matière, et une coupe discrète si pertinent. Composition propre à petite échelle, cadrée comme une vignette de carte. Quelques éléments secondaires (feuille, fleur, écorce) tolérés uniquement s'ils facilitent la reconnaissance de {subject} ; jamais un ingrédient voisin ou une variante absente inventée. Aucun ustensile, aucun décor de table.",
   },

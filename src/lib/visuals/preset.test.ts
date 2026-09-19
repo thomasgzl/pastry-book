@@ -18,7 +18,7 @@ describe("preset Botanique éditorial (E2)", () => {
   });
 
   it.each([
-    ["ingredient", "1:1", "transparent"],
+    ["ingredient", "1:1", "ivoire"],
     ["recipe", "4:3", "ivoire"],
     ["source", "16:9", "ivoire"],
     ["sourceCategory", "4:3", "ivoire"],
