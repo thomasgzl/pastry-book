@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import { Tag } from "@/components/ui/Tag";
 
@@ -34,10 +35,9 @@ interface RecipeCardProps {
  */
 function RecipeCardVisual({ imageUrl, title }: { imageUrl?: string | null; title: string }) {
   return (
-    <div className="aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-grise bg-ivoire">
+    <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-grise bg-ivoire">
       {imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas de pipeline next/image dédié (lot E).
-        <img src={imageUrl} alt={`Illustration de ${title}`} className="h-full w-full object-cover" />
+        <ImageWithSkeleton src={imageUrl} alt={`Illustration de ${title}`} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <PlaceholderIllustration label={title} className="h-12 w-12" />

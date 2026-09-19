@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BotanicalOrnament, type BotanicalVariant } from "@/components/ui/BotanicalOrnament";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 
 /**
@@ -58,8 +59,7 @@ export function CanonicalIngredientCard({
 
         <div className="relative min-h-0 flex-1 px-2 pb-2">
           {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas encore de pipeline next/image dédié (lot E).
-            <img
+            <ImageWithSkeleton
               src={imageUrl}
               alt={name}
               className="h-full w-full origin-bottom object-contain object-bottom transition-transform duration-200 group-hover:scale-[1.02]"

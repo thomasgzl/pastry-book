@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 
 interface CategoryCardProps {
@@ -24,8 +25,9 @@ export function CategoryCard({ name, recipeCount, imageUrl, href, className = ""
     <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
       <Card className="flex items-center gap-3 transition-colors hover:bg-avoine/40">
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé, pas de pipeline next/image dédié (lot E).
-          <img src={imageUrl} alt={name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+            <ImageWithSkeleton src={imageUrl} alt={name} className="h-full w-full object-cover" />
+          </div>
         ) : (
           <PlaceholderIllustration label={name} className="h-10 w-10" />
         )}

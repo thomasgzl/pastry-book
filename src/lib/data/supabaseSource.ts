@@ -21,6 +21,7 @@
  * mesuré en usage réel.
  */
 
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   Allergen,
@@ -166,87 +167,99 @@ function recipeSpecificityFromRow(row: RecipeSpecificityRow): RecipeSpecificity 
   };
 }
 
-export async function loadSources(): Promise<Source[]> {
+/**
+ * Chaque loader est mémoïsé pour la durée d'une seule requête (`cache()`,
+ * React) : plusieurs appels au même loader pendant le rendu d'une page
+ * (ex. `toRecipeCardData` appelé une fois par recette d'une liste)
+ * partagent désormais un seul aller-retour Supabase au lieu d'en refaire un
+ * par appel — cause principale des lenteurs de navigation constatées (K-perf,
+ * ~30 requêtes Supabase mesurées pour un seul rendu de `/recettes` avec
+ * quelques recettes/entreprises). Sans effet sur le résultat (mêmes données,
+ * même requête), jamais partagé entre deux requêtes HTTP différentes (portée
+ * de `cache()` = un seul rendu serveur).
+ */
+
+export const loadSources = cache(async (): Promise<Source[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("sources").select("*");
   if (error) throw new DataAccessError(`Lecture des entreprises impossible : ${error.message}`);
   return (data ?? []).map(sourceFromRow);
-}
+});
 
-export async function loadSourceCategories(): Promise<SourceCategory[]> {
+export const loadSourceCategories = cache(async (): Promise<SourceCategory[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("source_categories").select("*");
   if (error) throw new DataAccessError(`Lecture des catégories impossible : ${error.message}`);
   return (data ?? []).map(sourceCategoryFromRow);
-}
+});
 
-export async function loadCanonicalIngredients(): Promise<CanonicalIngredient[]> {
+export const loadCanonicalIngredients = cache(async (): Promise<CanonicalIngredient[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("canonical_ingredients").select("*");
   if (error) throw new DataAccessError(`Lecture des matières premières impossible : ${error.message}`);
   return (data ?? []).map(canonicalIngredientFromRow);
-}
+});
 
-export async function loadIngredientAliases(): Promise<IngredientAlias[]> {
+export const loadIngredientAliases = cache(async (): Promise<IngredientAlias[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("ingredient_aliases").select("*");
   if (error) throw new DataAccessError(`Lecture des alias d'ingrédients impossible : ${error.message}`);
   return (data ?? []).map(ingredientAliasFromRow);
-}
+});
 
-export async function loadAllergens(): Promise<Allergen[]> {
+export const loadAllergens = cache(async (): Promise<Allergen[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("allergens").select("*");
   if (error) throw new DataAccessError(`Lecture des allergènes impossible : ${error.message}`);
   return (data ?? []).map(allergenFromRow);
-}
+});
 
-export async function loadSpecificities(): Promise<Specificity[]> {
+export const loadSpecificities = cache(async (): Promise<Specificity[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("specificities").select("*");
   if (error) throw new DataAccessError(`Lecture des spécificités impossible : ${error.message}`);
   return (data ?? []).map(specificityFromRow);
-}
+});
 
-export async function loadRecipes(): Promise<Recipe[]> {
+export const loadRecipes = cache(async (): Promise<Recipe[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipes").select("*");
   if (error) throw new DataAccessError(`Lecture des recettes impossible : ${error.message}`);
   return (data ?? []).map(recipeFromRow);
-}
+});
 
-export async function loadRecipeSections(): Promise<RecipeSection[]> {
+export const loadRecipeSections = cache(async (): Promise<RecipeSection[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipe_sections").select("*");
   if (error) throw new DataAccessError(`Lecture des préparations impossible : ${error.message}`);
   return (data ?? []).map(recipeSectionFromRow);
-}
+});
 
-export async function loadRecipeIngredients(): Promise<RecipeIngredient[]> {
+export const loadRecipeIngredients = cache(async (): Promise<RecipeIngredient[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipe_ingredients").select("*");
   if (error) throw new DataAccessError(`Lecture des ingrédients impossible : ${error.message}`);
   return (data ?? []).map(recipeIngredientFromRow);
-}
+});
 
 /** Tags de matière première principale curatés (recipe_key_ingredients) — voir `20260819110000_recipe_key_ingredients.sql` : distinct de `loadRecipeIngredients` (chaque ligne d'ingrédient). */
-export async function loadRecipeKeyIngredients(): Promise<RecipeKeyIngredient[]> {
+export const loadRecipeKeyIngredients = cache(async (): Promise<RecipeKeyIngredient[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipe_key_ingredients").select("*");
   if (error) throw new DataAccessError(`Lecture des matières premières principales impossible : ${error.message}`);
   return (data ?? []).map(recipeKeyIngredientFromRow);
-}
+});
 
-export async function loadRecipeAllergens(): Promise<RecipeAllergen[]> {
+export const loadRecipeAllergens = cache(async (): Promise<RecipeAllergen[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipe_allergens").select("*");
   if (error) throw new DataAccessError(`Lecture des allergènes de recette impossible : ${error.message}`);
   return (data ?? []).map(recipeAllergenFromRow);
-}
+});
 
-export async function loadRecipeSpecificities(): Promise<RecipeSpecificity[]> {
+export const loadRecipeSpecificities = cache(async (): Promise<RecipeSpecificity[]> => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("recipe_specificities").select("*");
   if (error) throw new DataAccessError(`Lecture des spécificités de recette impossible : ${error.message}`);
   return (data ?? []).map(recipeSpecificityFromRow);
-}
+});

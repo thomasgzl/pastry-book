@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 
 interface SourceCardProps {
@@ -40,8 +41,7 @@ export function SourceCard({
     >
       <div className="relative h-full w-full overflow-hidden rounded-xl border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
         {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- visuel approuvé/statique, pas de pipeline next/image dédié (lot E).
-          <img
+          <ImageWithSkeleton
             src={imageUrl}
             alt={name}
             className="absolute inset-y-0 left-0 z-0 h-full w-[45%] object-cover"

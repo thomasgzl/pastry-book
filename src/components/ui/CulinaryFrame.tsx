@@ -1,4 +1,5 @@
 import { BotanicalOrnament } from "@/components/ui/BotanicalOrnament";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 
 interface CulinaryFrameProps {
   /** Placeholder temporaire (`placeholder-hero.svg`, `placeholder-recipe-4x3.svg`…)
@@ -53,8 +54,7 @@ export function CulinaryFrame({
     <div
       className={`relative ${RATIO_CLASS[ratio]} w-full overflow-hidden rounded-2xl border border-grise bg-ivoire ${className}`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- asset SVG statique ou visuel approuvé, pas de pipeline next/image dédié (lot E). */}
-      <img src={src} alt={alt} className={`h-full w-full ${FIT_CLASS[fit]}`} />
+      <ImageWithSkeleton src={src} alt={alt} className={`h-full w-full ${FIT_CLASS[fit]}`} />
       {decorate && (
         <BotanicalOrnament
           variant="branch"
