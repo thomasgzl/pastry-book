@@ -431,35 +431,6 @@ export function MissingQueueBrowser({
             {state.error}
           </p>
         )}
-        {state.outcomes && (
-          <ul className="flex flex-col gap-2 text-sm text-cacao/80">
-            {state.outcomes.map((outcome, index) => {
-              const key = `${outcome.type}-${outcome.id}-${index}`;
-              const canValidateNow =
-                outcome.status === "ok" && outcome.assetId && outcome.imageUrl && !resolvedAssetIds.has(outcome.assetId);
-              if (canValidateNow) {
-                return (
-                  <GeneratedDraftPreview
-                    key={key}
-                    assetId={outcome.assetId!}
-                    imageUrl={outcome.imageUrl!}
-                    onResolved={(assetId) =>
-                      setResolvedAssetIds((previous) => new Set(previous).add(assetId))
-                    }
-                  />
-                );
-              }
-              return (
-                <li key={key}>
-                  {outcome.status === "ok" && outcome.assetId && resolvedAssetIds.has(outcome.assetId)
-                    ? "Validé — voir /matières premières ou la fiche concernée."
-                    : OUTCOME_LABEL[outcome.status]}
-                  {outcome.message ? ` — ${outcome.message}` : ""}
-                </li>
-              );
-            })}
-          </ul>
-        )}
         <Button type="submit" variant="secondary" disabled={pending || selectedCount === 0} className="self-start">
           {pending
             ? "Génération en cours…"
@@ -468,6 +439,39 @@ export function MissingQueueBrowser({
               : `Générer le lot (${selectedCount})`}
         </Button>
       </form>
+
+      {/* Hors du <form> ci-dessus volontairement : un <form> imbriqué dans un
+          autre <form> est invalide en HTML (le navigateur casse la
+          soumission du formulaire interne, constaté avec les boutons
+          Approuver/Rejeter ci-dessous plongés dans le formulaire de
+          confirmation). */}
+      {state.outcomes && (
+        <ul className="flex flex-col gap-2 text-sm text-cacao/80">
+          {state.outcomes.map((outcome, index) => {
+            const key = `${outcome.type}-${outcome.id}-${index}`;
+            const canValidateNow =
+              outcome.status === "ok" && outcome.assetId && outcome.imageUrl && !resolvedAssetIds.has(outcome.assetId);
+            if (canValidateNow) {
+              return (
+                <GeneratedDraftPreview
+                  key={key}
+                  assetId={outcome.assetId!}
+                  imageUrl={outcome.imageUrl!}
+                  onResolved={(assetId) => setResolvedAssetIds((previous) => new Set(previous).add(assetId))}
+                />
+              );
+            }
+            return (
+              <li key={key}>
+                {outcome.status === "ok" && outcome.assetId && resolvedAssetIds.has(outcome.assetId)
+                  ? "Validé — voir /matières premières ou la fiche concernée."
+                  : OUTCOME_LABEL[outcome.status]}
+                {outcome.message ? ` — ${outcome.message}` : ""}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
