@@ -19,7 +19,9 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { describeRealImageGenerationRequest, OPENAI_PRICING_DOC_URL, SIZE_BY_RATIO } from "@/lib/ai/visuals/openai-provider";
 import { getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
 import type { VisualSubjectKind } from "@/lib/visuals/preset";
+import { resolveVisualAssetDisplayUrl } from "@/lib/visuals/approvedVisual";
 import { listVisualAssets } from "@/lib/visuals/storage";
+import type { VisualAsset } from "@/lib/domain/schemas";
 import { getAllVisualSubjects } from "@/lib/visuals/subjects";
 import { bestVisualStatus } from "@/lib/visuals/status";
 import { IllustrationsBrowser, type IllustrationEntry, type RegenerateProviderInfo } from "./IllustrationsBrowser";
@@ -46,6 +48,22 @@ function buildRegenerateInfo(): RegenerateProviderInfo {
   };
 }
 
+/**
+ * `asset.imageUrl` est un champ brut (chemin Storage privé, chemin public
+ * statique ou data URI, voir `resolveVisualAssetDisplayUrl`) — jamais
+ * directement affichable en `<img src>` pour un chemin Storage privé. Un
+ * échec de signature (fichier orphelin, Storage indisponible) retombe sur
+ * `null` : ce centre de consultation reste secondaire, jamais bloquant pour
+ * un seul visuel défaillant parmi d'autres.
+ */
+async function resolveDisplayUrlSafe(imageUrl: string): Promise<string | null> {
+  try {
+    return await resolveVisualAssetDisplayUrl(imageUrl);
+  } catch {
+    return null;
+  }
+}
+
 async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
   const subjects = await getAllVisualSubjects();
   const assetsBySubjectId = new Map(
@@ -53,6 +71,14 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
       subjects.map(
         async (subject) => [`${subject.type}-${subject.id}`, await listVisualAssets(subject.type, subject.id)] as const,
       ),
+    ),
+  );
+
+  const displayUrlByAssetId = new Map(
+    await Promise.all(
+      [...assetsBySubjectId.values()]
+        .flat()
+        .map(async (asset: VisualAsset) => [asset.id, await resolveDisplayUrlSafe(asset.imageUrl)] as const),
     ),
   );
 
@@ -66,7 +92,7 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
       label: subject.label,
       parentLabel: subject.parentLabel,
       status: bestVisualStatus(assets),
-      thumbnailUrl: primary?.imageUrl ?? null,
+      thumbnailUrl: (primary && displayUrlByAssetId.get(primary.id)) ?? null,
       photoUrl: subject.photoUrl,
       categorySlug: subject.categorySlug,
       preparationNames: subject.preparationNames,
@@ -76,7 +102,7 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
         id: asset.id,
         status: asset.status,
         isPrimary: asset.isPrimary,
-        imageUrl: asset.imageUrl,
+        imageUrl: displayUrlByAssetId.get(asset.id) ?? null,
         presetVersion: asset.presetVersion,
         createdAt: asset.createdAt,
       })),

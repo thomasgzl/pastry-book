@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import { VisualStatusPill } from "@/components/ui/VisualStatusPill";
 import { approveAsPrimaryAction, rejectAction, setPrimaryAction } from "../visuels/actions";
@@ -32,12 +33,20 @@ function formatDate(iso: string): string {
 function VersionRow({ version }: { version: IllustrationEntry["versions"][number] }) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-grise bg-coquille p-3 sm:flex-row sm:items-start">
-      {/* eslint-disable-next-line @next/next/no-img-element -- image de démonstration en data URI, pas de pipeline next/image (même choix que SubjectGallery, lot E). */}
-      <img
-        src={version.imageUrl}
-        alt=""
-        className="h-16 w-16 shrink-0 self-center rounded-lg border border-grise bg-ivoire object-contain sm:self-start"
-      />
+      {version.imageUrl ? (
+        <ImageWithSkeleton
+          src={version.imageUrl}
+          alt=""
+          className="h-16 w-16 shrink-0 self-center rounded-lg border border-grise bg-ivoire object-contain sm:self-start"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex h-16 w-16 shrink-0 items-center justify-center self-center rounded-lg border border-dashed border-grise bg-ivoire sm:self-start"
+        >
+          <PlaceholderIllustration label="" className="h-8 w-8" />
+        </span>
+      )}
       <div className="flex flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -100,8 +109,7 @@ function EntryHeader({ entry }: { entry: IllustrationEntry }) {
   return (
     <span className="flex flex-1 items-center gap-3">
       {entry.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- image de démonstration en data URI, pas de pipeline next/image (lot E).
-        <img
+        <ImageWithSkeleton
           src={entry.thumbnailUrl}
           alt=""
           className="h-14 w-14 shrink-0 rounded-lg border border-grise bg-ivoire object-contain"

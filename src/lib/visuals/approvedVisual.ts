@@ -30,6 +30,38 @@ const SIGNED_URL_TTL_SECONDS = 3600;
  * restreint déjà l'accès direct à `authenticated`, jamais public — il faut
  * une URL signée temporaire (`createSignedUrl`, K11).
  */
+/**
+ * Résout le champ `image_url` brut d'un visuel (approuvé ou non) vers une
+ * URL réellement affichable par un `<img>` — seule fonction de ce type,
+ * consommée par `getApprovedVisualUrl` (sujet public) et par le Centre des
+ * illustrations (`/illustrations`, tous statuts confondus, K5/K11) : sans
+ * elle, un visuel réel en bucket privé s'affichait comme une image cassée
+ * dans ce dernier (chemin Storage brut passé tel quel en `src`, jamais signé
+ * — invisible tant que seuls des brouillons démonstration en data URI ou des
+ * chemins publics statiques y transitaient).
+ *
+ * --- Format réel de `imageUrl` (K10) --- Une data URI base64 n'a rien à
+ * signer : retournée telle quelle. Un chemin public statique (`/visuals/...`,
+ * fourni manuellement) est servi tel quel par Next, jamais dans le bucket
+ * privé. Un chemin Storage réel (`{subjectType}/{subjectId}/{uuid}.{ext}`)
+ * exige une URL signée temporaire (`createSignedUrl`).
+ */
+export async function resolveVisualAssetDisplayUrl(imageUrl: string): Promise<string> {
+  if (imageUrl.startsWith("data:")) return imageUrl;
+  if (imageUrl.startsWith("/")) return imageUrl;
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.storage
+    .from(VISUAL_ASSETS_BUCKET)
+    .createSignedUrl(imageUrl, SIGNED_URL_TTL_SECONDS);
+  if (error || !data) {
+    throw new VisualAssetPersistenceError(
+      `URL signée du visuel impossible à générer : ${error?.message ?? "réponse vide"}`,
+    );
+  }
+  return data.signedUrl;
+}
+
 export async function getApprovedVisualUrl(
   subjectType: SubjectType,
   subjectId: string,
@@ -46,22 +78,5 @@ export async function getApprovedVisualUrl(
   // future de cette fonction ou à un appelant qui la contournerait.
   if (asset.status !== "approved" || !asset.isPrimary) return null;
 
-  if (asset.imageUrl.startsWith("data:")) return asset.imageUrl;
-
-  // Chemin public statique (`/visuals/...`, image fournie manuellement —
-  // `scripts/link-local-ingredient-images.mjs`) : servi tel quel par Next,
-  // jamais dans le bucket privé, donc jamais besoin d'URL signée. Un chemin
-  // Storage réel ne commence jamais par `/` (format `{subjectType}/{subjectId}/{uuid}.{ext}`).
-  if (asset.imageUrl.startsWith("/")) return asset.imageUrl;
-
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.storage
-    .from(VISUAL_ASSETS_BUCKET)
-    .createSignedUrl(asset.imageUrl, SIGNED_URL_TTL_SECONDS);
-  if (error || !data) {
-    throw new VisualAssetPersistenceError(
-      `URL signée du visuel approuvé impossible à générer : ${error?.message ?? "réponse vide"}`,
-    );
-  }
-  return data.signedUrl;
+  return resolveVisualAssetDisplayUrl(asset.imageUrl);
 }

@@ -22,7 +22,8 @@ export interface IllustrationVersion {
   id: string;
   status: VisualAssetStatus;
   isPrimary: boolean;
-  imageUrl: string;
+  /** `null` si la signature de l'URL a échoué (fichier orphelin, Storage indisponible) — jamais bloquant, voir `resolveDisplayUrlSafe` (`page.tsx`). */
+  imageUrl: string | null;
   presetVersion: string;
   createdAt: string;
 }
