@@ -98,6 +98,9 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link href="/illustrations" className="hidden md:inline-flex">
+            <Button variant="secondary">Illustrations</Button>
+          </Link>
           <Link href="/importer" className="hidden md:inline-flex">
             <Button variant="secondary">Importer</Button>
           </Link>
@@ -140,8 +143,15 @@ export function SiteHeader() {
               );
             })}
             <li>
-              <Link href="/importer" onClick={() => setMenuOpen(false)}>
+              <Link href="/illustrations" onClick={() => setMenuOpen(false)}>
                 <Button variant="secondary" className="mt-1 w-full justify-start">
+                  Illustrations
+                </Button>
+              </Link>
+            </li>
+            <li>
+              <Link href="/importer" onClick={() => setMenuOpen(false)}>
+                <Button variant="secondary" className="w-full justify-start">
                   Importer
                 </Button>
               </Link>
