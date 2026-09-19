@@ -23,6 +23,7 @@ import { z } from "zod";
 import { visualAssetSchema } from "@/lib/domain/schemas";
 import { beginAiRequest, completeAiRequest } from "@/lib/domain/aiCostGuard";
 import { generateRealVisualDraft } from "@/lib/ai/visuals/real-generation";
+import { resolveVisualAssetDisplayUrls } from "@/lib/visuals/approvedVisual";
 import { getPrimaryVisualAsset } from "@/lib/visuals/storage";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
 import {
@@ -109,6 +110,12 @@ export async function runMissingQueueAction(
     return { error: "Cette même sélection est déjà en cours de traitement.", outcomes: null };
   }
 
+  // Chemin brut (Storage/data URI) de chaque brouillon créé, par assetId —
+  // permet de proposer une validation (Approuver/Rejeter) immédiate sous le
+  // formulaire, sans repasser par `/illustrations` (signature Storage en lot
+  // après coup, jamais un appel par brouillon).
+  const rawImageUrlByAssetId = new Map<string, string>();
+
   try {
     const outcomes = await runVisualGenerationQueue(
       targets.map((subject) => ({ type: subject.type, id: subject.id, label: subject.label })),
@@ -120,7 +127,7 @@ export async function runMissingQueueAction(
           // Appel réel OpenAI (F-IA2) — mêmes champs que ceux affichés dans le
           // prompt repliable de l'écran de confirmation (K9, `MissingQueueBrowser`) :
           // le prompt réellement envoyé est identique à celui montré avant confirmation.
-          return generateRealVisualDraft({
+          const result = await generateRealVisualDraft({
             subjectType: subject.type,
             subjectId: subject.id,
             subjectLabel: subject.label,
@@ -131,6 +138,8 @@ export async function runMissingQueueAction(
             validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
             additionalInformation: subject.additionalInformation,
           });
+          if (result.ok) rawImageUrlByAssetId.set(result.data.id, result.data.imageUrl);
+          return result;
         },
         // Journal serveur sans contenu sensible : type + id + statut uniquement (jamais le prompt ni le libellé).
         onEntry: (entry) => {
@@ -139,8 +148,17 @@ export async function runMissingQueueAction(
       },
     );
 
+    const displayUrlByPath = await resolveVisualAssetDisplayUrls([...rawImageUrlByAssetId.values()]).catch(
+      () => new Map<string, string>(),
+    );
+    const outcomesWithPreview = outcomes.map((outcome) => {
+      const rawImageUrl = outcome.assetId ? rawImageUrlByAssetId.get(outcome.assetId) : undefined;
+      const imageUrl = rawImageUrl ? displayUrlByPath.get(rawImageUrl) : undefined;
+      return imageUrl ? { ...outcome, imageUrl } : outcome;
+    });
+
     revalidateAll();
-    return { error: null, outcomes };
+    return { error: null, outcomes: outcomesWithPreview };
   } finally {
     completeAiRequest(requestId);
   }

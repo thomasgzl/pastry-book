@@ -32,6 +32,10 @@ export interface QueueOutcome {
   status: QueueOutcomeStatus;
   /** Présent uniquement pour `status: "skipped" | "error"` — jamais de contenu sensible (prompt, texte source). */
   message?: string;
+  /** Présent uniquement pour `status: "ok"` — identifiant du brouillon créé, pour permettre une validation (Approuver/Rejeter) immédiate sans repasser par `/illustrations`. */
+  assetId?: string;
+  /** Présent uniquement pour `status: "ok"` quand la signature Storage a réussi — URL déjà affichable, jamais un chemin brut. */
+  imageUrl?: string;
 }
 
 /** Journal structuré (jamais de contenu sensible : type + id + statut + horodatage uniquement). */

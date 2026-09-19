@@ -19,9 +19,8 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { describeRealImageGenerationRequest, OPENAI_PRICING_DOC_URL, SIZE_BY_RATIO } from "@/lib/ai/visuals/openai-provider";
 import { getSubjectFraming, VISUAL_PRESET_VERSION } from "@/lib/visuals/preset";
 import type { VisualSubjectKind } from "@/lib/visuals/preset";
-import { resolveVisualAssetDisplayUrl } from "@/lib/visuals/approvedVisual";
+import { resolveVisualAssetDisplayUrls } from "@/lib/visuals/approvedVisual";
 import { listVisualAssets } from "@/lib/visuals/storage";
-import type { VisualAsset } from "@/lib/domain/schemas";
 import { getAllVisualSubjects } from "@/lib/visuals/subjects";
 import { bestVisualStatus } from "@/lib/visuals/status";
 import { IllustrationsBrowser, type IllustrationEntry, type RegenerateProviderInfo } from "./IllustrationsBrowser";
@@ -49,37 +48,33 @@ function buildRegenerateInfo(): RegenerateProviderInfo {
 }
 
 /**
- * `asset.imageUrl` est un champ brut (chemin Storage privé, chemin public
- * statique ou data URI, voir `resolveVisualAssetDisplayUrl`) — jamais
- * directement affichable en `<img src>` pour un chemin Storage privé. Un
- * échec de signature (fichier orphelin, Storage indisponible) retombe sur
- * `null` : ce centre de consultation reste secondaire, jamais bloquant pour
- * un seul visuel défaillant parmi d'autres.
+ * Un seul aller-retour Supabase (`listVisualAssets()` sans filtre — toutes
+ * les lignes) et un seul aller-retour Storage (`resolveVisualAssetDisplayUrls`,
+ * signature en lot) pour TOUS les sujets, au lieu d'un aller-retour de chaque
+ * sorte par sujet (cause principale des lenteurs constatées sur cette page,
+ * qui grossissait avec le nombre de sujets/visuels — même classe de
+ * problème que le N+1 déjà corrigé sur les listes de recettes,
+ * `supabaseSource.ts`). `asset.imageUrl` reste un champ brut (chemin Storage
+ * privé, chemin public statique ou data URI) tant qu'il n'est pas passé par
+ * cette résolution — jamais directement affichable en `<img src>` pour un
+ * chemin Storage privé. Une entrée manquante dans la map (échec de signature
+ * pour CE fichier précis) retombe sur `null` : ce centre de consultation
+ * reste secondaire, jamais bloquant pour un seul visuel défaillant parmi
+ * d'autres.
  */
-async function resolveDisplayUrlSafe(imageUrl: string): Promise<string | null> {
-  try {
-    return await resolveVisualAssetDisplayUrl(imageUrl);
-  } catch {
-    return null;
-  }
-}
-
 async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
-  const subjects = await getAllVisualSubjects();
-  const assetsBySubjectId = new Map(
-    await Promise.all(
-      subjects.map(
-        async (subject) => [`${subject.type}-${subject.id}`, await listVisualAssets(subject.type, subject.id)] as const,
-      ),
-    ),
-  );
+  const [subjects, allAssets] = await Promise.all([getAllVisualSubjects(), listVisualAssets()]);
 
-  const displayUrlByAssetId = new Map(
-    await Promise.all(
-      [...assetsBySubjectId.values()]
-        .flat()
-        .map(async (asset: VisualAsset) => [asset.id, await resolveDisplayUrlSafe(asset.imageUrl)] as const),
-    ),
+  const assetsBySubjectId = new Map<string, typeof allAssets>();
+  for (const asset of allAssets) {
+    const key = `${asset.subjectType}-${asset.subjectId}`;
+    const list = assetsBySubjectId.get(key);
+    if (list) list.push(asset);
+    else assetsBySubjectId.set(key, [asset]);
+  }
+
+  const displayUrlByPath = await resolveVisualAssetDisplayUrls(allAssets.map((asset) => asset.imageUrl)).catch(
+    () => new Map<string, string>(),
   );
 
   return subjects.map((subject) => {
@@ -92,7 +87,7 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
       label: subject.label,
       parentLabel: subject.parentLabel,
       status: bestVisualStatus(assets),
-      thumbnailUrl: (primary && displayUrlByAssetId.get(primary.id)) ?? null,
+      thumbnailUrl: (primary && displayUrlByPath.get(primary.imageUrl)) ?? null,
       photoUrl: subject.photoUrl,
       categorySlug: subject.categorySlug,
       preparationNames: subject.preparationNames,
@@ -102,7 +97,7 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
         id: asset.id,
         status: asset.status,
         isPrimary: asset.isPrimary,
-        imageUrl: displayUrlByAssetId.get(asset.id) ?? null,
+        imageUrl: displayUrlByPath.get(asset.imageUrl) ?? null,
         presetVersion: asset.presetVersion,
         createdAt: asset.createdAt,
       })),

@@ -14,12 +14,14 @@
 
 import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/states/EmptyState";
 import { normalizeText } from "@/lib/recipes/search";
 import { VISUAL_KIND_LABELS } from "@/lib/visuals/kindLabels";
 import { buildVisualPrompt, PRESET_EXCLUSIONS, VISUAL_PRESET_VERSION, type VisualSubjectKind } from "@/lib/visuals/preset";
 import { QUEUE_BATCH_SIZE_OPTIONS, QUEUE_CONFIRMATION_PREFIX, type QueueBatchSize } from "@/lib/visuals/queueConstants";
+import { approveAsPrimaryAction, rejectAction } from "../../visuels/actions";
 import { runMissingQueueAction, type QueueActionState } from "./actions";
 
 export interface MissingSubjectEntry {
@@ -78,6 +80,52 @@ function keyOf(entry: { type: string; id: string }): string {
   return `${entry.type}:${entry.id}`;
 }
 
+/**
+ * Validation immédiate d'un brouillon tout juste généré (K9+, demande
+ * utilisateur : éviter l'aller-retour par `/illustrations` pour approuver ou
+ * rejeter). Mêmes Server Actions que `/illustrations` (`approveAsPrimaryAction`/
+ * `rejectAction`, `visuels/actions.ts`) — jamais une logique dupliquée.
+ * `onResolved` masque la carte côté client dès le clic (mise à jour
+ * optimiste) ; la vraie mutation/re-validation des pages publiques reste
+ * portée par la Server Action elle-même.
+ */
+function GeneratedDraftPreview({
+  assetId,
+  imageUrl,
+  onResolved,
+}: {
+  assetId: string;
+  imageUrl: string;
+  onResolved: (assetId: string) => void;
+}) {
+  return (
+    <li className="flex flex-col gap-2 rounded-lg border border-grise bg-coquille p-3 sm:flex-row sm:items-center">
+      <ImageWithSkeleton
+        src={imageUrl}
+        alt=""
+        className="h-20 w-20 shrink-0 rounded-lg border border-grise bg-ivoire object-contain"
+      />
+      <div className="flex flex-1 flex-col gap-2">
+        <p className="text-sm text-cacao">Brouillon généré — à valider :</p>
+        <div className="flex flex-wrap gap-2">
+          <form action={approveAsPrimaryAction} onSubmit={() => onResolved(assetId)}>
+            <input type="hidden" name="assetId" value={assetId} />
+            <Button type="submit" variant="primary" className="text-sm">
+              Approuver et utiliser
+            </Button>
+          </form>
+          <form action={rejectAction} onSubmit={() => onResolved(assetId)}>
+            <input type="hidden" name="assetId" value={assetId} />
+            <Button type="submit" variant="secondary" className="text-sm">
+              Rejeter
+            </Button>
+          </form>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function MissingQueueBrowser({
   entries,
   providerName,
@@ -93,6 +141,11 @@ export function MissingQueueBrowser({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [state, formAction, pending] = useActionState(runMissingQueueAction, INITIAL_STATE);
   const confirmationPanelRef = useRef<HTMLFormElement>(null);
+  /** assetId des brouillons déjà approuvés/rejetés DEPUIS cet écran (K9+) —
+   * masque leur carte de validation immédiate sans attendre le prochain
+   * chargement de page ; mise à jour optimiste au clic, la vraie mutation
+   * reste portée par la Server Action elle-même. */
+  const [resolvedAssetIds, setResolvedAssetIds] = useState<Set<string>>(new Set());
 
   const totalByType = useMemo(() => {
     const counts = new Map<VisualSubjectKind, number>();
@@ -379,13 +432,32 @@ export function MissingQueueBrowser({
           </p>
         )}
         {state.outcomes && (
-          <ul className="text-sm text-cacao/80">
-            {state.outcomes.map((outcome, index) => (
-              <li key={`${outcome.type}-${outcome.id}-${index}`}>
-                {OUTCOME_LABEL[outcome.status]}
-                {outcome.message ? ` — ${outcome.message}` : ""}
-              </li>
-            ))}
+          <ul className="flex flex-col gap-2 text-sm text-cacao/80">
+            {state.outcomes.map((outcome, index) => {
+              const key = `${outcome.type}-${outcome.id}-${index}`;
+              const canValidateNow =
+                outcome.status === "ok" && outcome.assetId && outcome.imageUrl && !resolvedAssetIds.has(outcome.assetId);
+              if (canValidateNow) {
+                return (
+                  <GeneratedDraftPreview
+                    key={key}
+                    assetId={outcome.assetId!}
+                    imageUrl={outcome.imageUrl!}
+                    onResolved={(assetId) =>
+                      setResolvedAssetIds((previous) => new Set(previous).add(assetId))
+                    }
+                  />
+                );
+              }
+              return (
+                <li key={key}>
+                  {outcome.status === "ok" && outcome.assetId && resolvedAssetIds.has(outcome.assetId)
+                    ? "Validé — voir /matières premières ou la fiche concernée."
+                    : OUTCOME_LABEL[outcome.status]}
+                  {outcome.message ? ` — ${outcome.message}` : ""}
+                </li>
+              );
+            })}
           </ul>
         )}
         <Button type="submit" variant="secondary" disabled={pending || selectedCount === 0} className="self-start">

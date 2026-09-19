@@ -8,29 +8,6 @@ type SubjectType = VisualAsset["subjectType"];
 const SIGNED_URL_TTL_SECONDS = 3600;
 
 /**
- * Lecture serveur du visuel approuvé et publié (« principal ») d'un sujet —
- * jamais un brouillon, jamais un visuel rejeté (lot J, mécanisme de lecture
- * sécurisée consommé ensuite par `frontend-design-agent`). Appelée
- * UNIQUEMENT depuis un Server Component ou une Server Action, jamais
- * importée dans un fichier `"use client"` — même règle que
- * `storage.ts`/`subjects.ts` : `getPrimaryVisualAsset` passe par le client
- * Supabase serveur authentifié, qui ne doit jamais tourner côté navigateur.
- *
- * Retourne `null` si le sujet n'a aucun visuel principal — état normal (pas
- * encore illustré ou pas encore validé), jamais une erreur bloquante :
- * l'appelant affiche un placeholder dans ce cas.
- *
- * --- Format réel de `imageUrl` (K10 : deux cas possibles désormais) ---
- * Une data URI base64 (`data:image/svg+xml;base64,...` en démo,
- * `data:image/png;base64,...` quand Supabase n'est pas configuré) n'a rien à
- * signer : retournée telle quelle. Un chemin Storage réel
- * (`{subjectType}/{subjectId}/{uuid}.{ext}`, écrit par `persistGeneratedVisual`
- * depuis K10 quand Supabase est configuré et le format accepté par le
- * bucket) n'est pas exploitable tel quel par un `<img>` — RLS Storage
- * restreint déjà l'accès direct à `authenticated`, jamais public — il faut
- * une URL signée temporaire (`createSignedUrl`, K11).
- */
-/**
  * Résout le champ `image_url` brut d'un visuel (approuvé ou non) vers une
  * URL réellement affichable par un `<img>` — seule fonction de ce type,
  * consommée par `getApprovedVisualUrl` (sujet public) et par le Centre des
@@ -60,6 +37,38 @@ export async function resolveVisualAssetDisplayUrl(imageUrl: string): Promise<st
     );
   }
   return data.signedUrl;
+}
+
+/**
+ * Version en lot de `resolveVisualAssetDisplayUrl` — un seul appel Storage
+ * (`createSignedUrls`, pluriel) pour N chemins réels au lieu d'un appel par
+ * asset. Cause principale des lenteurs constatées sur `/illustrations`
+ * (autant d'allers-retours Storage que de visuels affichés, cumulés à un
+ * appel `listVisualAssets` par sujet — voir `page.tsx`). Retourne une `Map`
+ * indexée par le chemin D'ORIGINE (data URI/chemin public tel quel, chemin
+ * Storage résolu en URL signée) ; une entrée manquante signale un échec de
+ * signature pour CE chemin précis, jamais un échec bloquant pour les autres.
+ */
+export async function resolveVisualAssetDisplayUrls(imageUrls: string[]): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const realPaths: string[] = [];
+  for (const imageUrl of imageUrls) {
+    if (imageUrl.startsWith("data:") || imageUrl.startsWith("/")) result.set(imageUrl, imageUrl);
+    else realPaths.push(imageUrl);
+  }
+  if (realPaths.length === 0) return result;
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.storage
+    .from(VISUAL_ASSETS_BUCKET)
+    .createSignedUrls(realPaths, SIGNED_URL_TTL_SECONDS);
+  if (error) {
+    throw new VisualAssetPersistenceError(`URL signées des visuels impossibles à générer : ${error.message}`);
+  }
+  for (const item of data ?? []) {
+    if (item.signedUrl && !item.error) result.set(item.path ?? "", item.signedUrl);
+  }
+  return result;
 }
 
 export async function getApprovedVisualUrl(

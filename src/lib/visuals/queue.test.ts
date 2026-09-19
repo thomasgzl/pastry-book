@@ -91,7 +91,7 @@ describe("runVisualGenerationQueue (K8) — moteur séquentiel générique", () 
       isAlreadyDone: async () => false,
       generate: async (t) => {
         calls.push(t.id);
-        return ok(undefined);
+        return ok({ id: `asset-${t.id}` });
       },
     });
     expect(calls).toEqual(["a", "b", "c"]);
@@ -105,7 +105,7 @@ describe("runVisualGenerationQueue (K8) — moteur séquentiel générique", () 
       generate: async (t) => {
         calls.push(t.id);
         if (t.id === "b") return err("unknown", "échec simulé");
-        return ok(undefined);
+        return ok({ id: `asset-${t.id}` });
       },
     });
     expect(calls).toEqual(["a", "b"]); // "c" jamais appelé
@@ -119,20 +119,20 @@ describe("runVisualGenerationQueue (K8) — moteur séquentiel générique", () 
       isAlreadyDone: async (t) => t.id === "a",
       generate: async (t) => {
         calls.push(t.id);
-        return ok(undefined);
+        return ok({ id: `asset-${t.id}` });
       },
     });
     expect(calls).toEqual(["b"]);
     expect(outcomes).toEqual([
       { type: "ingredient", id: "a", status: "skipped", message: expect.any(String) },
-      { type: "ingredient", id: "b", status: "ok" },
+      { type: "ingredient", id: "b", status: "ok", assetId: "asset-b" },
     ]);
   });
 
   it("refuse un lot supérieur à la taille maximale autorisée", async () => {
     const targets = Array.from({ length: MAX_QUEUE_BATCH_SIZE + 1 }, (_, i) => target(String(i)));
     await expect(
-      runVisualGenerationQueue(targets, { isAlreadyDone: async () => false, generate: async () => ok(undefined) }),
+      runVisualGenerationQueue(targets, { isAlreadyDone: async () => false, generate: async () => ok({ id: "asset" }) }),
     ).rejects.toThrow(QueueBatchSizeError);
   });
 
@@ -140,7 +140,7 @@ describe("runVisualGenerationQueue (K8) — moteur séquentiel générique", () 
     const entries: unknown[] = [];
     await runVisualGenerationQueue([target("a")], {
       isAlreadyDone: async () => false,
-      generate: async () => ok(undefined),
+      generate: async () => ok({ id: "asset-a" }),
       onEntry: (entry) => entries.push(entry),
     });
     expect(entries).toEqual([{ type: "ingredient", id: "a", status: "ok", at: expect.any(String) }]);

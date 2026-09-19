@@ -57,8 +57,14 @@ export async function getMissingVisualSubjects(): Promise<VisualSubject[]> {
 export interface RunVisualGenerationQueueOptions {
   /** Idempotence : revérifiée juste avant CHAQUE appel (pas seulement au chargement de la page) — défense contre un état obsolu. */
   isAlreadyDone: (target: QueueTarget) => Promise<boolean>;
-  /** Un appel par sujet ; jamais rappelé automatiquement après un échec (aucun retry ici, ni chez l'appelant). */
-  generate: (target: QueueTarget) => Promise<Result<unknown>>;
+  /**
+   * Un appel par sujet ; jamais rappelé automatiquement après un échec
+   * (aucun retry ici, ni chez l'appelant). `data.id` (identifiant du
+   * brouillon créé) est reporté dans l'issue `"ok"` correspondante — permet
+   * à l'appelant de proposer une validation immédiate sans repasser par
+   * `/illustrations`.
+   */
+  generate: (target: QueueTarget) => Promise<Result<{ id: string }>>;
   /** Journal optionnel, sans contenu sensible. */
   onEntry?: (entry: QueueLogEntry) => void;
 }
@@ -100,7 +106,7 @@ export async function runVisualGenerationQueue(
 
     const result = await options.generate(target);
     if (result.ok) {
-      outcomes.push({ type: target.type, id: target.id, status: "ok" });
+      outcomes.push({ type: target.type, id: target.id, status: "ok", assetId: result.data.id });
       options.onEntry?.({ type: target.type, id: target.id, status: "ok", at: new Date().toISOString() });
     } else {
       outcomes.push({ type: target.type, id: target.id, status: "error", message: result.error.message });
