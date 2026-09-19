@@ -22,7 +22,15 @@ import { type Result, ok, err } from "./errors";
 export type AiOperationType =
   | "extraction"
   | "illustration-brouillon"
-  | "illustration-finale";
+  | "illustration-finale"
+  /** Verrou anti-double-soumission d'un FORMULAIRE (pas un appel IA lui-même) —
+   * type distinct des précédents pour ne jamais partager `lastCallAtByType`
+   * avec eux : un verrou de soumission à `minDelayMs: 0` réussi met sinon à
+   * jour l'horodatage du type qu'il emprunte, ce qui fait échouer le tout
+   * premier appel réel imbriqué (`illustration-brouillon`) sur son propre
+   * `minDelayMs`, alors qu'aucun appel IA n'a encore eu lieu (constaté en
+   * branchant `runMissingQueueAction` sur `generateRealVisualDraft`). */
+  | "queue-submission";
 
 type CallLogEntry = {
   type: AiOperationType;

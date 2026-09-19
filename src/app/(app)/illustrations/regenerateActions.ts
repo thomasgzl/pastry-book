@@ -66,7 +66,7 @@ export async function regenerateVersionAction(
 
   // Idempotence de la soumission (double-clic) — même patron que `runMissingQueueAction`.
   const requestId = `illustrations-regenerate:${subject.type}:${subject.id}`;
-  const guard = beginAiRequest(requestId, "illustration-brouillon", { minDelayMs: 0 });
+  const guard = beginAiRequest(requestId, "queue-submission", { minDelayMs: 0 });
   if (!guard.ok) {
     return { error: "Une nouvelle version est déjà en cours de génération pour ce sujet.", success: false };
   }

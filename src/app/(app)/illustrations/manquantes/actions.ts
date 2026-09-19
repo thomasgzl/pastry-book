@@ -104,7 +104,7 @@ export async function runMissingQueueAction(
 
   // Idempotence de la SOUMISSION elle-même (double-clic/double envoi de formulaire) — jamais de contenu dans l'identifiant.
   const requestId = `illustrations-queue:${targets.map((t) => `${t.type}:${t.id}`).sort().join(",")}`;
-  const guard = beginAiRequest(requestId, "illustration-brouillon", { minDelayMs: 0 });
+  const guard = beginAiRequest(requestId, "queue-submission", { minDelayMs: 0 });
   if (!guard.ok) {
     return { error: "Cette même sélection est déjà en cours de traitement.", outcomes: null };
   }
