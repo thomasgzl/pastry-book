@@ -82,7 +82,7 @@ const VEGETAL_MILK_QUALIFIERS = /(amande|soja|avoine|riz|coco|noisette|chanvre)/
 function classifyLactose(norm: string): Tristate {
   if (/sans lactose/.test(norm)) return "false";
   if (/\b(lait|creme)\b/.test(norm) && VEGETAL_MILK_QUALIFIERS.test(norm)) return "false";
-  if (/\b(lait|creme|lactose|lactoserum|yaourt|mascarpone|beurre)\b/.test(norm) || /fromage frais/.test(norm)) return "true";
+  if (/\b(lait|creme|lactose|lactoserum|yaourt|mascarpone|beurre|fromages?)\b/.test(norm)) return "true";
   // Beurre déjà couvert ci-dessus (prudence, conservateur) ; chocolat non qualifié reste ambigu (composition non précisée).
   if (/\bchocolat\b/.test(norm)) return "unknown";
   return "false";
