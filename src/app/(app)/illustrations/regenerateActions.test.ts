@@ -4,8 +4,8 @@
  * déjà testé ailleurs — vérifié ici seulement au niveau de son effet), appel
  * de génération avec les mêmes champs de prompt que ceux affichés
  * (`preparationNames`/`validatedKeyIngredientNames`/`additionalInformation`).
- * `generateVisualDraft`/`getVisualSubject`/`next/cache` entièrement mockés :
- * aucun appel réseau, aucun appel OpenAI.
+ * `generateRealVisualDraft`/`getVisualSubject`/`next/cache` entièrement
+ * mockés : aucun appel réseau, aucun appel OpenAI.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,8 +16,8 @@ const { generateVisualDraftMock, getVisualSubjectMock, revalidatePathMock } = vi
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("@/lib/ai/visuals/service", () => ({
-  generateVisualDraft: generateVisualDraftMock,
+vi.mock("@/lib/ai/visuals/real-generation", () => ({
+  generateRealVisualDraft: generateVisualDraftMock,
 }));
 vi.mock("@/lib/visuals/subjects", () => ({
   getVisualSubject: getVisualSubjectMock,
@@ -72,18 +72,33 @@ describe("regenerateVersionAction (K11)", () => {
   });
 
   it("phrase correcte : génère un nouveau brouillon avec les mêmes champs de prompt que le sujet, puis revalide les pages concernées", async () => {
-    generateVisualDraftMock.mockResolvedValue({ id: "new-asset", status: "draft" });
+    generateVisualDraftMock.mockResolvedValue({ ok: true, data: { id: "new-asset", status: "draft" } });
 
     const state = await regenerateVersionAction(INITIAL_REGENERATE_STATE, formData());
 
     expect(state.error).toBeNull();
     expect(state.success).toBe(true);
     expect(generateVisualDraftMock).toHaveBeenCalledWith(
-      expect.objectContaining({ subjectType: "ingredient", subjectId: SUBJECT.id, subjectLabel: "Citron" }),
+      expect.objectContaining({
+        subjectType: "ingredient",
+        subjectId: SUBJECT.id,
+        subjectLabel: "Citron",
+        allowAdditionalVersion: true,
+      }),
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/illustrations");
     expect(revalidatePathMock).toHaveBeenCalledWith("/illustrations/manquantes");
     expect(revalidatePathMock).toHaveBeenCalledWith("/visuels");
+  });
+
+  it("échec réel (Result d'erreur) : renvoie le message, ne revalide rien", async () => {
+    generateVisualDraftMock.mockResolvedValue({ ok: false, error: { code: "unknown", message: "Échec fournisseur." } });
+
+    const state = await regenerateVersionAction(INITIAL_REGENERATE_STATE, formData());
+
+    expect(state.error).toBe("Échec fournisseur.");
+    expect(state.success).toBe(false);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
   it("une soumission déjà en cours pour le même sujet est refusée (idempotence, pas de doublon silencieux)", async () => {

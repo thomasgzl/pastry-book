@@ -7,21 +7,28 @@
  * avec un visuel `approved`/`isPrimary` en sort). Réutilise le même
  * mécanisme de confirmation que K9 (`runMissingQueueAction`,
  * `MissingQueueBrowser`) — même phrase nommée (`QUEUE_CONFIRMATION_PREFIX`),
- * même garde de coût (`aiCostGuard.ts`), même appel de génération
- * (`generateVisualDraft`) — plutôt que de le reconstruire : un lot de taille
- * 1 pour un sujet précis, sans passer par la liste des manquants qui ne le
- * contient pas.
+ * même garde de coût (`aiCostGuard.ts`) — plutôt que de le reconstruire : un
+ * lot de taille 1 pour un sujet précis, sans passer par la liste des
+ * manquants qui ne le contient pas.
  *
- * Ne modifie jamais un visuel existant : `generateVisualDraft` crée toujours
- * une nouvelle ligne `draft` à côté (storage.ts, invariant E1), jamais
- * approuvée ni principale automatiquement.
+ * Appel réel OpenAI (`generateRealVisualDraft`, F-IA2) — même correction que
+ * `manquantes/actions.ts` (2026-09-19) : appelait auparavant
+ * `generateVisualDraft` (démo gratuite), jamais remarqué faute d'avoir déjà
+ * régénéré une version réelle depuis cet écran. `allowAdditionalVersion:
+ * true` est nécessaire ici (contrairement à la file des manquants) : ce
+ * sujet a justement DÉJÀ un principal, ce parcours sert précisément à créer
+ * un brouillon supplémentaire à côté.
+ *
+ * Ne modifie jamais un visuel existant : crée toujours une nouvelle ligne
+ * `draft` à côté (storage.ts, invariant E1), jamais approuvée ni principale
+ * automatiquement.
  */
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { visualAssetSchema } from "@/lib/domain/schemas";
 import { beginAiRequest, completeAiRequest } from "@/lib/domain/aiCostGuard";
-import { generateVisualDraft } from "@/lib/ai/visuals/service";
+import { generateRealVisualDraft } from "@/lib/ai/visuals/real-generation";
 import { getVisualSubject } from "@/lib/visuals/subjects";
 import { QUEUE_CONFIRMATION_PREFIX } from "@/lib/visuals/queueConstants";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
@@ -70,7 +77,7 @@ export async function regenerateVersionAction(
   }
 
   try {
-    await generateVisualDraft({
+    const result = await generateRealVisualDraft({
       subjectType: subject.type,
       subjectId: subject.id,
       subjectLabel: subject.label,
@@ -80,7 +87,9 @@ export async function regenerateVersionAction(
       preparationNames: subject.preparationNames,
       validatedKeyIngredientNames: subject.validatedKeyIngredientNames,
       additionalInformation: subject.additionalInformation,
+      allowAdditionalVersion: true,
     });
+    if (!result.ok) return { error: result.error.message, success: false };
     revalidateAll();
     return { error: null, success: true };
   } catch (cause) {
