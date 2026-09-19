@@ -1141,10 +1141,10 @@ function isRealStoragePath(url: string): boolean {
  * supprimée si ce nettoyage échoue) — journalisé de façon structurée, jamais
  * silencieux, jamais de contenu sensible.
  */
-function logOrphanedStorageFileAfterDelete(bucket: string, paths: string[], recipeId: string, cause: string): void {
+function logOrphanedStorageFileAfterDelete(bucket: string, paths: string[], subjectId: string, cause: string): void {
   console.warn(
-    "[recipes] recette supprimée mais le nettoyage d'un fichier Storage associé a échoué — fichier potentiellement orphelin, à vérifier/supprimer manuellement",
-    { bucket, paths, recipeId, cause },
+    "[import] suppression actée en base mais le nettoyage d'un fichier Storage associé a échoué — fichier potentiellement orphelin, à vérifier/supprimer manuellement",
+    { bucket, paths, subjectId, cause },
   );
 }
 
@@ -1184,4 +1184,62 @@ export async function deleteRecipe(recipeId: string): Promise<DeleteRecipeResult
     );
   }
   return deleteRecipeSupabase(createSupabaseAdminClient(), recipeId);
+}
+
+interface DeleteCanonicalIngredientRpcRow {
+  name: string;
+  visual_urls: string[];
+}
+
+type UntypedDeleteCanonicalIngredientRpcClient = {
+  rpc(fn: "delete_canonical_ingredient", args: { p_id: string }): Promise<{
+    data: DeleteCanonicalIngredientRpcRow | null;
+    error: { message: string } | null;
+  }>;
+};
+
+async function callDeleteCanonicalIngredientRpc(
+  client: SupabaseAdminClient,
+  id: string,
+): Promise<DeleteCanonicalIngredientRpcRow> {
+  const { data, error } = await (client as unknown as UntypedDeleteCanonicalIngredientRpcClient).rpc(
+    "delete_canonical_ingredient",
+    { p_id: id },
+  );
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error("Réponse vide de la transaction de suppression de matière première.");
+  }
+  return data;
+}
+
+/**
+ * Supprime définitivement une matière première canonique (doublon
+ * accidentel, ex. « Coco » créé alors que « Noix de coco » existait déjà) —
+ * écriture unique via `delete_canonical_ingredient` (fonction Postgres, voir
+ * `supabase/migrations/20260919140000_delete_canonical_ingredient_rpc.sql`),
+ * qui refuse tant que la matière est utilisée quelque part (matières
+ * premières principales, lignes d'ingrédient, alias, sous-matière) — jamais
+ * de perte de tag silencieuse sur une recette.
+ */
+async function deleteCanonicalIngredientSupabase(client: SupabaseAdminClient, id: string): Promise<void> {
+  const result = await callDeleteCanonicalIngredientRpc(client, id);
+
+  const visualPaths = result.visual_urls.filter(isRealStoragePath);
+  if (visualPaths.length > 0) {
+    const { error } = await client.storage.from(VISUAL_ASSETS_BUCKET).remove(visualPaths);
+    if (error) logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, id, error.message);
+  }
+}
+
+/** Repli mémoire (dev local sans Supabase configuré) : même raison que `deleteRecipe`. */
+export async function deleteCanonicalIngredient(id: string): Promise<void> {
+  if (!hasSupabaseConfig()) {
+    throw new Error(
+      "Suppression d'une matière première indisponible sans Supabase configuré (mode démonstration, lecture seule).",
+    );
+  }
+  return deleteCanonicalIngredientSupabase(createSupabaseAdminClient(), id);
 }

@@ -16,6 +16,7 @@ import { getCanonicalIngredientBySlug, getRecipesForCanonicalIngredient } from "
 import { toRecipeCardData } from "@/lib/data/recipes";
 import { getApprovedVisualUrl } from "@/lib/visuals/approvedVisual";
 import { getLocalIngredientImage } from "@/lib/visuals/localIngredientImages";
+import { DeleteIngredientZone } from "./DeleteIngredientZone";
 
 export default async function MatierePremierePage({ params }: { params: Promise<{ matiere: string }> }) {
   const { matiere: slug } = await params;
@@ -68,6 +69,8 @@ export default async function MatierePremierePage({ params }: { params: Promise<
           ))}
         </div>
       )}
+
+      <DeleteIngredientZone id={ingredient.id} name={ingredient.name} />
     </div>
   );
 }

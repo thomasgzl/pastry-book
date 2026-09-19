@@ -1,6 +1,13 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import MatierePremierePage from "./page";
+
+// `DeleteIngredientZone` (K13, zone de suppression) utilise `useRouter` —
+// même patron que `recettes/page.test.tsx` : la page elle-même reste un
+// Server Component sans navigation propre, seul ce composant client en a besoin.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 describe("MatierePremierePage", () => {
   it("« citron » retrouve la tarte au citron sans modifier les libellés jus/zeste/purée", async () => {
