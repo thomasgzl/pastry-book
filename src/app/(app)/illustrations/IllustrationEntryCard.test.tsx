@@ -19,7 +19,6 @@ vi.mock("../visuels/actions", () => ({
 
 vi.mock("./regenerateActions", () => ({
   regenerateVersionAction: vi.fn(async (previous: unknown) => previous),
-  INITIAL_REGENERATE_STATE: { error: null, success: false },
 }));
 
 const REGENERATE_INFO: RegenerateProviderInfo = {

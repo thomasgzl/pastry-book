@@ -26,7 +26,8 @@ vi.mock("next/cache", () => ({
   revalidatePath: revalidatePathMock,
 }));
 
-const { regenerateVersionAction, INITIAL_REGENERATE_STATE } = await import("./regenerateActions");
+const { regenerateVersionAction } = await import("./regenerateActions");
+const INITIAL_REGENERATE_STATE = { error: null, success: false };
 
 const SUBJECT = {
   type: "ingredient" as const,

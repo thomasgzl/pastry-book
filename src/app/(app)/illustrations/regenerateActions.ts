@@ -46,8 +46,6 @@ export interface RegenerateVersionState {
   success: boolean;
 }
 
-export const INITIAL_REGENERATE_STATE: RegenerateVersionState = { error: null, success: false };
-
 export async function regenerateVersionAction(
   _previous: RegenerateVersionState,
   formData: FormData,

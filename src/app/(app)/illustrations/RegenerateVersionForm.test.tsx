@@ -13,7 +13,6 @@ import { PRESET_EXCLUSIONS } from "@/lib/visuals/preset";
 
 vi.mock("./regenerateActions", () => ({
   regenerateVersionAction: vi.fn(async (previous: unknown) => previous),
-  INITIAL_REGENERATE_STATE: { error: null, success: false },
 }));
 
 function renderForm(overrides: Partial<Parameters<typeof RegenerateVersionForm>[0]> = {}) {

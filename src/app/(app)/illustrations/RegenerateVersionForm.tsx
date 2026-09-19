@@ -13,7 +13,15 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { buildVisualPrompt, PRESET_EXCLUSIONS, VISUAL_PRESET_VERSION, type VisualSubjectKind } from "@/lib/visuals/preset";
 import { QUEUE_CONFIRMATION_PREFIX } from "@/lib/visuals/queueConstants";
-import { regenerateVersionAction, INITIAL_REGENERATE_STATE } from "./regenerateActions";
+import { regenerateVersionAction, type RegenerateVersionState } from "./regenerateActions";
+
+// Défini ici (Client Component), jamais dans `regenerateActions.ts` : un
+// fichier `"use server"` ne peut exporter QUE des fonctions async (règle
+// Next.js) — une constante objet exportée depuis ce fichier fait planter au
+// runtime toute action serveur du même module au premier appel (« A "use
+// server" file can only export async functions, found object »), constaté en
+// production sur `/illustrations` (K11, approbation d'un brouillon réel).
+const INITIAL_REGENERATE_STATE: RegenerateVersionState = { error: null, success: false };
 
 export interface RegenerateVersionFormProps {
   subjectType: VisualSubjectKind;
