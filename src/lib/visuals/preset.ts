@@ -19,7 +19,7 @@ const BASE_PROMPT = `Illustration culinaire botanique française, élégante et 
 Sujet unique immédiatement reconnaissable, composition aérée et centrée.
 Trait fin à l'encre olive profond, lavis aquarelle subtil, ombres très douces,
 couleurs naturelles légèrement désaturées, détails précis sans photoréalisme dur.
-Fond ivoire chaud uniforme ou véritable transparence selon le support.
+Fond ivoire chaud uniforme, couleur exacte #F7F3EA (celle du fond de l'application, jamais une autre nuance), ou véritable transparence selon le support.
 Esthétique d'un grand livre de pâtisserie haut de gamme, artisanale et éditoriale,
 cohérente avec une typographie Bodoni Moda/Karla et une palette cacao/olive/sauge.`;
 
@@ -143,7 +143,7 @@ export function buildVisualPrompt(input: BuildVisualPromptInput): string {
     }
   }
 
-  const formatLine = `Format : ratio ${framing.ratio}, fond ${framing.background === "ivoire" ? "ivoire" : "transparent"}.`;
+  const formatLine = `Format : ratio ${framing.ratio}, fond ${framing.background === "ivoire" ? "ivoire uni #F7F3EA" : "transparent"}.`;
   const exclusionsLine = `Exclusions impératives : ${PRESET_EXCLUSIONS.join(", ")}.`;
 
   return [BASE_PROMPT.trim(), instruction, formatLine, exclusionsLine].join("\n\n");
