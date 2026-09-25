@@ -10,6 +10,7 @@ import type { Allergen, CanonicalIngredient, Specificity } from "@/lib/domain/sc
 import type { ExtractionCompleteness } from "@/lib/ai/import/types";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
+import { formatOriginalQuantity } from "@/lib/recipes/coefficient";
 import type { ImportDuplicateMatch } from "@/lib/import/store";
 
 /** Libellé humain par nature de différence K4 — jamais un identifiant technique affiché tel quel. */
@@ -215,8 +216,7 @@ export function ReviewStep({
                       <Badge>À vérifier</Badge>
                     ) : (
                       <span className="tabular-nums text-cacao">
-                        {ingredient.originalQuantityText ?? "—"}
-                        {ingredient.unit ? ` ${ingredient.unit}` : ""}
+                        {formatOriginalQuantity(ingredient.originalQuantityText, ingredient.unit) ?? "—"}
                       </span>
                     )}
                   </li>

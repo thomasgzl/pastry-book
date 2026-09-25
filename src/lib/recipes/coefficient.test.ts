@@ -79,6 +79,11 @@ describe("formatOriginalQuantity", () => {
     expect(formatOriginalQuantity(null, null)).toBeNull();
     expect(formatOriginalQuantity("", "g")).toBeNull();
   });
+
+  it("ne répète pas l'unité déjà présente dans le texte d'origine", () => {
+    expect(formatOriginalQuantity("560 g", "g")).toBe("560 g");
+    expect(formatOriginalQuantity("5 PCS", "pcs")).toBe("5 PCS");
+  });
 });
 
 describe("getIngredientQuantityDisplay", () => {

@@ -51,7 +51,13 @@ export function applyCoefficient(quantityDecimal: string | null, coefficient: nu
  */
 export function formatOriginalQuantity(originalQuantityText: string | null, unit: string | null): string | null {
   if (!originalQuantityText) return null;
-  return unit ? `${originalQuantityText} ${unit}` : originalQuantityText;
+  const trimmedUnit = unit?.trim();
+  if (!trimmedUnit) return originalQuantityText;
+  // Certaines extractions stockent déjà l'unité dans le texte d'origine
+  // (ex. `originalQuantityText: "560 g"` avec `unit: "g"` séparé) : ne jamais
+  // la répéter (`"560 g g"`), sans jamais modifier la donnée enregistrée.
+  if (originalQuantityText.trim().toLowerCase().endsWith(trimmedUnit.toLowerCase())) return originalQuantityText;
+  return `${originalQuantityText} ${unit}`;
 }
 
 export interface IngredientQuantityInput {
