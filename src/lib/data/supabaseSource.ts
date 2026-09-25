@@ -67,7 +67,7 @@ const PAGE_SIZE = 1000;
  * page ; la boucle et la gestion d'erreur restent ici, une seule fois.
  */
 async function fetchAllRows<Row>(
-  fetchPage: (from: number, to: number) => Promise<{ data: Row[] | null; error: { message: string } | null }>,
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
   errorMessage: string,
 ): Promise<Row[]> {
   const rows: Row[] = [];
