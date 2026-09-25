@@ -14,11 +14,13 @@
  * testée sur les données de démo (mêmes fonctions `filter`/`sort`/`map`,
  * seule la source du tableau change).
  *
- * ponytail: charge la table entière à chaque appel (pas de cache ni de
- * requête filtrée/paginée) ; acceptable tant que le volume reste de l'ordre
- * de quelques centaines de recettes (CLAUDE.md, ~600 recettes visées) —
- * passer à des requêtes filtrées/paginées si ce volume devient un problème
- * mesuré en usage réel.
+ * Pagination obligatoire (`fetchAllRows`) : l'API Supabase plafonne chaque
+ * réponse à 1000 lignes par défaut, silencieusement (pas d'erreur, juste une
+ * page tronquée). Constaté en usage réel sur `recipe_ingredients` (dépassé le
+ * cap avec plus de 600 recettes visées, CLAUDE.md) : des préparations
+ * s'affichaient sans aucun ingrédient, sans qu'aucune erreur ne soit
+ * remontée nulle part. `fetchAllRows` boucle avec `.range()` jusqu'à
+ * récupérer la table entière, quelle que soit sa taille.
  */
 
 import { cache } from "react";
@@ -54,6 +56,32 @@ import type {
 
 /** Échec d'une lecture Supabase (réseau, contrainte, table absente…) — toujours remonté, jamais avalé ni suivi d'un repli silencieux vers les données de démo (règle non négociable K1). */
 export class DataAccessError extends Error {}
+
+/** Cap par page de l'API Supabase (PostgREST `max-rows`, 1000 par défaut) — jamais dépassé en un seul aller-retour, d'où la boucle de `fetchAllRows`. */
+const PAGE_SIZE = 1000;
+
+/**
+ * Récupère la table entière par pages de `PAGE_SIZE` lignes (`.range()`),
+ * jamais une seule page qui se ferait tronquer silencieusement au-delà du cap
+ * de l'API Supabase. Chaque loader ci-dessous ne fournit que la fonction de
+ * page ; la boucle et la gestion d'erreur restent ici, une seule fois.
+ */
+async function fetchAllRows<Row>(
+  fetchPage: (from: number, to: number) => Promise<{ data: Row[] | null; error: { message: string } | null }>,
+  errorMessage: string,
+): Promise<Row[]> {
+  const rows: Row[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await fetchPage(from, from + PAGE_SIZE - 1);
+    if (error) throw new DataAccessError(`${errorMessage} : ${error.message}`);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return rows;
+}
 
 function sourceFromRow(row: SourceRow): Source {
   return {
@@ -181,85 +209,109 @@ function recipeSpecificityFromRow(row: RecipeSpecificityRow): RecipeSpecificity 
 
 export const loadSources = cache(async (): Promise<Source[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("sources").select("*");
-  if (error) throw new DataAccessError(`Lecture des entreprises impossible : ${error.message}`);
-  return (data ?? []).map(sourceFromRow);
+  const rows = await fetchAllRows<SourceRow>(
+    (from, to) => supabase.from("sources").select("*").range(from, to),
+    "Lecture des entreprises impossible",
+  );
+  return rows.map(sourceFromRow);
 });
 
 export const loadSourceCategories = cache(async (): Promise<SourceCategory[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("source_categories").select("*");
-  if (error) throw new DataAccessError(`Lecture des catégories impossible : ${error.message}`);
-  return (data ?? []).map(sourceCategoryFromRow);
+  const rows = await fetchAllRows<SourceCategoryRow>(
+    (from, to) => supabase.from("source_categories").select("*").range(from, to),
+    "Lecture des catégories impossible",
+  );
+  return rows.map(sourceCategoryFromRow);
 });
 
 export const loadCanonicalIngredients = cache(async (): Promise<CanonicalIngredient[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("canonical_ingredients").select("*");
-  if (error) throw new DataAccessError(`Lecture des matières premières impossible : ${error.message}`);
-  return (data ?? []).map(canonicalIngredientFromRow);
+  const rows = await fetchAllRows<CanonicalIngredientRow>(
+    (from, to) => supabase.from("canonical_ingredients").select("*").range(from, to),
+    "Lecture des matières premières impossible",
+  );
+  return rows.map(canonicalIngredientFromRow);
 });
 
 export const loadIngredientAliases = cache(async (): Promise<IngredientAlias[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("ingredient_aliases").select("*");
-  if (error) throw new DataAccessError(`Lecture des alias d'ingrédients impossible : ${error.message}`);
-  return (data ?? []).map(ingredientAliasFromRow);
+  const rows = await fetchAllRows<IngredientAliasRow>(
+    (from, to) => supabase.from("ingredient_aliases").select("*").range(from, to),
+    "Lecture des alias d'ingrédients impossible",
+  );
+  return rows.map(ingredientAliasFromRow);
 });
 
 export const loadAllergens = cache(async (): Promise<Allergen[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("allergens").select("*");
-  if (error) throw new DataAccessError(`Lecture des allergènes impossible : ${error.message}`);
-  return (data ?? []).map(allergenFromRow);
+  const rows = await fetchAllRows<AllergenRow>(
+    (from, to) => supabase.from("allergens").select("*").range(from, to),
+    "Lecture des allergènes impossible",
+  );
+  return rows.map(allergenFromRow);
 });
 
 export const loadSpecificities = cache(async (): Promise<Specificity[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("specificities").select("*");
-  if (error) throw new DataAccessError(`Lecture des spécificités impossible : ${error.message}`);
-  return (data ?? []).map(specificityFromRow);
+  const rows = await fetchAllRows<SpecificityRow>(
+    (from, to) => supabase.from("specificities").select("*").range(from, to),
+    "Lecture des spécificités impossible",
+  );
+  return rows.map(specificityFromRow);
 });
 
 export const loadRecipes = cache(async (): Promise<Recipe[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipes").select("*");
-  if (error) throw new DataAccessError(`Lecture des recettes impossible : ${error.message}`);
-  return (data ?? []).map(recipeFromRow);
+  const rows = await fetchAllRows<RecipeRow>(
+    (from, to) => supabase.from("recipes").select("*").range(from, to),
+    "Lecture des recettes impossible",
+  );
+  return rows.map(recipeFromRow);
 });
 
 export const loadRecipeSections = cache(async (): Promise<RecipeSection[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipe_sections").select("*");
-  if (error) throw new DataAccessError(`Lecture des préparations impossible : ${error.message}`);
-  return (data ?? []).map(recipeSectionFromRow);
+  const rows = await fetchAllRows<RecipeSectionRow>(
+    (from, to) => supabase.from("recipe_sections").select("*").range(from, to),
+    "Lecture des préparations impossible",
+  );
+  return rows.map(recipeSectionFromRow);
 });
 
 export const loadRecipeIngredients = cache(async (): Promise<RecipeIngredient[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipe_ingredients").select("*");
-  if (error) throw new DataAccessError(`Lecture des ingrédients impossible : ${error.message}`);
-  return (data ?? []).map(recipeIngredientFromRow);
+  const rows = await fetchAllRows<RecipeIngredientRow>(
+    (from, to) => supabase.from("recipe_ingredients").select("*").range(from, to),
+    "Lecture des ingrédients impossible",
+  );
+  return rows.map(recipeIngredientFromRow);
 });
 
 /** Tags de matière première principale curatés (recipe_key_ingredients) — voir `20260819110000_recipe_key_ingredients.sql` : distinct de `loadRecipeIngredients` (chaque ligne d'ingrédient). */
 export const loadRecipeKeyIngredients = cache(async (): Promise<RecipeKeyIngredient[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipe_key_ingredients").select("*");
-  if (error) throw new DataAccessError(`Lecture des matières premières principales impossible : ${error.message}`);
-  return (data ?? []).map(recipeKeyIngredientFromRow);
+  const rows = await fetchAllRows<RecipeKeyIngredientRow>(
+    (from, to) => supabase.from("recipe_key_ingredients").select("*").range(from, to),
+    "Lecture des matières premières principales impossible",
+  );
+  return rows.map(recipeKeyIngredientFromRow);
 });
 
 export const loadRecipeAllergens = cache(async (): Promise<RecipeAllergen[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipe_allergens").select("*");
-  if (error) throw new DataAccessError(`Lecture des allergènes de recette impossible : ${error.message}`);
-  return (data ?? []).map(recipeAllergenFromRow);
+  const rows = await fetchAllRows<RecipeAllergenRow>(
+    (from, to) => supabase.from("recipe_allergens").select("*").range(from, to),
+    "Lecture des allergènes de recette impossible",
+  );
+  return rows.map(recipeAllergenFromRow);
 });
 
 export const loadRecipeSpecificities = cache(async (): Promise<RecipeSpecificity[]> => {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("recipe_specificities").select("*");
-  if (error) throw new DataAccessError(`Lecture des spécificités de recette impossible : ${error.message}`);
-  return (data ?? []).map(recipeSpecificityFromRow);
+  const rows = await fetchAllRows<RecipeSpecificityRow>(
+    (from, to) => supabase.from("recipe_specificities").select("*").range(from, to),
+    "Lecture des spécificités de recette impossible",
+  );
+  return rows.map(recipeSpecificityFromRow);
 });
