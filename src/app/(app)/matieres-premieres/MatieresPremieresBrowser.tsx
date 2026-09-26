@@ -64,7 +64,7 @@ export function MatieresPremieresBrowser({ ingredients }: MatieresPremieresBrows
 
       <EditorialTitle>Matières premières</EditorialTitle>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {paginated.map((ingredient) => (
           <CanonicalIngredientCard
             key={ingredient.id}

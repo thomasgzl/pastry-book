@@ -45,7 +45,7 @@ export function CanonicalIngredientCard({
     >
       <div
         className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md"
-        style={{ aspectRatio: "4 / 5" }}
+        style={{ aspectRatio: "1 / 1" }}
       >
         {/* Zone haute : hauteur fixe (pas liée au contenu) afin que
             l'illustration démarre au même niveau sur toutes les cartes,
