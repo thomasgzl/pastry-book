@@ -100,18 +100,19 @@ export default function HomePage() {
           <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
         </div>
 
-        {/* Plein bord de l'écran (`left-1/2 w-screen -translate-x-1/2`, jamais
-            juste `w-full` : ce dernier ne dépasse que le padding du conteneur
-            de page, pas l'écran) — sans effet sur les cartes/le titre au-
-            dessus/en-dessous, qui restent dans le conteneur normal. Fondu bas
-            uniquement (`mask-image`), l'image se dissout dans le fond ivoire
-            au lieu de s'arrêter sur un bord net — `-webkit-mask-image`
-            requis pour Safari/iOS (moteur principal sur tablette, CLAUDE.md).
-            Testé sans scrollbar horizontale ajoutée (CLAUDE.md, aucun
-            défilement horizontal) — appareils tactiles ciblés (tablette,
-            téléphone) en scrollbar superposée, jamais réservée dans `100vw`. */}
+        {/* Plein bord de l'écran : largeur/marges négatives exactement
+            opposées au padding de `<main>` (`px-4 sm:px-6 lg:px-8`,
+            `(app)/layout.tsx`) — jamais `left-1/2 w-screen -translate-x-1/2`
+            (`100vw`) : constaté incohérent sur Safari/iPadOS (bord droit
+            n'atteignant pas l'écran alors que le gauche oui, capture à
+            l'appui), cette technique-ci ne dépend d'aucune unité de
+            viewport. Sans effet sur les cartes/le titre au-dessus/en-dessous,
+            qui restent dans le conteneur normal. Fondu bas uniquement
+            (`mask-image`), l'image se dissout dans le fond ivoire au lieu de
+            s'arrêter sur un bord net — `-webkit-mask-image` requis pour
+            Safari/iOS (moteur principal sur tablette, CLAUDE.md). */}
         <div
-          className="relative left-1/2 w-screen -translate-x-1/2"
+          className="-mx-4 w-[calc(100%+2rem)] sm:-mx-6 sm:w-[calc(100%+3rem)] lg:-mx-8 lg:w-[calc(100%+4rem)]"
           style={{
             maskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
             WebkitMaskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
@@ -126,6 +127,12 @@ export default function HomePage() {
           />
         </div>
 
+        {/* Remonté sur la fin du fondu (marge négative) : la recherche — et
+            tout ce qui suit (cartes, mesuré depuis le bas de cette section) —
+            se retrouve visuellement sous la queue du dégradé au lieu de
+            reprendre après un espace neutre. `SearchInput` a son propre fond
+            opaque (`bg-coquille`), reste lisible par-dessus la photo qui
+            s'estompe derrière. */}
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -133,7 +140,7 @@ export default function HomePage() {
           debounceMs={350}
           label="Recherche globale"
           placeholder="Rechercher une recette, une entreprise, une matière première…"
-          className="w-full max-w-lg text-left sm:max-w-xl lg:max-w-2xl"
+          className="-mt-14 w-full max-w-lg text-left sm:-mt-20 sm:max-w-xl lg:-mt-24 lg:max-w-2xl"
         />
       </section>
 
