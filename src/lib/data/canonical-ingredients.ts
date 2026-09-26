@@ -21,7 +21,8 @@ import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { loadCanonicalIngredients, loadIngredientAliases, loadRecipeKeyIngredients, loadRecipes } from "./supabaseSource";
 
 export async function getCanonicalIngredients(): Promise<CanonicalIngredient[]> {
-  return hasSupabaseConfig() ? loadCanonicalIngredients() : demoCanonicalIngredients;
+  const ingredients = hasSupabaseConfig() ? await loadCanonicalIngredients() : demoCanonicalIngredients;
+  return [...ingredients].sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
 }
 
 /** Alias déjà enregistrés (F-KEY1) — dédoublonnage des matières premières principales proposées à l'import, même règle Supabase/démo que les autres lectures de ce fichier. */

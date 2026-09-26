@@ -43,7 +43,8 @@ import {
 } from "./supabaseSource";
 
 async function allRecipes(): Promise<Recipe[]> {
-  return hasSupabaseConfig() ? loadRecipes() : demoRecipes;
+  const recipes = hasSupabaseConfig() ? await loadRecipes() : demoRecipes;
+  return [...recipes].sort((a, b) => a.title.localeCompare(b.title, "fr", { sensitivity: "base" }));
 }
 async function allSources(): Promise<Source[]> {
   return hasSupabaseConfig() ? loadSources() : demoSources;
