@@ -13,10 +13,11 @@
  * - `compact` : sceau simplifié (contour unique, lisible en petit). En-tête
  *   mobile et toute vignette de marque de petite taille.
  * - `icon192` / `icon512` : icônes PWA carrées (manifeste + apple-touch-icon).
- * - `homeIllustration` : bandeau photo de l'accueil (tarte au citron
- *   meringuée en scène, fond opaque) — affiché au-dessus de la recherche
- *   globale avec un fondu bas (`page.tsx`) pour se fondre dans le fond ivoire
- *   sans bord visible. JAMAIS utilisée comme icône PWA.
+ * - `homeIllustration` : bandeau illustration de l'accueil (pâtissière
+ *   dressant une tarte à la crème et aux noisettes, style aquarelle) —
+ *   affiché au-dessus de la recherche globale avec un fondu bas (`page.tsx`)
+ *   pour se fondre dans le fond ivoire sans bord visible. JAMAIS utilisée
+ *   comme icône PWA.
  */
 export const LOGO_ASSETS = {
   seal: "/visuals/logo/logo-sceau.png",
@@ -24,5 +25,5 @@ export const LOGO_ASSETS = {
   compact: "/visuals/logo/logo-pwa-192.png",
   icon192: "/visuals/logo/logo-pwa-192.png",
   icon512: "/visuals/logo/logo-pwa-512.png",
-  homeIllustration: "/visuals/logo/illustration-accueil-tarte-citron-photo.png",
+  homeIllustration: "/visuals/logo/illustration-accueil-patissiere-tarte.png",
 } as const;

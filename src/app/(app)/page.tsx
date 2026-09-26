@@ -121,7 +121,7 @@ export default function HomePage() {
           {/* eslint-disable-next-line @next/next/no-img-element -- photo statique fournie, fondu appliqué au conteneur parent (mask-image), pas de recadrage/optimisation nécessaire ici. */}
           <img
             src={LOGO_ASSETS.homeIllustration}
-            alt="Tarte au citron meringuée en scène, entourée de citrons, vanille et ustensiles"
+            alt="Pâtissière dressant une tarte à la crème et aux noisettes à la poche à douille"
             className="h-auto w-full object-cover"
             decoding="async"
           />
