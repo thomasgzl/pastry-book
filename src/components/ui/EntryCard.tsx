@@ -18,7 +18,11 @@ interface EntryCardProps {
  * Carte d'entrée principale (accueil). Icône, titre, indication discrète
  * optionnelle, flèche d'état d'interaction — même gabarit pour les quatre
  * cartes afin de garantir un poids visuel strictement égal
- * (docs/06-DESIGN_SYSTEM.md § Carte d'entrée principale).
+ * (docs/06-DESIGN_SYSTEM.md § Carte d'entrée principale). Contenu aligné à
+ * gauche, badge icône en tête, bouton flèche rond laiton en pied — même
+ * repère visuel qu'une carte de sujet illustré ailleurs dans l'app, sans en
+ * avoir le visuel (aucune image de couverture ici, voir la demande d'origine :
+ * layout/style seulement, pas de nouvelle génération IA pour l'accueil).
  */
 export function EntryCard({ href, title, icon, hint, className = "" }: EntryCardProps) {
   return (
@@ -26,18 +30,20 @@ export function EntryCard({ href, title, icon, hint, className = "" }: EntryCard
       href={href}
       className={`group block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <Card className="flex h-full min-h-36 flex-col items-center gap-3 py-8 text-center transition-colors group-hover:bg-avoine/40">
+      <Card className="flex h-full min-h-48 flex-col gap-3 p-6 text-left transition-colors group-hover:bg-avoine/30">
         <span
           aria-hidden="true"
-          className="flex h-20 w-20 items-center justify-center rounded-full bg-avoine text-olive transition-colors group-hover:bg-ivoire"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-avoine text-olive transition-colors group-hover:bg-ivoire"
         >
           {icon}
         </span>
-        <span className="font-serif text-lg font-semibold text-cacao">{title}</span>
-        {hint && <span className="max-w-[16rem] text-sm text-cacao/70">{hint}</span>}
+        <div className="flex flex-1 flex-col gap-1">
+          <span className="font-serif text-xl font-semibold text-cacao">{title}</span>
+          {hint && <span className="text-sm text-cacao/70">{hint}</span>}
+        </div>
         <span
           aria-hidden="true"
-          className="mt-auto pt-1 text-cacao/40 transition-colors group-hover:text-olive"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-laiton text-coquille transition-transform group-hover:translate-x-1"
         >
           →
         </span>

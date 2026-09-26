@@ -125,7 +125,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-5 sm:grid-cols-2">
         {NAV_CARDS.map((card) => (
           <EntryCard key={card.href} href={card.href} title={card.label} icon={card.icon} hint={card.hint} />
         ))}
