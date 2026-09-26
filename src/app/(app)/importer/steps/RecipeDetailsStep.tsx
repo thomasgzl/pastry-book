@@ -500,6 +500,44 @@ export function RecipeDetailsStep({ draft, canonicalIngredients, specificities, 
                     </Button>
                   </div>
                 )}
+                {/* Une spécificité déjà confirmée (ex. « Sans gluten » validée à
+                    l'import) doit rester corrigible manuellement après coup — sans
+                    ce bouton, une erreur constatée plus tard (ex. farine ajoutée/
+                    repérée après confirmation) resterait affichée indéfiniment,
+                    la seule rétrogradation automatique (useEffect ci-dessus) exige
+                    que l'ingrédient soit lié à sa matière première canonique. */}
+                {entry.status === "confirmed" && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      onChange((d) => ({
+                        ...d,
+                        specificities: d.specificities.map((s) =>
+                          s.specificityId === entry.specificityId ? { ...s, status: "rejected", reason: null } : s,
+                        ),
+                      }))
+                    }
+                  >
+                    Rejeter
+                  </Button>
+                )}
+                {entry.status === "rejected" && !blocked && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      onChange((d) => ({
+                        ...d,
+                        specificities: d.specificities.map((s) =>
+                          s.specificityId === entry.specificityId ? { ...s, status: "confirmed", reason: null } : s,
+                        ),
+                      }))
+                    }
+                  >
+                    Confirmer malgré tout
+                  </Button>
+                )}
               </li>
             );
           })}
