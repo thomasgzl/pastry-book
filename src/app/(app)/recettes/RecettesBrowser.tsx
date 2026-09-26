@@ -17,7 +17,7 @@
  * appeler `src/lib/data/*` lui-même.
  */
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
@@ -96,12 +96,20 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
   const sourcesWithRecipes = sources.filter((source) => source.recipeCount > 0);
   const showSourceFilter = sourcesWithRecipes.length > 1;
 
-  const filteredRecipes = recipes.filter((recipe) => {
-    const matchesQuery = !inputValue.trim() || normalizeText(recipe.title).includes(normalizeText(inputValue));
-    const source = sourcesWithRecipes.find((candidate) => candidate.id === recipe.sourceId);
-    const matchesSource = !sourceFilter || source?.slug === sourceFilter;
-    return matchesQuery && matchesSource;
-  });
+  // Mémoïsé : sert de dépendance à l'effet de préchargement ci-dessous, qui
+  // ne doit se redéclencher que si le résultat filtré change réellement, pas
+  // à chaque rendu (un `.filter()` inline recréerait un tableau à chaque fois).
+  const filteredRecipes = useMemo(
+    () =>
+      recipes.filter((recipe) => {
+        const matchesQuery = !inputValue.trim() || normalizeText(recipe.title).includes(normalizeText(inputValue));
+        const source = sourcesWithRecipes.find((candidate) => candidate.id === recipe.sourceId);
+        const matchesSource = !sourceFilter || source?.slug === sourceFilter;
+        return matchesQuery && matchesSource;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recipes, inputValue, sourceFilter],
+  );
 
   const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const requestedPage = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
@@ -110,6 +118,23 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
   // vide (ex. retour arrière après un filtre qui a réduit le résultat).
   const page = Math.min(requestedPage, totalPages);
   const paginatedRecipes = filteredRecipes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Précharge les images des pages voisines (précédente/suivante) pendant que
+  // la personne consulte la page courante : au clic sur Précédent/Suivant,
+  // l'image est déjà en cache navigateur, jamais un blanc le temps du
+  // téléchargement (K-pagination). Uniquement les pages qui existent
+  // réellement — jamais au-delà de `totalPages`.
+  useEffect(() => {
+    const adjacentPages = [page - 1, page + 1].filter((candidate) => candidate >= 1 && candidate <= totalPages);
+    const urls = adjacentPages
+      .flatMap((candidate) => filteredRecipes.slice((candidate - 1) * PAGE_SIZE, candidate * PAGE_SIZE))
+      .map((recipe) => recipe.cardData.imageUrl)
+      .filter((url): url is string => Boolean(url));
+    for (const url of urls) {
+      const preload = new window.Image();
+      preload.src = url;
+    }
+  }, [page, totalPages, filteredRecipes]);
 
   function goToPage(next: number) {
     updateParams({ page: next > 1 ? String(next) : "" });
@@ -158,7 +183,7 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
         <EmptyState message="Aucune recette ne correspond à cette recherche." />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {paginatedRecipes.map((recipe) => (
               <RecipeCard key={recipe.id} {...recipe.cardData} />
             ))}
