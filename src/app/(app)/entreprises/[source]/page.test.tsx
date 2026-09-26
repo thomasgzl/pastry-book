@@ -49,9 +49,21 @@ describe("EntreprisePage — Hennessy", () => {
     // existant (`status: "draft"`, fixtures E4) n'est jamais principal ni
     // rendu publiquement (`getApprovedVisualUrl` exige `approved`+`isPrimary`).
     expect(container.querySelector("img")).toHaveAttribute("alt", "");
-    expect(screen.getByRole("link", { name: "Créer une illustration" })).toHaveAttribute(
-      "href",
-      "/illustrations/manquantes?q=Hennessy",
-    );
+    // Plusieurs liens « Créer une illustration » coexistent désormais (source +
+    // catégories sans visuel, K12 étendu aux catégories) : on isole celui du
+    // portrait de tête de page par son href exact plutôt que par son seul nom.
+    const sourceIllustrationLink = screen
+      .getAllByRole("link", { name: "Créer une illustration" })
+      .find((link) => link.getAttribute("href") === "/illustrations/manquantes?q=Hennessy");
+    expect(sourceIllustrationLink).toBeDefined();
+  });
+
+  it("catégorie sans visuel approuvé : action « Créer une illustration » propre à cette catégorie (K12)", async () => {
+    render(await EntreprisePage({ params: Promise.resolve({ source: "hennessy" }) }));
+
+    const categoryIllustrationLink = screen
+      .getAllByRole("link", { name: "Créer une illustration" })
+      .find((link) => link.getAttribute("href") === "/illustrations/manquantes?q=Desserts%20boutique");
+    expect(categoryIllustrationLink).toBeDefined();
   });
 });

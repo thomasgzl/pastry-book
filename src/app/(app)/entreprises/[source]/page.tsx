@@ -76,13 +76,23 @@ export default async function EntreprisePage({ params }: { params: Promise<{ sou
       {categories.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              name={category.name}
-              recipeCount={category.recipeCount}
-              imageUrl={category.imageUrl}
-              href={`/entreprises/${source.slug}/${category.slug}`}
-            />
+            <div key={category.id} className="flex flex-col gap-1">
+              <CategoryCard
+                name={category.name}
+                recipeCount={category.recipeCount}
+                imageUrl={category.imageUrl}
+                href={`/entreprises/${source.slug}/${category.slug}`}
+              />
+              {/* `CategoryCard` est un `<Link>` plein bloc (imbriquer un second lien
+                  dedans serait invalide) — l'action illustration vit donc juste en
+                  dessous, jamais dans la carte elle-même. */}
+              <IllustrationAction
+                subjectType="sourceCategory"
+                hasVisual={Boolean(category.imageUrl)}
+                label={category.name}
+                className="pl-1"
+              />
+            </div>
           ))}
         </div>
       )}
