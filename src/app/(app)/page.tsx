@@ -53,10 +53,30 @@ function NavCardIcon({ src }: { src: string }) {
 }
 
 const NAV_CARDS = [
-  { label: "Par entreprise", href: "/entreprises", icon: <NavCardIcon src="/visuals/icons/entreprise.png" /> },
-  { label: "Par recette", href: "/recettes", icon: <NavCardIcon src="/visuals/icons/recette.png" /> },
-  { label: "Par matière première", href: "/matieres-premieres", icon: <NavCardIcon src="/visuals/icons/matiere-premiere.png" /> },
-  { label: "Par spécificité", href: "/specificites", icon: <NavCardIcon src="/visuals/icons/specificite.png" /> },
+  {
+    label: "Par entreprise",
+    href: "/entreprises",
+    icon: <NavCardIcon src="/visuals/icons/entreprise.png" />,
+    hint: "Hennessy, CAP Pâtissier et les autres sources",
+  },
+  {
+    label: "Par recette",
+    href: "/recettes",
+    icon: <NavCardIcon src="/visuals/icons/recette.png" />,
+    hint: "Toutes les recettes, recherche et filtre inclus",
+  },
+  {
+    label: "Par matière première",
+    href: "/matieres-premieres",
+    icon: <NavCardIcon src="/visuals/icons/matiere-premiere.png" />,
+    hint: "Le répertoire normalisé des ingrédients",
+  },
+  {
+    label: "Par spécificité",
+    href: "/specificites",
+    icon: <NavCardIcon src="/visuals/icons/specificite.png" />,
+    hint: "Régimes et allergènes, filtrés séparément",
+  },
 ] as const;
 
 export default function HomePage() {
@@ -103,7 +123,7 @@ export default function HomePage() {
 
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {NAV_CARDS.map((card) => (
-          <EntryCard key={card.href} href={card.href} title={card.label} icon={card.icon} />
+          <EntryCard key={card.href} href={card.href} title={card.label} icon={card.icon} hint={card.hint} />
         ))}
       </div>
     </div>

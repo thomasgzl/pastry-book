@@ -26,12 +26,15 @@ export function EntryCard({ href, title, icon, hint, className = "" }: EntryCard
       href={href}
       className={`group block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <Card className="flex h-full min-h-36 flex-col items-center gap-2 py-8 text-center transition-colors group-hover:bg-avoine/40">
-        <span aria-hidden="true" className="text-olive">
+      <Card className="flex h-full min-h-36 flex-col items-center gap-3 py-8 text-center transition-colors group-hover:bg-avoine/40">
+        <span
+          aria-hidden="true"
+          className="flex h-20 w-20 items-center justify-center rounded-full bg-avoine text-olive transition-colors group-hover:bg-ivoire"
+        >
           {icon}
         </span>
         <span className="font-serif text-lg font-semibold text-cacao">{title}</span>
-        {hint && <span className="text-sm text-cacao/70">{hint}</span>}
+        {hint && <span className="max-w-[16rem] text-sm text-cacao/70">{hint}</span>}
         <span
           aria-hidden="true"
           className="mt-auto pt-1 text-cacao/40 transition-colors group-hover:text-olive"

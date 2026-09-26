@@ -19,7 +19,7 @@ describe("HomePage", () => {
     expect(screen.getByText("Archive privée de recettes professionnelles")).toBeInTheDocument();
 
     for (const label of ["Par entreprise", "Par recette", "Par matière première", "Par spécificité"]) {
-      expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: new RegExp(label) })).toBeInTheDocument();
     }
   });
 
@@ -30,13 +30,13 @@ describe("HomePage", () => {
 
   it("les liens pointent vers les quatre répertoires attendus", () => {
     render(<HomePage />);
-    expect(screen.getByRole("link", { name: "Par entreprise" })).toHaveAttribute("href", "/entreprises");
-    expect(screen.getByRole("link", { name: "Par recette" })).toHaveAttribute("href", "/recettes");
-    expect(screen.getByRole("link", { name: "Par matière première" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Par entreprise/ })).toHaveAttribute("href", "/entreprises");
+    expect(screen.getByRole("link", { name: /^Par recette/ })).toHaveAttribute("href", "/recettes");
+    expect(screen.getByRole("link", { name: /^Par matière première/ })).toHaveAttribute(
       "href",
       "/matieres-premieres",
     );
-    expect(screen.getByRole("link", { name: "Par spécificité" })).toHaveAttribute("href", "/specificites");
+    expect(screen.getByRole("link", { name: /^Par spécificité/ })).toHaveAttribute("href", "/specificites");
   });
 
   it("redirige vers /recherche avec la requête une fois débouncée", async () => {
