@@ -15,8 +15,14 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Pagination } from "@/components/ui/Pagination";
 import { CanonicalIngredientCard } from "@/components/cards/CanonicalIngredientCard";
 
-/** 4 colonnes à partir de `lg` (demande produit) — 16 = 4 lignes pleines. */
-const PAGE_SIZE = 16;
+/**
+ * Plus petit multiple commun des largeurs de grille (2/3/4 colonnes selon le
+ * format, voir ci-dessous) : chaque page affiche des lignes complètes quel
+ * que soit l'appareil, jamais une ligne tronquée au milieu d'une page — seule
+ * la toute dernière page de la liste peut être incomplète (même règle que
+ * `RecettesBrowser`).
+ */
+const PAGE_SIZE = 12;
 
 export interface MatieresPremieresBrowserIngredient {
   id: string;
@@ -58,7 +64,7 @@ export function MatieresPremieresBrowser({ ingredients }: MatieresPremieresBrows
 
       <EditorialTitle>Matières premières</EditorialTitle>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {paginated.map((ingredient) => (
           <CanonicalIngredientCard
             key={ingredient.id}

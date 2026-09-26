@@ -50,14 +50,14 @@ export function CanonicalIngredientCard({
         {/* Zone haute : hauteur fixe (pas liée au contenu) afin que
             l'illustration démarre au même niveau sur toutes les cartes,
             qu'un nom tienne sur une ou deux lignes (docs/06-DESIGN_SYSTEM.md). */}
-        <div className="flex h-[44px] shrink-0 flex-col justify-start gap-0.5 px-2 pt-2 sm:h-[52px] sm:px-3 sm:pt-3">
-          <p className="font-serif text-xs font-semibold leading-snug text-cacao sm:text-sm">{name}</p>
-          <p className="text-[10px] text-cacao/60 sm:text-xs">
+        <div className="flex h-[34px] shrink-0 flex-col justify-start gap-0.5 px-1.5 pt-1.5 sm:h-[40px] sm:px-2 sm:pt-2">
+          <p className="font-serif text-[11px] font-semibold leading-snug text-cacao sm:text-xs">{name}</p>
+          <p className="text-[9px] text-cacao/60 sm:text-[11px]">
             {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
           </p>
         </div>
 
-        <div className="relative min-h-0 flex-1 px-1.5 pb-1.5">
+        <div className="relative min-h-0 flex-1 px-1 pb-1">
           {imageUrl ? (
             <ImageWithSkeleton
               src={imageUrl}
@@ -71,7 +71,7 @@ export function CanonicalIngredientCard({
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <PlaceholderIllustration label={name} className="h-12 w-12 sm:h-16 sm:w-16" />
+              <PlaceholderIllustration label={name} className="h-9 w-9 sm:h-12 sm:w-12" />
             </div>
           )}
         </div>
