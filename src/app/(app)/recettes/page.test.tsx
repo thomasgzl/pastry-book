@@ -96,7 +96,7 @@ describe("RecettesBrowser", () => {
   });
 });
 
-describe("RecettesBrowser — pagination (~10 par page)", () => {
+describe("RecettesBrowser — pagination (12 par page, multiple de 2/3/4 colonnes)", () => {
   // Jeu démo réel (6 recettes) trop court pour dépasser une page : liste
   // synthétique de 15 recettes, une seule source (filtre par entreprise non
   // affiché, hors sujet ici).
@@ -114,11 +114,11 @@ describe("RecettesBrowser — pagination (~10 par page)", () => {
     return render(<RecettesBrowser recipes={manyRecipes} sources={sourceProps} />);
   }
 
-  it("n'affiche que 10 recettes sur la première page", () => {
+  it("n'affiche que 12 recettes sur la première page (ligne complète en 2/3/4 colonnes)", () => {
     renderManyRecipes();
     expect(screen.getByRole("link", { name: /Recette 01/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Recette 10/ })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Recette 11/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Recette 12/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Recette 13/ })).not.toBeInTheDocument();
     expect(screen.getByText("Page 1 sur 2")).toBeInTheDocument();
   });
 
@@ -128,10 +128,10 @@ describe("RecettesBrowser — pagination (~10 par page)", () => {
     expect(replace).toHaveBeenCalledWith("/recettes?page=2", { scroll: false });
   });
 
-  it("affiche la deuxième page depuis l'URL (?page=2)", () => {
+  it("affiche la dernière page, incomplète (?page=2)", () => {
     searchParams = new URLSearchParams("page=2");
     renderManyRecipes();
-    expect(screen.getByRole("link", { name: /Recette 11/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Recette 13/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Recette 15/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Recette 01/ })).not.toBeInTheDocument();
   });

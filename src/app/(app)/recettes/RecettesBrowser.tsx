@@ -29,8 +29,16 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { normalizeText } from "@/lib/recipes/search";
 import type { RecipeCardData } from "@/lib/data/recipes";
 
-/** ~10 recettes par page (demande produit) — liste déjà résolue côté serveur, pagination purement locale. */
-const PAGE_SIZE = 10;
+/**
+ * ~10 recettes par page (demande produit), arrondi à 12 — plus petit multiple
+ * commun des largeurs de grille (2/3/4 colonnes selon le format d'écran,
+ * `min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` ci-dessous) : chaque
+ * page affiche des lignes complètes quel que soit l'appareil, jamais une
+ * dernière ligne tronquée au milieu d'une page — seule la toute dernière
+ * page de la liste peut être incomplète. Liste déjà résolue côté serveur,
+ * pagination purement locale.
+ */
+const PAGE_SIZE = 12;
 
 export interface RecettesBrowserRecipe {
   id: string;
