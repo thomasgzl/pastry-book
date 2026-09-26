@@ -22,11 +22,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
 import { EditorialTitle } from "@/components/ui/EditorialTitle";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { RecipeCard } from "@/components/cards/RecipeCard";
 import { EmptyState } from "@/components/states/EmptyState";
 import { normalizeText } from "@/lib/recipes/search";
 import type { RecipeCardData } from "@/lib/data/recipes";
+
+/** ~10 recettes par page (demande produit) — liste déjà résolue côté serveur, pagination purement locale. */
+const PAGE_SIZE = 10;
 
 export interface RecettesBrowserRecipe {
   id: string;
@@ -82,7 +86,9 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
 
   function handleSearch(value: string) {
     const trimmed = value.trim();
-    if (trimmed !== q) updateParams({ q: trimmed });
+    // Toute recherche repart de la page 1 : la page mémorisée dans l'URL
+    // n'a plus de sens pour un résultat filtré différent.
+    if (trimmed !== q) updateParams({ q: trimmed, page: "" });
   }
 
   // Filtre affiché uniquement si plus d'une source possède au moins une
@@ -96,6 +102,19 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
     const matchesSource = !sourceFilter || source?.slug === sourceFilter;
     return matchesQuery && matchesSource;
   });
+
+  const rawPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
+  const requestedPage = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+  const totalPages = Math.max(1, Math.ceil(filteredRecipes.length / PAGE_SIZE));
+  // Se recale silencieusement sur la dernière page valide plutôt qu'une liste
+  // vide (ex. retour arrière après un filtre qui a réduit le résultat).
+  const page = Math.min(requestedPage, totalPages);
+  const paginatedRecipes = filteredRecipes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function goToPage(next: number) {
+    updateParams({ page: next > 1 ? String(next) : "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,7 +137,7 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
           <Button
             type="button"
             variant={sourceFilter === "" ? "primary" : "secondary"}
-            onClick={() => updateParams({ source: "" })}
+            onClick={() => updateParams({ source: "", page: "" })}
           >
             Toutes les entreprises
           </Button>
@@ -127,7 +146,7 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
               key={source.id}
               type="button"
               variant={sourceFilter === source.slug ? "primary" : "secondary"}
-              onClick={() => updateParams({ source: source.slug })}
+              onClick={() => updateParams({ source: source.slug, page: "" })}
             >
               {source.name}
             </Button>
@@ -138,11 +157,14 @@ function RecettesContent({ recipes, sources }: RecettesBrowserProps) {
       {filteredRecipes.length === 0 ? (
         <EmptyState message="Aucune recette ne correspond à cette recherche." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredRecipes.map((recipe) => (
-            <RecipeCard key={recipe.id} {...recipe.cardData} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {paginatedRecipes.map((recipe) => (
+              <RecipeCard key={recipe.id} {...recipe.cardData} />
+            ))}
+          </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} className="pt-2" />
+        </>
       )}
     </div>
   );

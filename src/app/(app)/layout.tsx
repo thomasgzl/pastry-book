@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { ScrollToTopButton } from "@/components/ui/ScrollToTopButton";
 
 /**
  * Shell des pages métier authentifiées (accueil, entreprises, recettes,
@@ -19,6 +20,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
         {children}
       </main>
+      <ScrollToTopButton />
     </div>
   );
 }

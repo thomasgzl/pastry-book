@@ -96,6 +96,47 @@ describe("RecettesBrowser", () => {
   });
 });
 
+describe("RecettesBrowser — pagination (~10 par page)", () => {
+  // Jeu démo réel (6 recettes) trop court pour dépasser une page : liste
+  // synthétique de 15 recettes, une seule source (filtre par entreprise non
+  // affiché, hors sujet ici).
+  const manyRecipes = Array.from({ length: 15 }, (_, index) => {
+    const title = `Recette ${String(index + 1).padStart(2, "0")}`;
+    return {
+      id: `recipe-${index}`,
+      title,
+      sourceId: demoSources[0].id,
+      cardData: { title, sourceName: demoSources[0].name, ingredientTags: [], href: `/recettes/recette-${index}` },
+    };
+  });
+
+  function renderManyRecipes() {
+    return render(<RecettesBrowser recipes={manyRecipes} sources={sourceProps} />);
+  }
+
+  it("n'affiche que 10 recettes sur la première page", () => {
+    renderManyRecipes();
+    expect(screen.getByRole("link", { name: /Recette 01/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Recette 10/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Recette 11/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 sur 2")).toBeInTheDocument();
+  });
+
+  it("« Suivant » met à jour l'URL avec ?page=2", () => {
+    renderManyRecipes();
+    fireEvent.click(screen.getByRole("button", { name: /Suivant/ }));
+    expect(replace).toHaveBeenCalledWith("/recettes?page=2", { scroll: false });
+  });
+
+  it("affiche la deuxième page depuis l'URL (?page=2)", () => {
+    searchParams = new URLSearchParams("page=2");
+    renderManyRecipes();
+    expect(screen.getByRole("link", { name: /Recette 11/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Recette 15/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Recette 01/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("RecettesPage (Server Component, K1 — charge src/lib/data/*)", () => {
   it("assemble les props depuis Supabase/démo et les passe à RecettesBrowser", async () => {
     render(await RecettesPage());
