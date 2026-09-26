@@ -58,24 +58,28 @@ const NAV_CARDS = [
     href: "/entreprises",
     icon: <NavCardIcon src="/visuals/icons/entreprise.png" />,
     hint: "Hennessy, CAP Pâtissier et les autres sources",
+    image: "/visuals/accueil/par-entreprise.png",
   },
   {
     label: "Par recette",
     href: "/recettes",
     icon: <NavCardIcon src="/visuals/icons/recette.png" />,
     hint: "Toutes les recettes, recherche et filtre inclus",
+    image: "/visuals/accueil/par-recette.png",
   },
   {
     label: "Par matière première",
     href: "/matieres-premieres",
     icon: <NavCardIcon src="/visuals/icons/matiere-premiere.png" />,
     hint: "Le répertoire normalisé des ingrédients",
+    image: "/visuals/accueil/par-matiere-premiere.png",
   },
   {
     label: "Par spécificité",
     href: "/specificites",
     icon: <NavCardIcon src="/visuals/icons/specificite.png" />,
     hint: "Régimes et allergènes, filtrés séparément",
+    image: "/visuals/accueil/par-specificite.png",
   },
 ] as const;
 
@@ -125,9 +129,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2">
         {NAV_CARDS.map((card) => (
-          <EntryCard key={card.href} href={card.href} title={card.label} icon={card.icon} hint={card.hint} />
+          <EntryCard
+            key={card.href}
+            href={card.href}
+            title={card.label}
+            icon={card.icon}
+            hint={card.hint}
+            image={card.image}
+          />
         ))}
       </div>
     </div>
