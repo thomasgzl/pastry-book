@@ -11,19 +11,13 @@
  * seul rendu de résultats groupés à maintenir, état porté par l'URL comme le
  * reste du lot (C4/C9), retour arrière naturel depuis les résultats.
  *
- * Héro éditorial (CBF2/CBF5, intégration visuelle finale) : « affiche
- * pâtissière ». À partir de `lg` (tablette paysage / ordinateur), grille deux
- * colonnes — titre + sous-titre + recherche à gauche, illustration culinaire
- * à droite, centrée verticalement. En dessous (tablette portrait, téléphone),
- * une seule colonne dans l'ordre imposé : titre → sous-titre → illustration →
- * recherche (classes `order-*`), l'illustration restant visible sur mobile
- * mais avec une largeur plafonnée pour ne pas repousser la recherche hors de
- * l'écran.
- *
- * L'illustration est un PNG à fond transparent : rendue via une balise image
- * accessible en `object-contain` (jamais recadrée ni étirée), sans cadre ni
- * fond CSS derrière — on n'utilise donc PAS `CulinaryFrame` (qui recadre en
- * `cover` dans une carte bordée), réservé aux visuels de recette/matière.
+ * Héro éditorial (CBF2/CBF5, intégration visuelle finale) : titre + sous-titre
+ * centrés, puis bandeau photo pleine largeur (fournie par la personne, scène
+ * opaque — pas un PNG détouré), puis recherche globale. Le bandeau se fond
+ * dans le fond ivoire par un fondu (`mask-image` dégradé) sur son bord bas
+ * uniquement : ni cadre ni bordure ni ombre (`CulinaryFrame`, qui recadre en
+ * carte bordée, est donc volontairement écarté ici), sans délimitation nette
+ * entre l'image et le reste de la page.
  */
 
 import { useState } from "react";
@@ -94,39 +88,46 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-10 py-4">
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-center lg:gap-12">
-        <div className="order-1 flex flex-col items-center gap-2 text-center lg:col-start-1 lg:row-start-1 lg:items-start lg:text-left">
-          {/* Titre de marque uniquement — jamais `EditorialTitle`/`--font-serif`
-              (Bodoni Moda) réutilisé par tous les titres de page : `--font-display`
-              (Fraunces, layout.tsx/globals.css) donne à ce h1 un traitement de
-              couverture, pas un titre de plus. */}
+      <section className="flex flex-col items-center gap-6 text-center">
+        {/* Titre de marque uniquement — jamais `EditorialTitle`/`--font-serif`
+            (Bodoni Moda) réutilisé par tous les titres de page : `--font-display`
+            (Fraunces, layout.tsx/globals.css) donne à ce h1 un traitement de
+            couverture, pas un titre de plus. */}
+        <div className="flex flex-col items-center gap-2">
           <h1 className="font-display italic tracking-tight text-cacao text-4xl sm:text-5xl lg:text-6xl">
             Le Grand Livre de Pâtisserie
           </h1>
           <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
         </div>
 
-        <div className="order-2 flex justify-center lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center">
-          {/* eslint-disable-next-line @next/next/no-img-element -- PNG transparent statique, rendu contenu sans cadre (intégration visuelle finale). Optimisation du poids : voir rapport de livraison. */}
+        {/* Fondu bas uniquement (`mask-image`) : l'image se dissout dans le fond
+            ivoire au lieu de s'arrêter sur un bord net — `-webkit-mask-image`
+            requis pour Safari/iOS (moteur principal sur tablette, CLAUDE.md). */}
+        <div
+          className="w-full max-w-3xl"
+          style={{
+            maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- photo statique fournie, fondu appliqué au conteneur parent (mask-image), pas de recadrage/optimisation nécessaire ici. */}
           <img
             src={LOGO_ASSETS.homeIllustration}
-            alt="Tarte au citron meringuée entourée d'un décor botanique"
-            className="h-auto w-full max-w-[15rem] object-contain sm:max-w-xs lg:max-w-md"
+            alt="Tarte au citron meringuée en scène, entourée de citrons, vanille et ustensiles"
+            className="h-auto w-full object-cover"
             decoding="async"
           />
         </div>
 
-        <div className="order-3 flex justify-center lg:col-start-1 lg:row-start-2 lg:justify-start">
-          <SearchInput
-            value={query}
-            onChange={setQuery}
-            onSearch={handleSearch}
-            debounceMs={350}
-            label="Recherche globale"
-            placeholder="Rechercher une recette, une entreprise, une matière première…"
-            className="w-full max-w-lg text-left sm:max-w-xl lg:max-w-2xl"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          onSearch={handleSearch}
+          debounceMs={350}
+          label="Recherche globale"
+          placeholder="Rechercher une recette, une entreprise, une matière première…"
+          className="w-full max-w-lg text-left sm:max-w-xl lg:max-w-2xl"
+        />
       </section>
 
       <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2">
