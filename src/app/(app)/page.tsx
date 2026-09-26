@@ -100,12 +100,18 @@ export default function HomePage() {
           <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
         </div>
 
-        {/* Pleine largeur du conteneur de page (jamais plafonnée) : fondu bas
+        {/* Plein bord de l'écran (`left-1/2 w-screen -translate-x-1/2`, jamais
+            juste `w-full` : ce dernier ne dépasse que le padding du conteneur
+            de page, pas l'écran) — sans effet sur les cartes/le titre au-
+            dessus/en-dessous, qui restent dans le conteneur normal. Fondu bas
             uniquement (`mask-image`), l'image se dissout dans le fond ivoire
             au lieu de s'arrêter sur un bord net — `-webkit-mask-image`
-            requis pour Safari/iOS (moteur principal sur tablette, CLAUDE.md). */}
+            requis pour Safari/iOS (moteur principal sur tablette, CLAUDE.md).
+            Testé sans scrollbar horizontale ajoutée (CLAUDE.md, aucun
+            défilement horizontal) — appareils tactiles ciblés (tablette,
+            téléphone) en scrollbar superposée, jamais réservée dans `100vw`. */}
         <div
-          className="w-full"
+          className="relative left-1/2 w-screen -translate-x-1/2"
           style={{
             maskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
             WebkitMaskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
