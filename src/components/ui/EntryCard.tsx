@@ -15,10 +15,11 @@ interface EntryCardProps {
   /**
    * Illustration statique fournie par la personne (pas une génération IA —
    * ces quatre cartes n'ont pas de sujet en base, hors du système
-   * `visual_assets`). Cadrée à droite de la carte, recadrée sur son bord
-   * droit (`object-right`) : l'image source prévoit une zone claire à gauche
-   * justement pour être coupée ainsi. Masquée sous `sm` (mobile-first,
-   * CLAUDE.md) pour laisser toute la largeur au texte sur petit écran.
+   * `visual_assets`). Remplit toute la carte (fond, `object-right` — l'image
+   * source prévoit une zone claire à gauche justement pour être recadrée
+   * ainsi), avec un fondu vers la gauche (dégradé opaque `coquille` — même
+   * couleur que la carte, pas la page derrière) pour que le texte reste
+   * lisible sans aucun bord net entre le texte et la photo.
    */
   image?: string;
   className?: string;
@@ -38,8 +39,18 @@ export function EntryCard({ href, title, icon, hint, image, className = "" }: En
       href={href}
       className={`group block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <Card className="flex h-full min-h-56 items-stretch gap-0 overflow-hidden p-0 text-left transition-colors group-hover:bg-avoine/30">
-        <div className="flex flex-1 flex-col gap-3 p-6">
+      <Card className="relative flex h-full min-h-56 items-stretch overflow-hidden p-0 text-left">
+        {image && (
+          <>
+            <Image src={image} alt="" fill sizes="28rem" className="object-cover object-right" />
+            {/* Fondu vers la gauche : dégradé opaque `coquille` (couleur de la
+                carte, pas `mask-image` vers la page — l'image reste DANS la
+                carte) qui couvre entièrement la zone de texte et se dissout
+                sans bord net vers la photo à droite. */}
+            <div className="absolute inset-0 bg-gradient-to-r from-coquille from-35% via-coquille/85 via-60% to-transparent" />
+          </>
+        )}
+        <div className="relative flex flex-1 flex-col gap-3 p-6">
           <span
             aria-hidden="true"
             className="flex h-16 w-16 items-center justify-center rounded-full bg-avoine text-olive transition-colors group-hover:bg-ivoire"
@@ -57,12 +68,6 @@ export function EntryCard({ href, title, icon, hint, image, className = "" }: En
             →
           </span>
         </div>
-
-        {image && (
-          <div className="relative hidden w-2/5 shrink-0 sm:block">
-            <Image src={image} alt="" fill sizes="(min-width: 640px) 20rem, 0px" className="object-cover object-right" />
-          </div>
-        )}
       </Card>
     </Link>
   );

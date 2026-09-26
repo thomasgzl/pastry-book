@@ -100,14 +100,15 @@ export default function HomePage() {
           <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>
         </div>
 
-        {/* Fondu bas uniquement (`mask-image`) : l'image se dissout dans le fond
-            ivoire au lieu de s'arrêter sur un bord net — `-webkit-mask-image`
+        {/* Pleine largeur du conteneur de page (jamais plafonnée) : fondu bas
+            uniquement (`mask-image`), l'image se dissout dans le fond ivoire
+            au lieu de s'arrêter sur un bord net — `-webkit-mask-image`
             requis pour Safari/iOS (moteur principal sur tablette, CLAUDE.md). */}
         <div
-          className="w-full max-w-3xl"
+          className="w-full"
           style={{
-            maskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to bottom, black 65%, transparent 100%)",
+            maskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
+            WebkitMaskImage: "linear-gradient(to bottom, black 45%, transparent 95%)",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- photo statique fournie, fondu appliqué au conteneur parent (mask-image), pas de recadrage/optimisation nécessaire ici. */}
