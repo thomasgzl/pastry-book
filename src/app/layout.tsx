@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bodoni_Moda, Karla } from "next/font/google";
+import { Bodoni_Moda, Fraunces, Karla } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import "./globals.css";
 
@@ -10,6 +10,14 @@ const bodoniModa = Bodoni_Moda({
 
 const karla = Karla({
   variable: "--font-karla",
+  subsets: ["latin"],
+});
+
+/** Titre de marque de l'accueil uniquement (`--font-display`, globals.css) — jamais `--font-serif` (Bodoni Moda) réutilisé par tous les titres de page, voir `(app)/page.tsx`. */
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  weight: "600",
+  style: "italic",
   subsets: ["latin"],
 });
 
@@ -39,7 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${bodoniModa.variable} ${karla.variable} h-full antialiased`}
+      className={`${bodoniModa.variable} ${karla.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ivoire text-cacao">
         {children}

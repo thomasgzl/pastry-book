@@ -92,7 +92,11 @@ export default function HomePage() {
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-10 py-4">
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-center lg:gap-12">
         <div className="order-1 flex flex-col items-center gap-2 text-center lg:col-start-1 lg:row-start-1 lg:items-start lg:text-left">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight text-cacao sm:text-4xl">
+          {/* Titre de marque uniquement — jamais `EditorialTitle`/`--font-serif`
+              (Bodoni Moda) réutilisé par tous les titres de page : `--font-display`
+              (Fraunces, layout.tsx/globals.css) donne à ce h1 un traitement de
+              couverture, pas un titre de plus. */}
+          <h1 className="font-display italic tracking-tight text-cacao text-4xl sm:text-5xl lg:text-6xl">
             Le Grand Livre de Pâtisserie
           </h1>
           <p className="text-base text-cacao/70">Archive privée de recettes professionnelles</p>

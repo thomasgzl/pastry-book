@@ -33,6 +33,8 @@
   --color-foreground: var(--color-cacao);
   --font-serif: var(--font-bodoni-moda);
   --font-sans: var(--font-karla);
+  /* Titre de marque de l'accueil uniquement (`(app)/page.tsx`) — jamais utilisé pour un titre de page courant (`--font-serif`, Bodoni Moda). */
+  --font-display: var(--font-fraunces);
 }
 
 body {
