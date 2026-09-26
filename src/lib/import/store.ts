@@ -1192,7 +1192,7 @@ interface DeleteCanonicalIngredientRpcRow {
 }
 
 type UntypedDeleteCanonicalIngredientRpcClient = {
-  rpc(fn: "delete_canonical_ingredient", args: { p_id: string }): Promise<{
+  rpc(fn: "delete_canonical_ingredient", args: { p_id: string; p_force: boolean }): Promise<{
     data: DeleteCanonicalIngredientRpcRow | null;
     error: { message: string } | null;
   }>;
@@ -1201,10 +1201,11 @@ type UntypedDeleteCanonicalIngredientRpcClient = {
 async function callDeleteCanonicalIngredientRpc(
   client: SupabaseAdminClient,
   id: string,
+  force: boolean,
 ): Promise<DeleteCanonicalIngredientRpcRow> {
   const { data, error } = await (client as unknown as UntypedDeleteCanonicalIngredientRpcClient).rpc(
     "delete_canonical_ingredient",
-    { p_id: id },
+    { p_id: id, p_force: force },
   );
   if (error) {
     throw new Error(error.message);
@@ -1224,8 +1225,8 @@ async function callDeleteCanonicalIngredientRpc(
  * premières principales, lignes d'ingrédient, alias, sous-matière) — jamais
  * de perte de tag silencieuse sur une recette.
  */
-async function deleteCanonicalIngredientSupabase(client: SupabaseAdminClient, id: string): Promise<void> {
-  const result = await callDeleteCanonicalIngredientRpc(client, id);
+async function deleteCanonicalIngredientSupabase(client: SupabaseAdminClient, id: string, force: boolean): Promise<void> {
+  const result = await callDeleteCanonicalIngredientRpc(client, id, force);
 
   const visualPaths = result.visual_urls.filter(isRealStoragePath);
   if (visualPaths.length > 0) {
@@ -1235,11 +1236,11 @@ async function deleteCanonicalIngredientSupabase(client: SupabaseAdminClient, id
 }
 
 /** Repli mémoire (dev local sans Supabase configuré) : même raison que `deleteRecipe`. */
-export async function deleteCanonicalIngredient(id: string): Promise<void> {
+export async function deleteCanonicalIngredient(id: string, force = false): Promise<void> {
   if (!hasSupabaseConfig()) {
     throw new Error(
       "Suppression d'une matière première indisponible sans Supabase configuré (mode démonstration, lecture seule).",
     );
   }
-  return deleteCanonicalIngredientSupabase(createSupabaseAdminClient(), id);
+  return deleteCanonicalIngredientSupabase(createSupabaseAdminClient(), id, force);
 }

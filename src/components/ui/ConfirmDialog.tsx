@@ -26,6 +26,8 @@ interface ConfirmDialogProps {
   error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Deuxième action, affichée seulement après un échec (ex. « Forcer la suppression »). */
+  secondaryAction?: { label: string; onClick: () => void };
 }
 
 export function ConfirmDialog({
@@ -38,6 +40,7 @@ export function ConfirmDialog({
   error,
   onConfirm,
   onCancel,
+  secondaryAction,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) return;
@@ -71,9 +74,15 @@ export function ConfirmDialog({
           <Button type="button" variant="secondary" onClick={onCancel} disabled={pending}>
             Annuler
           </Button>
-          <Button type="button" variant="danger" onClick={onConfirm} disabled={pending}>
-            {pending ? (pendingLabel ?? "Chargement…") : confirmLabel}
-          </Button>
+          {error && secondaryAction ? (
+            <Button type="button" variant="danger" onClick={secondaryAction.onClick} disabled={pending}>
+              {pending ? (pendingLabel ?? "Chargement…") : secondaryAction.label}
+            </Button>
+          ) : (
+            <Button type="button" variant="danger" onClick={onConfirm} disabled={pending}>
+              {pending ? (pendingLabel ?? "Chargement…") : confirmLabel}
+            </Button>
+          )}
         </div>
       </div>
     </div>

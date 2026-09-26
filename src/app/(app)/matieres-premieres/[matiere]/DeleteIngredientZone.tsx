@@ -8,6 +8,12 @@
  * de la fiche publique. `deleteCanonicalIngredientAction` refuse déjà côté
  * serveur si la matière est utilisée (recette, alias, sous-matière) —
  * l'erreur renvoyée est affichée telle quelle, jamais reformulée.
+ *
+ * « Forcer » n'apparaît que lorsque le message de refus l'invite (le seul
+ * blocage vient alors d'un alias ou d'une sous-matière, jamais d'une
+ * recette — `delete_canonical_ingredient` refuse toujours l'usage réel dans
+ * une recette, avec ou sans force, voir la migration
+ * `20260926150000_delete_canonical_ingredient_force.sql`).
  */
 
 import { useState } from "react";
@@ -22,12 +28,12 @@ export function DeleteIngredientZone({ id, name }: { id: string; name: string })
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleConfirm() {
+  async function handleConfirm(force = false) {
     if (deleting) return;
     setDeleting(true);
     setError(null);
     try {
-      const result = await deleteCanonicalIngredientAction({ id });
+      const result = await deleteCanonicalIngredientAction({ id, force });
       if (!result.ok) {
         setError(result.error);
         setDeleting(false);
@@ -39,6 +45,8 @@ export function DeleteIngredientZone({ id, name }: { id: string; name: string })
       setDeleting(false);
     }
   }
+
+  const canForce = error !== null && error.includes("forcer");
 
   function handleCancel() {
     if (deleting) return;
@@ -66,8 +74,13 @@ export function DeleteIngredientZone({ id, name }: { id: string; name: string })
         pendingLabel="Suppression…"
         pending={deleting}
         error={error}
-        onConfirm={handleConfirm}
+        onConfirm={() => handleConfirm(false)}
         onCancel={handleCancel}
+        secondaryAction={
+          canForce
+            ? { label: "Forcer la suppression", onClick: () => handleConfirm(true) }
+            : undefined
+        }
       />
     </div>
   );
