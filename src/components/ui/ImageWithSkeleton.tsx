@@ -41,6 +41,7 @@ export function ImageWithSkeleton({ src, alt, className, style }: ImageWithSkele
         ref={checkAlreadyLoaded}
         src={src}
         alt={alt}
+        loading="lazy"
         style={style}
         className={`${className} transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
         onLoad={() => setLoaded(true)}
