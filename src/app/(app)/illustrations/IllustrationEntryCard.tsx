@@ -5,6 +5,7 @@ import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration
 import { VisualStatusPill } from "@/components/ui/VisualStatusPill";
 import { approveAsPrimaryAction, rejectAction, setPrimaryAction } from "../visuels/actions";
 import { RegenerateVersionForm } from "./RegenerateVersionForm";
+import { UploadVisualForm } from "./UploadVisualForm";
 import type { IllustrationEntry, RegenerateProviderInfo } from "./IllustrationsBrowser";
 
 const STATUS_CLASSES = {
@@ -193,6 +194,15 @@ export function IllustrationEntryCard({ entry, regenerateInfo }: IllustrationEnt
             ratio={dimensions.ratio}
             size={dimensions.size}
           />
+
+          <details className="rounded-lg border border-dashed border-grise bg-coquille p-3">
+            <summary className="cursor-pointer text-sm font-medium text-cacao focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive">
+              Importer une image…
+            </summary>
+            <div className="mt-3">
+              <UploadVisualForm subjectType={entry.type} subjectId={entry.id} showInlinePreview={false} />
+            </div>
+          </details>
         </div>
       </details>
     </Card>

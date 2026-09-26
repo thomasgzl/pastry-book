@@ -14,14 +14,14 @@
 
 import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
+import { DraftPreviewCard } from "@/components/ui/DraftPreviewCard";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/states/EmptyState";
 import { normalizeText } from "@/lib/recipes/search";
 import { VISUAL_KIND_LABELS } from "@/lib/visuals/kindLabels";
 import { buildVisualPrompt, PRESET_EXCLUSIONS, VISUAL_PRESET_VERSION, type VisualSubjectKind } from "@/lib/visuals/preset";
 import { QUEUE_BATCH_SIZE_OPTIONS, QUEUE_CONFIRMATION_PREFIX, type QueueBatchSize } from "@/lib/visuals/queueConstants";
-import { approveAsPrimaryAction, rejectAction } from "../../visuels/actions";
+import { UploadVisualForm } from "../UploadVisualForm";
 import { runMissingQueueAction, type QueueActionState } from "./actions";
 
 export interface MissingSubjectEntry {
@@ -80,50 +80,21 @@ function keyOf(entry: { type: string; id: string }): string {
   return `${entry.type}:${entry.id}`;
 }
 
-/**
- * Validation immédiate d'un brouillon tout juste généré (K9+, demande
- * utilisateur : éviter l'aller-retour par `/illustrations` pour approuver ou
- * rejeter). Mêmes Server Actions que `/illustrations` (`approveAsPrimaryAction`/
- * `rejectAction`, `visuels/actions.ts`) — jamais une logique dupliquée.
- * `onResolved` masque la carte côté client dès le clic (mise à jour
- * optimiste) ; la vraie mutation/re-validation des pages publiques reste
- * portée par la Server Action elle-même.
- */
-function GeneratedDraftPreview({
-  assetId,
-  imageUrl,
-  onResolved,
-}: {
-  assetId: string;
-  imageUrl: string;
-  onResolved: (assetId: string) => void;
-}) {
-  return (
-    <li className="flex flex-col gap-2 rounded-lg border border-grise bg-coquille p-3 sm:flex-row sm:items-center">
-      <ImageWithSkeleton
-        src={imageUrl}
-        alt=""
-        className="h-20 w-20 shrink-0 rounded-lg border border-grise bg-ivoire object-contain"
-      />
-      <div className="flex flex-1 flex-col gap-2">
-        <p className="text-sm text-cacao">Brouillon généré — à valider :</p>
-        <div className="flex flex-wrap gap-2">
-          <form action={approveAsPrimaryAction} onSubmit={() => onResolved(assetId)}>
-            <input type="hidden" name="assetId" value={assetId} />
-            <Button type="submit" variant="primary" className="text-sm">
-              Approuver et utiliser
-            </Button>
-          </form>
-          <form action={rejectAction} onSubmit={() => onResolved(assetId)}>
-            <input type="hidden" name="assetId" value={assetId} />
-            <Button type="submit" variant="secondary" className="text-sm">
-              Rejeter
-            </Button>
-          </form>
-        </div>
-      </div>
-    </li>
-  );
+/** Bascule discrète « Importer une image… » par ligne (K-import-manuel) — repliée par défaut pour ne pas alourdir une file pouvant compter des centaines de sujets manquants. */
+function MissingRowUploadToggle({ entry }: { entry: MissingSubjectEntry }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm text-cacao/60 underline hover:text-olive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive"
+      >
+        Importer une image…
+      </button>
+    );
+  }
+  return <UploadVisualForm subjectType={entry.type} subjectId={entry.id} />;
 }
 
 export function MissingQueueBrowser({
@@ -296,7 +267,7 @@ export function MissingQueueBrowser({
                     return (
                       <li
                         key={key}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-grise bg-coquille p-3"
+                        className="flex flex-col gap-2 rounded-lg border border-grise bg-coquille p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                       >
                         <label className="flex min-h-11 flex-1 items-center gap-3 text-sm text-cacao">
                           <input
@@ -309,9 +280,12 @@ export function MissingQueueBrowser({
                           {entry.label}
                           {entry.parentLabel && <span className="text-xs text-cacao/60">({entry.parentLabel})</span>}
                         </label>
-                        <Button type="button" variant="secondary" onClick={() => selectOnlyAndConfirm(entry)}>
-                          Générer ce sujet…
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Button type="button" variant="secondary" onClick={() => selectOnlyAndConfirm(entry)}>
+                            Générer ce sujet…
+                          </Button>
+                          <MissingRowUploadToggle entry={entry} />
+                        </div>
                       </li>
                     );
                   })}
@@ -453,12 +427,13 @@ export function MissingQueueBrowser({
               outcome.status === "ok" && outcome.assetId && outcome.imageUrl && !resolvedAssetIds.has(outcome.assetId);
             if (canValidateNow) {
               return (
-                <GeneratedDraftPreview
-                  key={key}
-                  assetId={outcome.assetId!}
-                  imageUrl={outcome.imageUrl!}
-                  onResolved={(assetId) => setResolvedAssetIds((previous) => new Set(previous).add(assetId))}
-                />
+                <li key={key}>
+                  <DraftPreviewCard
+                    assetId={outcome.assetId!}
+                    imageUrl={outcome.imageUrl!}
+                    onResolved={(assetId) => setResolvedAssetIds((previous) => new Set(previous).add(assetId))}
+                  />
+                </li>
               );
             }
             return (

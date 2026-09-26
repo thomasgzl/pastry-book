@@ -261,17 +261,18 @@ export type PersistGeneratedVisualInput = Omit<CreateDraftInput, "imageUrl"> & {
  * jamais perdre silencieusement la trace d'une image potentiellement payante
  * est la règle la plus importante de cette tâche.
  */
-export async function persistGeneratedVisual(input: PersistGeneratedVisualInput): Promise<VisualAsset> {
-  const { mimeType, bytes } = decodeGeneratedImage(input.generatedImageUrl);
-
-  const bucketExtension = BUCKET_EXTENSION_BY_MIME[mimeType];
-  const canUploadToBucket = hasSupabaseConfig() && Boolean(bucketExtension);
-
-  if (!canUploadToBucket) {
-    return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
-  }
-
-  const path = visualAssetStoragePath(input.subjectType, input.subjectId, mimeType);
+/**
+ * Étape commune 2+3 de `persistGeneratedVisual` (upload Storage puis
+ * enregistrement `visual_assets`, avec nettoyage du fichier orphelin si
+ * l'étape 3 échoue) — extraite pour être réutilisée telle quelle par
+ * `persistUploadedVisual` (import manuel), jamais dupliquée entre les deux.
+ */
+async function storeBytesAndCreateDraft(
+  bytes: Buffer,
+  mimeType: string,
+  path: string,
+  input: Omit<CreateDraftInput, "imageUrl">,
+): Promise<VisualAsset> {
   const supabase = await createSupabaseServerClient();
 
   const { error: uploadError } = await supabase.storage
@@ -293,6 +294,72 @@ export async function persistGeneratedVisual(input: PersistGeneratedVisualInput)
       `Enregistrement du visuel impossible après stockage réussi (fichier ${cleanup === "removed" ? "nettoyé" : "potentiellement orphelin, voir journal serveur"}) : ${dbErrorMessage}`,
     );
   }
+}
+
+export async function persistGeneratedVisual(input: PersistGeneratedVisualInput): Promise<VisualAsset> {
+  const { mimeType, bytes } = decodeGeneratedImage(input.generatedImageUrl);
+
+  const bucketExtension = BUCKET_EXTENSION_BY_MIME[mimeType];
+  const canUploadToBucket = hasSupabaseConfig() && Boolean(bucketExtension);
+
+  if (!canUploadToBucket) {
+    return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
+  }
+
+  const path = visualAssetStoragePath(input.subjectType, input.subjectId, mimeType);
+  const { generatedImageUrl: _generatedImageUrl, ...draftInput } = input;
+  return storeBytesAndCreateDraft(bytes, mimeType, path, draftInput);
+}
+
+/** Reflet des `allowed_mime_types` du bucket `visual-assets` depuis la migration `20260926160000` (PNG/WebP/JPEG) — distinct de `BUCKET_EXTENSION_BY_MIME` (formats produits par l'IA uniquement) car un import manuel accepte aussi le JPEG, le format le plus courant depuis un téléphone/tablette. */
+const MANUAL_UPLOAD_EXTENSION_BY_MIME: Record<string, string> = {
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/jpeg": "jpg",
+};
+
+/** `presetVersion` distinctif d'un visuel importé manuellement — jamais confondu avec une version du preset « Botanique éditorial » (K-IA, `preset.ts`), aucun prompt ni preset ne s'applique à une image fournie directement. */
+export const MANUAL_IMPORT_PRESET_VERSION = "import-manuel";
+
+export interface PersistUploadedVisualInput {
+  subjectType: SubjectType;
+  subjectId: string;
+  mimeType: string;
+  bytes: Buffer;
+}
+
+/**
+ * Import manuel d'une illustration (pas de génération IA, pas de prompt) —
+ * toujours en statut `draft`, jamais approuvé automatiquement, même garde
+ * que `persistGeneratedVisual` (E1). Réutilise `storeBytesAndCreateDraft`
+ * pour le même comportement d'upload/nettoyage-si-échec.
+ */
+export async function persistUploadedVisual(input: PersistUploadedVisualInput): Promise<VisualAsset> {
+  const extension = MANUAL_UPLOAD_EXTENSION_BY_MIME[input.mimeType];
+  if (!extension) {
+    throw new VisualGenerationValidationError(
+      `Format d'image non pris en charge (${input.mimeType}) — utilisez PNG, JPEG ou WebP.`,
+    );
+  }
+  if (input.bytes.length === 0) {
+    throw new VisualGenerationValidationError("Fichier image vide.");
+  }
+
+  const draftInput: Omit<CreateDraftInput, "imageUrl"> = {
+    subjectType: input.subjectType,
+    subjectId: input.subjectId,
+    sourcePhotoUrl: null,
+    prompt: "Import manuel — image fournie directement, aucun prompt.",
+    presetVersion: MANUAL_IMPORT_PRESET_VERSION,
+  };
+
+  if (!hasSupabaseConfig()) {
+    const dataUri = `data:${input.mimeType};base64,${input.bytes.toString("base64")}`;
+    return createDraftVisualAsset({ ...draftInput, imageUrl: dataUri });
+  }
+
+  const path = `${toDbSubjectType(input.subjectType)}/${input.subjectId}/${crypto.randomUUID()}.${extension}`;
+  return storeBytesAndCreateDraft(input.bytes, input.mimeType, path, draftInput);
 }
 
 function updateInMemory(id: string, changes: Partial<VisualAsset>): VisualAsset {
