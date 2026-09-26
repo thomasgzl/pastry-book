@@ -8,17 +8,28 @@
  * (`store.ts`) refuse déjà si la matière est utilisée quelque part — cette
  * action ne fait que relayer son message d'erreur, jamais une seconde
  * vérification dupliquée ici.
+ *
+ * Renvoie l'erreur au lieu de la laisser remonter (throw) : Next.js masque
+ * le message des erreurs qui traversent la frontière d'une Server Action en
+ * production (React error #441, « message omis en production »), l'appelant
+ * ne verrait donc jamais la vraie raison du refus (matière utilisée, etc.).
  */
 
 import { revalidatePath } from "next/cache";
 import { deleteCanonicalIngredient } from "@/lib/import/store";
 
-export async function deleteCanonicalIngredientAction(params: { id: string }): Promise<{ redirectTo: string }> {
-  await deleteCanonicalIngredient(params.id);
+export async function deleteCanonicalIngredientAction(
+  params: { id: string },
+): Promise<{ ok: true; redirectTo: string } | { ok: false; error: string }> {
+  try {
+    await deleteCanonicalIngredient(params.id);
+  } catch (cause) {
+    return { ok: false, error: cause instanceof Error ? cause.message : "La suppression a échoué. Réessayez." };
+  }
 
   revalidatePath("/matieres-premieres");
   revalidatePath("/illustrations");
   revalidatePath("/illustrations/manquantes");
 
-  return { redirectTo: "/matieres-premieres" };
+  return { ok: true, redirectTo: "/matieres-premieres" };
 }

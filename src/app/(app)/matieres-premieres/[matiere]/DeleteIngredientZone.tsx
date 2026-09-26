@@ -27,8 +27,13 @@ export function DeleteIngredientZone({ id, name }: { id: string; name: string })
     setDeleting(true);
     setError(null);
     try {
-      const { redirectTo } = await deleteCanonicalIngredientAction({ id });
-      router.push(redirectTo);
+      const result = await deleteCanonicalIngredientAction({ id });
+      if (!result.ok) {
+        setError(result.error);
+        setDeleting(false);
+        return;
+      }
+      router.push(result.redirectTo);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "La suppression a échoué. Réessayez.");
       setDeleting(false);
