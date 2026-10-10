@@ -174,10 +174,16 @@ function mapImportItemRow(row: {
   };
 }
 
+/** Matière première principale créée (ou résolue) PENDANT cet enregistrement, F-KEY1 — jamais une matière déjà existante avant cette recette. Sert uniquement à proposer une génération d'illustration en un clic sur l'écran de confirmation (K13), jamais à décider quoi que ce soit d'automatique côté serveur. */
+export interface NewKeyIngredient {
+  id: string;
+  name: string;
+}
+
 export type SaveImportRecipeResult =
   | { status: "duplicate"; duplicate: { title: string; sourceId: string } }
-  | { status: "already_saved"; recipe: Recipe; item: ImportItem }
-  | { status: "saved"; recipe: Recipe; item: ImportItem };
+  | { status: "already_saved"; recipe: Recipe; item: ImportItem; newIngredients: NewKeyIngredient[] }
+  | { status: "saved"; recipe: Recipe; item: ImportItem; newIngredients: NewKeyIngredient[] };
 
 interface SaveImportRecipeParams {
   batchId: string;
@@ -405,7 +411,8 @@ async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<S
   const alreadySaved = findItemForDraftIdMemory(draft.id);
   if (alreadySaved && alreadySaved.recipeId) {
     const recipe = memorySavedRecipes.find((entry) => entry.recipe.id === alreadySaved.recipeId)!.recipe;
-    return { status: "already_saved", recipe, item: alreadySaved };
+    // F-KEY1 (matières premières principales) n'existe qu'en mode Supabase réel — jamais de nouvelle matière créée ici.
+    return { status: "already_saved", recipe, item: alreadySaved, newIngredients: [] };
   }
 
   const duplicate = await checkDuplicateMemory(draft.title, draft.sourceId);
@@ -468,7 +475,7 @@ async function saveImportRecipeMemory(params: SaveImportRecipeParams): Promise<S
     recipeId,
   });
 
-  return { status: "saved", recipe, item };
+  return { status: "saved", recipe, item, newIngredients: [] };
 }
 
 function getSavedRecipesMemory(): Recipe[] {
@@ -773,7 +780,7 @@ async function insertProposedAliasSupabase(
 async function resolveKeyIngredientsForSaveSupabase(
   client: SupabaseAdminClient,
   draft: ImportRecipeDraft,
-): Promise<{ canonicalIngredientId: string; position: number }[]> {
+): Promise<{ keyIngredients: { canonicalIngredientId: string; position: number }[]; newIngredients: NewKeyIngredient[] }> {
   const allOriginalNames = draft.sections.flatMap((section) => section.ingredients.map((ingredient) => ingredient.originalName));
   const resolvedBySlug = new Map<string, string>();
   // `recipe_key_ingredients` a une clé primaire (recipe_id, canonical_ingredient_id) :
@@ -783,6 +790,7 @@ async function resolveKeyIngredientsForSaveSupabase(
   // l'écriture entière échouer pour ce détail.
   const seenCanonicalIds = new Set<string>();
   const result: { canonicalIngredientId: string; position: number }[] = [];
+  const newIngredients: NewKeyIngredient[] = [];
 
   for (const [index, tag] of draft.proposedKeyIngredients.entries()) {
     if (tag.kind === "existing") {
@@ -796,6 +804,7 @@ async function resolveKeyIngredientsForSaveSupabase(
     if (!canonicalIngredientId) {
       canonicalIngredientId = await callFindOrCreateCanonicalIngredientRpc(client, tag.name, tag.slug);
       resolvedBySlug.set(tag.slug, canonicalIngredientId);
+      newIngredients.push({ id: canonicalIngredientId, name: tag.name });
 
       const normalizedTagName = normalizeText(tag.name);
       const matchingOriginalName = allOriginalNames.find((name) => {
@@ -812,7 +821,7 @@ async function resolveKeyIngredientsForSaveSupabase(
     result.push({ canonicalIngredientId, position: index });
   }
 
-  return result;
+  return { keyIngredients: result, newIngredients };
 }
 
 /**
@@ -837,13 +846,16 @@ async function saveImportRecipeSupabase(
   const sourceFileHash = sourceFileUrl ? await fetchAndHashSourceFile(client, sourceFileUrl) : null;
 
   let rpcResult: SaveImportRecipeRpcRow;
+  let newIngredients: NewKeyIngredient[];
   try {
     // Résolution des matières premières principales (F-KEY1) — DANS le même
     // bloc `try` que l'appel RPC : un échec ici (ex. `find_or_create_canonical_ingredient`
     // indisponible) doit déclencher le même repli (avertissement de fichier
     // potentiellement orphelin, message lisible) que l'échec de l'écriture
     // elle-même, jamais un état différent non journalisé.
-    const keyIngredients = await resolveKeyIngredientsForSaveSupabase(client, draft);
+    const resolved = await resolveKeyIngredientsForSaveSupabase(client, draft);
+    const keyIngredients = resolved.keyIngredients;
+    newIngredients = resolved.newIngredients;
 
     const payload: Record<string, unknown> = {
       draftId: draft.id,
@@ -902,7 +914,7 @@ async function saveImportRecipeSupabase(
   const item = mapImportItemRow(rpcResult.item);
 
   if (rpcResult.outcome === "already_saved") {
-    return { status: "already_saved", recipe, item };
+    return { status: "already_saved", recipe, item, newIngredients };
   }
 
   // Journalisation minimale (règle CLAUDE.md « journaliser modèle, version
@@ -916,7 +928,7 @@ async function saveImportRecipeSupabase(
     recipeId: recipe.id,
   });
 
-  return { status: "saved", recipe, item };
+  return { status: "saved", recipe, item, newIngredients };
 }
 
 async function getSavedRecipesSupabase(client: SupabaseAdminClient): Promise<Recipe[]> {
@@ -1029,7 +1041,11 @@ async function updateRecipeSupabase(client: SupabaseAdminClient, params: UpdateR
   // pré-remplit `draft.proposedKeyIngredients` avec les tags déjà enregistrés
   // pour cette recette ; ils sont donc repris ici comme pour l'enregistrement
   // initial (F-KEY1).
-  const keyIngredients = await resolveKeyIngredientsForSaveSupabase(client, draft);
+  // `newIngredients` (F-KEY1, K13) n'est pas encore exposé côté modification manuelle
+  // d'une recette déjà enregistrée (`updateRecipeSupabase` retourne juste `Recipe`,
+  // pas un type discriminé comme `saveImportRecipe`) — seul le flux de création initiale
+  // propose la génération d'illustration en un clic pour l'instant.
+  const { keyIngredients } = await resolveKeyIngredientsForSaveSupabase(client, draft);
 
   const payload: Record<string, unknown> = {
     recipeId,

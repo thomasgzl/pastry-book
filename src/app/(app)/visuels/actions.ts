@@ -77,6 +77,41 @@ export async function generateAction(formData: FormData): Promise<void> {
   revalidatePath("/visuels");
 }
 
+/**
+ * Version directement appelable (pas `<form action>`) de `generateAction` —
+ * même geste humain explicite (un clic = un appel IA réel, jamais automatique
+ * en masse, CLAUDE.md), utilisée par `GenerateIllustrationButton` (K13) pour
+ * afficher un état « en cours »/erreur sans naviguer, juste après
+ * l'enregistrement d'une recette qui vient de créer cette matière première.
+ */
+export async function generateDraftAction(
+  input: { subjectType: VisualAsset["subjectType"]; subjectId: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = generateSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Requête invalide." };
+
+  const subject = await getVisualSubject(parsed.data.subjectType, parsed.data.subjectId);
+  if (!subject) return { ok: false, error: "Sujet introuvable." };
+
+  try {
+    await generateVisualDraft({
+      subjectType: subject.type,
+      subjectId: subject.id,
+      subjectLabel: subject.label,
+      sourcePhotoUrl: subject.photoUrl,
+      categorySlug: subject.categorySlug,
+      recipeMode: subject.type === "recipe" ? recipeModeFor(subject.photoUrl) : undefined,
+    });
+  } catch (cause) {
+    return { ok: false, error: cause instanceof Error ? cause.message : "La génération a échoué. Réessayez." };
+  }
+
+  revalidatePath("/visuels");
+  revalidatePath("/illustrations");
+  revalidatePath("/illustrations/manquantes");
+  return { ok: true };
+}
+
 export async function regenerateAction(formData: FormData): Promise<void> {
   const input = readForm(formData, assetIdSchema);
   if (!input) return;

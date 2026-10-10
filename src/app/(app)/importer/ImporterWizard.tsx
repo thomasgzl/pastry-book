@@ -21,6 +21,7 @@ import { EditorialTitle } from "@/components/ui/EditorialTitle";
 import { Card } from "@/components/ui/Card";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { GenerateIllustrationButton } from "./GenerateIllustrationButton";
 import type { SourceCategory } from "@/lib/domain/schemas";
 import type { ImportRecipeDraft } from "@/lib/import/schema";
 import { importRecipeDraftSchema } from "@/lib/import/schema";
@@ -402,10 +403,25 @@ export function ImporterWizard() {
             </Link>
           </div>
           {/* K13 — proposition FACULTATIVE, jamais cochée/déclenchée
-              automatiquement : simple lien vers la file des illustrations
-              manquantes, aucune génération pendant l'import lui-même. Le
-              nouvel ingrédient canonique éventuellement validé ci-dessus y
-              apparaît déjà automatiquement (K6/K8, voir queue.ts). */}
+              automatiquement : un clic explicite par matière première reste
+              requis (CLAUDE.md, jamais de génération automatique), mais plus
+              besoin d'aller la chercher ailleurs pour ce geste. */}
+          {saveResult.newIngredients.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-grise pt-3">
+              <p className="text-sm text-cacao/70">
+                {saveResult.newIngredients.length === 1
+                  ? "Cette recette a créé une nouvelle matière première, sans illustration :"
+                  : `Cette recette a créé ${saveResult.newIngredients.length} nouvelles matières premières, sans illustration :`}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {saveResult.newIngredients.map((ingredient) => (
+                  <li key={ingredient.id}>
+                    <GenerateIllustrationButton subjectId={ingredient.id} name={ingredient.name} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="border-t border-grise pt-3 text-sm text-cacao/70">
             Facultatif —{" "}
             <Link href="/illustrations/manquantes" className="font-medium text-olive underline hover:text-olive/80">
