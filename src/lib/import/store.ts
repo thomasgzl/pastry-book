@@ -69,6 +69,7 @@ import { normalizeKeyIngredientName } from "@/lib/ai/import/rules";
 import { evaluateRecipeSpecificities, isValidatedSpecificitySlug } from "@/lib/import/specificityValidation";
 import { SOURCE_BUCKET } from "@/lib/import/sourceUpload";
 import { VISUAL_ASSETS_BUCKET } from "@/lib/visuals/storage";
+import { deleteFromR2 } from "@/lib/r2";
 
 /**
  * Ré-exécute la validation déterministe de cohérence (Gluten free / Sans
@@ -1164,8 +1165,12 @@ async function deleteRecipeSupabase(client: SupabaseAdminClient, recipeId: strin
 
   const visualPaths = result.visual_urls.filter(isRealStoragePath);
   if (visualPaths.length > 0) {
-    const { error } = await client.storage.from(VISUAL_ASSETS_BUCKET).remove(visualPaths);
-    if (error) logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, recipeId, error.message);
+    try {
+      await deleteFromR2(visualPaths);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, recipeId, message);
+    }
   }
 
   if (result.original_document_url && isRealStoragePath(result.original_document_url)) {
@@ -1230,8 +1235,12 @@ async function deleteCanonicalIngredientSupabase(client: SupabaseAdminClient, id
 
   const visualPaths = result.visual_urls.filter(isRealStoragePath);
   if (visualPaths.length > 0) {
-    const { error } = await client.storage.from(VISUAL_ASSETS_BUCKET).remove(visualPaths);
-    if (error) logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, id, error.message);
+    try {
+      await deleteFromR2(visualPaths);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      logOrphanedStorageFileAfterDelete(VISUAL_ASSETS_BUCKET, visualPaths, id, message);
+    }
   }
 }
 

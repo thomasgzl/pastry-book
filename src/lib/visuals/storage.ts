@@ -2,6 +2,7 @@ import type { VisualAsset } from "@/lib/domain/schemas";
 import type { VisualAssetRow, VisualSubjectType as DbSubjectType } from "@/lib/supabase/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
+import { deleteFromR2, hasR2Config, uploadToR2 } from "@/lib/r2";
 import { DEMO_VISUAL_ASSETS } from "./fixtures/demo-examples";
 
 type SubjectType = VisualAsset["subjectType"];
@@ -162,10 +163,10 @@ export async function createDraftVisualAsset(input: CreateDraftInput): Promise<V
   return fromRow(data);
 }
 
-/** Bucket privé confirmé par K-S1 (`20260814090300_storage_buckets.sql`) — `public = false`, PNG/WebP uniquement. */
+/** Label de journalisation seulement — le bucket réel est R2 (`R2_BUCKET`, `lib/r2.ts`), plus Supabase Storage (K-S1). */
 export const VISUAL_ASSETS_BUCKET = "visual-assets";
 
-/** Reflet en lecture seule des `allowed_mime_types` du bucket ci-dessus — la migration reste la seule source de vérité, jamais redéfinie ici. */
+/** Reflet en lecture seule des formats acceptés pour un visuel généré par IA — PNG/WebP uniquement, même restriction qu'avant la bascule R2. */
 const BUCKET_EXTENSION_BY_MIME: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
@@ -273,22 +274,28 @@ async function storeBytesAndCreateDraft(
   path: string,
   input: Omit<CreateDraftInput, "imageUrl">,
 ): Promise<VisualAsset> {
-  const supabase = await createSupabaseServerClient();
-
-  const { error: uploadError } = await supabase.storage
-    .from(VISUAL_ASSETS_BUCKET)
-    .upload(path, bytes, { contentType: mimeType });
-  if (uploadError) {
+  // ponytail: logs temporaires (diagnostic prod K-R2) — retirer une fois l'écriture R2 confirmée en prod.
+  console.log("[R2] attempting upload", path);
+  try {
+    await uploadToR2(path, bytes, mimeType);
+    console.log("[R2] upload success:", path);
+  } catch (uploadError) {
     // Rien n'a encore été écrit en base ni conservé ailleurs : aucun nettoyage nécessaire, échec propre.
-    throw new VisualAssetPersistenceError(`Stockage de l'image impossible : ${uploadError.message}`);
+    const message = uploadError instanceof Error ? uploadError.message : String(uploadError);
+    console.warn("[R2] upload failed:", message);
+    throw new VisualAssetPersistenceError(`Stockage de l'image impossible : ${message}`);
   }
 
   try {
     return await createDraftVisualAsset({ ...input, imageUrl: path });
   } catch (dbError) {
-    const { error: removeError } = await supabase.storage.from(VISUAL_ASSETS_BUCKET).remove([path]);
     const dbErrorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-    const cleanup = removeError ? "cleanup_failed" : "removed";
+    let cleanup: "removed" | "cleanup_failed" = "removed";
+    try {
+      await deleteFromR2([path]);
+    } catch {
+      cleanup = "cleanup_failed";
+    }
     logVisualAssetOrphanIncident(path, input.subjectType, input.subjectId, dbErrorMessage, cleanup);
     throw new VisualAssetPersistenceError(
       `Enregistrement du visuel impossible après stockage réussi (fichier ${cleanup === "removed" ? "nettoyé" : "potentiellement orphelin, voir journal serveur"}) : ${dbErrorMessage}`,
@@ -300,9 +307,13 @@ export async function persistGeneratedVisual(input: PersistGeneratedVisualInput)
   const { mimeType, bytes } = decodeGeneratedImage(input.generatedImageUrl);
 
   const bucketExtension = BUCKET_EXTENSION_BY_MIME[mimeType];
-  const canUploadToBucket = hasSupabaseConfig() && Boolean(bucketExtension);
+  const canUploadToBucket = hasR2Config() && Boolean(bucketExtension);
+  console.log("[R2] config available:", hasR2Config());
 
   if (!canUploadToBucket) {
+    // ponytail: pas de "fallback Supabase" ici — aucun objet storage n'est écrit, la data URI
+    // part telle quelle dans la colonne `image_url` (comportement démo/hors-R2 historique, K10).
+    console.log("[Storage] no R2 config or format non éligible — image_url stocké en data URI inline, aucune écriture objet storage");
     return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
   }
 
@@ -353,7 +364,11 @@ export async function persistUploadedVisual(input: PersistUploadedVisualInput): 
     presetVersion: MANUAL_IMPORT_PRESET_VERSION,
   };
 
-  if (!hasSupabaseConfig()) {
+  console.log("[R2] config available:", hasR2Config());
+  if (!hasR2Config()) {
+    // ponytail: pas de "fallback Supabase" ici — aucun objet storage n'est écrit, la data URI
+    // part telle quelle dans la colonne `image_url` (comportement démo/hors-R2 historique, K10).
+    console.log("[Storage] no R2 config — image_url stocké en data URI inline, aucune écriture objet storage");
     const dataUri = `data:${input.mimeType};base64,${input.bytes.toString("base64")}`;
     return createDraftVisualAsset({ ...draftInput, imageUrl: dataUri });
   }

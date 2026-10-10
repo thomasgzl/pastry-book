@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Tests ciblés (niveau 1, K10) de `persistGeneratedVisual` sur la voie
- * Supabase réellement configurée — client Storage/base entièrement mocké,
- * aucune connexion réseau réelle, aucun appel OpenAI. Couvre l'ordre imposé
- * (valider → Storage → base → `draft`), l'absence de tout succès annoncé
- * avant persistance confirmée, et les trois scénarios d'échec demandés :
- * Storage seul, base seule, échec des deux (nettoyage impossible).
+ * Tests ciblés (niveau 1, K10) de `persistGeneratedVisual` sur la voie R2 +
+ * Supabase réellement configurés — client R2/base entièrement mocké, aucune
+ * connexion réseau réelle, aucun appel OpenAI. Couvre l'ordre imposé
+ * (valider → R2 → base → `draft`), l'absence de tout succès annoncé avant
+ * persistance confirmée, et les trois scénarios d'échec demandés : R2 seul,
+ * base seule, échec des deux (nettoyage impossible).
  *
- * La voie « Supabase non configuré » (store mémoire, data URI conservée
- * telle quelle) reste couverte par les tests existants et inchangés
+ * La voie « R2 non configuré » (store mémoire, data URI conservée telle
+ * quelle) reste couverte par les tests existants et inchangés
  * `service.test.ts` / `real-generation.test.ts` / `storage.test.ts`.
  */
 
@@ -26,6 +26,12 @@ vi.mock("@/lib/supabase/env", () => ({
   hasSupabaseConfig: () => true,
 }));
 
+vi.mock("@/lib/r2", () => ({
+  hasR2Config: () => true,
+  uploadToR2: uploadMock,
+  deleteFromR2: removeMock,
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => ({
     from(table: string) {
@@ -39,12 +45,6 @@ vi.mock("@/lib/supabase/server", () => ({
         };
       }
       throw new Error(`from("${table}") inattendu dans ce test mocké`);
-    },
-    storage: {
-      from: () => ({
-        upload: uploadMock,
-        remove: removeMock,
-      }),
     },
   }),
 }));
@@ -114,7 +114,6 @@ describe("persistGeneratedVisual (K10) — succès : ordre Storage puis base, st
     const callOrder: string[] = [];
     uploadMock.mockImplementation(async () => {
       callOrder.push("upload");
-      return { data: { path: "x" }, error: null };
     });
     insertSingleMock.mockImplementation(async () => {
       callOrder.push("insert");
@@ -126,12 +125,12 @@ describe("persistGeneratedVisual (K10) — succès : ordre Storage puis base, st
     expect(callOrder).toEqual(["upload", "insert"]);
     expect(asset.status).toBe("draft");
     expect(asset.isPrimary).toBe(false);
-    // L'image_url persisté est un chemin Storage, jamais la data URI brute renvoyée par le fournisseur.
+    // L'image_url persisté est un chemin R2, jamais la data URI brute renvoyée par le fournisseur.
     expect(asset.imageUrl).not.toMatch(/^data:/);
     expect(uploadMock).toHaveBeenCalledWith(
       expect.stringMatching(/^ingredient\/00000000-0000-4000-8000-000000009301\/.+\.png$/),
       expect.any(Buffer),
-      { contentType: "image/png" },
+      "image/png",
     );
     expect(removeMock).not.toHaveBeenCalled();
   });
@@ -153,7 +152,7 @@ describe("persistGeneratedVisual (K10) — succès : ordre Storage puis base, st
 
 describe("persistGeneratedVisual (K10) — aucun succès annoncé avant persistance confirmée", () => {
   it("échec Storage seul : rejette, n'écrit jamais en base, ne tente aucun nettoyage", async () => {
-    uploadMock.mockResolvedValue({ data: null, error: { message: "quota Storage dépassé" } });
+    uploadMock.mockRejectedValue(new Error("quota Storage dépassé"));
 
     await expect(persistGeneratedVisual(baseInput())).rejects.toThrow(VisualAssetPersistenceError);
 
@@ -162,9 +161,9 @@ describe("persistGeneratedVisual (K10) — aucun succès annoncé avant persista
   });
 
   it("échec base seul : Storage a réussi puis échoue en base → nettoyage tenté et réussi, incident journalisé, jamais de succès retourné", async () => {
-    uploadMock.mockResolvedValue({ data: { path: "x" }, error: null });
+    uploadMock.mockResolvedValue(undefined);
     insertSingleMock.mockResolvedValue({ data: null, error: { message: "contrainte violée" } });
-    removeMock.mockResolvedValue({ data: null, error: null });
+    removeMock.mockResolvedValue(undefined);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(persistGeneratedVisual(baseInput())).rejects.toThrow(VisualAssetPersistenceError);
@@ -181,9 +180,9 @@ describe("persistGeneratedVisual (K10) — aucun succès annoncé avant persista
   });
 
   it("échec des deux : Storage réussit, base échoue, ET le nettoyage échoue aussi → incident journalisé comme orphelin, jamais de succès, jamais perdu silencieusement", async () => {
-    uploadMock.mockResolvedValue({ data: { path: "x" }, error: null });
+    uploadMock.mockResolvedValue(undefined);
     insertSingleMock.mockResolvedValue({ data: null, error: { message: "contrainte violée" } });
-    removeMock.mockResolvedValue({ data: null, error: { message: "suppression impossible" } });
+    removeMock.mockRejectedValue(new Error("suppression impossible"));
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await expect(persistGeneratedVisual(baseInput())).rejects.toThrow(VisualAssetPersistenceError);
