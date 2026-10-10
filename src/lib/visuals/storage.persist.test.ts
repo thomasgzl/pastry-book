@@ -13,7 +13,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * `service.test.ts` / `real-generation.test.ts` / `storage.test.ts`.
  */
 
-const PNG_DATA_URI = "data:image/png;base64,aW1n"; // "img" — contenu factice, jamais un vrai octet OpenAI
+// Vrai PNG 4x4 (Sharp s'exécute réellement sur ces octets depuis K-optim — plus un contenu factice).
+const PNG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEElEQVQImWPgEpGDIwbiOABgdAPBAI1kjQAAAABJRU5ErkJggg==";
 const SVG_DATA_URI = "data:image/svg+xml;base64,PHN2Zy8+"; // format démo, jamais accepté par le bucket
 
 const { uploadMock, removeMock, insertSingleMock } = vi.hoisted(() => ({
@@ -128,9 +130,9 @@ describe("persistGeneratedVisual (K10) — succès : ordre Storage puis base, st
     // L'image_url persisté est un chemin R2, jamais la data URI brute renvoyée par le fournisseur.
     expect(asset.imageUrl).not.toMatch(/^data:/);
     expect(uploadMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^ingredient\/00000000-0000-4000-8000-000000009301\/.+\.png$/),
+      expect.stringMatching(/^ingredient\/00000000-0000-4000-8000-000000009301\/.+\.webp$/),
       expect.any(Buffer),
-      "image/png",
+      "image/webp",
     );
     expect(removeMock).not.toHaveBeenCalled();
   });
@@ -171,7 +173,7 @@ describe("persistGeneratedVisual (K10) — aucun succès annoncé avant persista
     expect(uploadMock).toHaveBeenCalledTimes(1);
     expect(removeMock).toHaveBeenCalledTimes(1);
     const [path] = removeMock.mock.calls[0];
-    expect(path).toEqual(expect.arrayContaining([expect.stringMatching(/\.png$/)]));
+    expect(path).toEqual(expect.arrayContaining([expect.stringMatching(/\.webp$/)]));
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("nettoyé avec succès"),
       expect.objectContaining({ cleanup: "removed" }),

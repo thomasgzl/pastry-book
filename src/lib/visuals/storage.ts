@@ -3,6 +3,7 @@ import type { VisualAssetRow, VisualSubjectType as DbSubjectType } from "@/lib/s
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { deleteFromR2, hasR2Config, uploadToR2 } from "@/lib/r2";
+import { optimizeImageForStorage } from "./optimizeImage";
 import { DEMO_VISUAL_ASSETS } from "./fixtures/demo-examples";
 
 type SubjectType = VisualAsset["subjectType"];
@@ -202,8 +203,13 @@ function decodeGeneratedImage(dataUri: string): { mimeType: string; bytes: Buffe
   return { mimeType, bytes };
 }
 
-function visualAssetStoragePath(subjectType: SubjectType, subjectId: string, mimeType: string): string {
-  return `${toDbSubjectType(subjectType)}/${subjectId}/${crypto.randomUUID()}.${BUCKET_EXTENSION_BY_MIME[mimeType]}`;
+/** Convertit une erreur Sharp (`optimizeImageForStorage`) en erreur de validation du domaine — même famille que les autres échecs « rien n'a encore été écrit » (jamais de stockage silencieux de l'original en cas d'échec, règle K-optim). */
+async function optimizeOrThrow(bytes: Buffer): ReturnType<typeof optimizeImageForStorage> {
+  try {
+    return await optimizeImageForStorage(bytes);
+  } catch (cause) {
+    throw new VisualGenerationValidationError(cause instanceof Error ? cause.message : String(cause));
+  }
 }
 
 /**
@@ -312,9 +318,10 @@ export async function persistGeneratedVisual(input: PersistGeneratedVisualInput)
     return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
   }
 
-  const path = visualAssetStoragePath(input.subjectType, input.subjectId, mimeType);
+  const optimized = await optimizeOrThrow(bytes);
+  const path = `${toDbSubjectType(input.subjectType)}/${input.subjectId}/${crypto.randomUUID()}.${optimized.extension}`;
   const { generatedImageUrl: _generatedImageUrl, ...draftInput } = input;
-  return storeBytesAndCreateDraft(bytes, mimeType, path, draftInput);
+  return storeBytesAndCreateDraft(optimized.buffer, optimized.contentType, path, draftInput);
 }
 
 /** Reflet des `allowed_mime_types` du bucket `visual-assets` depuis la migration `20260926160000` (PNG/WebP/JPEG) — distinct de `BUCKET_EXTENSION_BY_MIME` (formats produits par l'IA uniquement) car un import manuel accepte aussi le JPEG, le format le plus courant depuis un téléphone/tablette. */
@@ -359,16 +366,17 @@ export async function persistUploadedVisual(input: PersistUploadedVisualInput): 
     presetVersion: MANUAL_IMPORT_PRESET_VERSION,
   };
 
+  const optimized = await optimizeOrThrow(input.bytes);
+
   if (!hasR2Config()) {
     // ponytail: pas de "fallback Supabase" ici — aucun objet storage n'est écrit, la data URI
     // part telle quelle dans la colonne `image_url` (comportement démo/hors-R2 historique, K10).
-    console.log("[Storage] no R2 config — image_url stocké en data URI inline, aucune écriture objet storage");
-    const dataUri = `data:${input.mimeType};base64,${input.bytes.toString("base64")}`;
+    const dataUri = `data:${optimized.contentType};base64,${optimized.buffer.toString("base64")}`;
     return createDraftVisualAsset({ ...draftInput, imageUrl: dataUri });
   }
 
-  const path = `${toDbSubjectType(input.subjectType)}/${input.subjectId}/${crypto.randomUUID()}.${extension}`;
-  return storeBytesAndCreateDraft(input.bytes, input.mimeType, path, draftInput);
+  const path = `${toDbSubjectType(input.subjectType)}/${input.subjectId}/${crypto.randomUUID()}.${optimized.extension}`;
+  return storeBytesAndCreateDraft(optimized.buffer, optimized.contentType, path, draftInput);
 }
 
 function updateInMemory(id: string, changes: Partial<VisualAsset>): VisualAsset {
