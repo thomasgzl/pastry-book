@@ -3,6 +3,7 @@ import {
   VisualAssetActionError,
   approveVisualAsset,
   createDraftVisualAsset,
+  deleteVisualAsset,
   getPrimaryVisualAsset,
   getVisualAssetById,
   hasAnyVisualAsset,
@@ -123,6 +124,32 @@ describe("storage des visuels IA (E1, mode mémoire — I5 : Supabase non config
     const primary = (await getVisualAssetById(first.id))!;
     expect(primary.status).toBe("approved");
     expect(primary.isPrimary).toBe(true);
+  });
+
+  it("RÈGLE NON NÉGOCIABLE : supprimer le visuel principal est refusé", async () => {
+    const asset = await createDraftVisualAsset(draftInput());
+    await approveVisualAsset(asset.id); // premier approuvé du sujet -> principal automatique
+    await expect(deleteVisualAsset(asset.id)).rejects.toThrow(VisualAssetActionError);
+    expect(await getVisualAssetById(asset.id)).toBeTruthy(); // toujours là, rien supprimé
+  });
+
+  it("supprime un brouillon non principal, sans toucher au principal du même sujet", async () => {
+    const primary = await createDraftVisualAsset(draftInput());
+    await approveVisualAsset(primary.id);
+    const draft = await createDraftVisualAsset(draftInput());
+
+    await deleteVisualAsset(draft.id);
+
+    expect(await getVisualAssetById(draft.id)).toBeUndefined();
+    const stillPrimary = (await getVisualAssetById(primary.id))!;
+    expect(stillPrimary.isPrimary).toBe(true);
+  });
+
+  it("supprime un visuel rejeté", async () => {
+    const asset = await createDraftVisualAsset(draftInput());
+    await rejectVisualAsset(asset.id);
+    await deleteVisualAsset(asset.id);
+    expect(await getVisualAssetById(asset.id)).toBeUndefined();
   });
 
   it("le rejet retire le statut principal éventuel", async () => {

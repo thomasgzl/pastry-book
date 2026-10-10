@@ -2,7 +2,7 @@ import type { VisualAsset } from "@/lib/domain/schemas";
 import type { VisualAssetRow, VisualSubjectType as DbSubjectType } from "@/lib/supabase/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
-import { deleteFromR2, hasR2Config, uploadToR2 } from "@/lib/r2";
+import { deleteFromR2, existsInR2, hasR2Config, uploadToR2 } from "@/lib/r2";
 import { optimizeImageForStorage } from "./optimizeImage";
 import { DEMO_VISUAL_ASSETS } from "./fixtures/demo-examples";
 
@@ -440,6 +440,51 @@ export async function rejectVisualAsset(id: string): Promise<VisualAsset> {
   if (error) throw new VisualAssetPersistenceError(`Rejet impossible : ${error.message}`);
   if (!data) throw new VisualAssetActionError("Visuel introuvable.");
   return fromRow(data);
+}
+
+/**
+ * Supprime définitivement une version (brouillon, rejetée, ou approuvée mais
+ * pas principale) — jamais le visuel principal actuel : le retirer laisserait
+ * le sujet sans aucune image affichée publiquement sans action explicite de
+ * remplacement d'abord (définir un autre principal, ou rejeter). Supprime la
+ * ligne `visual_assets` D'ABORD, puis tente de supprimer le fichier associé
+ * (R2 ou Supabase selon le backend réel, `existsInR2` tranche comme pour
+ * l'affichage) — un échec de ce nettoyage est journalisé, jamais remonté :
+ * la ligne est déjà supprimée, remonter l'erreur redonnerait l'illusion
+ * trompeuse que le visuel existe encore.
+ */
+export async function deleteVisualAsset(id: string): Promise<void> {
+  const asset = await getVisualAssetById(id);
+  if (!asset) throw new VisualAssetActionError("Visuel introuvable.");
+  if (asset.isPrimary) {
+    throw new VisualAssetActionError(
+      "Impossible de supprimer le visuel principal — définissez-en un autre comme principal, ou rejetez-le, avant de le supprimer.",
+    );
+  }
+
+  if (!hasSupabaseConfig()) {
+    store = store.filter((candidate) => candidate.id !== id);
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("visual_assets").delete().eq("id", id);
+  if (error) throw new VisualAssetPersistenceError(`Suppression impossible : ${error.message}`);
+
+  if (asset.imageUrl.startsWith("data:") || asset.imageUrl.startsWith("/")) return;
+  try {
+    if (await existsInR2(asset.imageUrl)) {
+      await deleteFromR2([asset.imageUrl]);
+    } else {
+      const storageClient = await createSupabaseServerClient();
+      await storageClient.storage.from(VISUAL_ASSETS_BUCKET).remove([asset.imageUrl]);
+    }
+  } catch (cause) {
+    console.warn(
+      "[visuals] ligne supprimée mais le nettoyage du fichier associé a échoué — fichier potentiellement orphelin, à vérifier/supprimer manuellement",
+      { assetId: id, imageUrl: asset.imageUrl, cause: cause instanceof Error ? cause.message : String(cause) },
+    );
+  }
 }
 
 /**

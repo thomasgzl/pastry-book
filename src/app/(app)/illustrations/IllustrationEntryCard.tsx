@@ -4,6 +4,7 @@ import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import { VisualStatusPill } from "@/components/ui/VisualStatusPill";
 import { approveAsPrimaryAction, rejectAction, setPrimaryAction } from "../visuels/actions";
+import { DeleteVisualAssetButton } from "./DeleteVisualAssetButton";
 import { RegenerateVersionForm } from "./RegenerateVersionForm";
 import { UploadVisualForm } from "./UploadVisualForm";
 import type { IllustrationEntry, RegenerateProviderInfo } from "./IllustrationsBrowser";
@@ -80,20 +81,30 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
                 Rejeter
               </Button>
             </form>
-            <span className="text-xs text-cacao/60">
-              Ni approuvé ni rejeté : reste en brouillon, à vérifier plus tard.
-            </span>
+            <DeleteVisualAssetButton assetId={version.id} />
           </div>
+        )}
+        {version.status === "draft" && (
+          <span className="text-xs text-cacao/60">
+            Ni approuvé ni rejeté : reste en brouillon, à vérifier plus tard. Ou supprimer définitivement.
+          </span>
         )}
 
         {version.status === "approved" && !version.isPrimary && (
-          <div className="pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <form action={setPrimaryAction}>
               <input type="hidden" name="assetId" value={version.id} />
               <Button type="submit" variant="secondary" className="text-sm">
                 Définir comme principal
               </Button>
             </form>
+            <DeleteVisualAssetButton assetId={version.id} />
+          </div>
+        )}
+
+        {version.status === "rejected" && (
+          <div className="pt-1">
+            <DeleteVisualAssetButton assetId={version.id} />
           </div>
         )}
       </div>

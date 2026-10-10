@@ -15,6 +15,7 @@ import { visualAssetSchema } from "@/lib/domain/schemas";
 import { generateVisualDraft, regenerateVisualDraft } from "@/lib/ai/visuals/service";
 import {
   approveVisualAsset,
+  deleteVisualAsset,
   getVisualAssetById,
   hasAnyVisualAsset,
   rejectVisualAsset,
@@ -131,6 +132,32 @@ export async function rejectAction(formData: FormData): Promise<void> {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
   revalidatePath("/visuels");
+}
+
+/**
+ * Suppression définitive d'une version non principale (K-delete) — appelée
+ * directement depuis un Client Component (`DeleteVisualAssetButton`, pas un
+ * `<form action>`) pour afficher une confirmation nommée et un état « en
+ * cours » avant l'appel, même patron que `deleteCanonicalIngredientAction`.
+ */
+export async function deleteVisualAssetAction(
+  input: { assetId: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = assetIdSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Requête invalide." };
+
+  try {
+    await deleteVisualAsset(parsed.data.assetId);
+  } catch (cause) {
+    if (cause instanceof VisualAssetActionError) return { ok: false, error: cause.message };
+    return { ok: false, error: cause instanceof Error ? cause.message : "La suppression a échoué. Réessayez." };
+  }
+
+  revalidatePath("/illustrations");
+  revalidatePath("/illustrations/manquantes");
+  revalidatePath("/visuels");
+  revalidatePath("/matieres-premieres");
+  return { ok: true };
 }
 
 export async function setPrimaryAction(formData: FormData): Promise<void> {

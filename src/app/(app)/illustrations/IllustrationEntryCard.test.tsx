@@ -15,10 +15,17 @@ vi.mock("../visuels/actions", () => ({
   approveAsPrimaryAction: vi.fn(),
   rejectAction: vi.fn(),
   setPrimaryAction: vi.fn(),
+  deleteVisualAssetAction: vi.fn(),
 }));
 
 vi.mock("./regenerateActions", () => ({
   regenerateVersionAction: vi.fn(async (previous: unknown) => previous),
+}));
+
+// `DeleteVisualAssetButton` utilise `useRouter` (refresh après suppression) — même patron que
+// `matieres-premieres/[matiere]/page.test.tsx` (`DeleteIngredientZone`).
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 const REGENERATE_INFO: RegenerateProviderInfo = {
