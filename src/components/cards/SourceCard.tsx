@@ -16,8 +16,8 @@ interface SourceCardProps {
 
 /**
  * Carte éditoriale de la page Entreprises : grande illustration en tête
- * (ratio 4/3, même traitement que `RecipeCard`), séparation nette avec la
- * zone de texte (bordure marquée, pas de fondu), nom + nombre de recettes,
+ * (ratio 4/3, même traitement que `RecipeCard`), fondu vers la couleur de
+ * fond de la zone de texte (pas de bordure dure), nom + nombre de recettes,
  * bouton rond d'accès en bas. Hennessy n'a ici aucun traitement structurel
  * différent des autres sources (docs/06-DESIGN_SYSTEM.md).
  */
@@ -35,7 +35,7 @@ export function SourceCard({
       className={`group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
       <div className="flex h-full flex-col overflow-hidden rounded-xl border border-grise bg-coquille shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
-        <div className="aspect-[4/3] w-full shrink-0 overflow-hidden border-b-2 border-avoine bg-ivoire">
+        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-ivoire">
           {imageUrl ? (
             <ImageWithSkeleton
               src={imageUrl}
@@ -48,6 +48,10 @@ export function SourceCard({
               <PlaceholderIllustration label={name} className="h-14 w-14" />
             </div>
           )}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-coquille"
+          />
         </div>
 
         <div className="flex flex-1 flex-col gap-3 p-4">
