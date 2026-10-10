@@ -274,11 +274,8 @@ async function storeBytesAndCreateDraft(
   path: string,
   input: Omit<CreateDraftInput, "imageUrl">,
 ): Promise<VisualAsset> {
-  // ponytail: logs temporaires (diagnostic prod K-R2) — retirer une fois l'écriture R2 confirmée en prod.
-  console.log("[R2] attempting upload", path);
   try {
     await uploadToR2(path, bytes, mimeType);
-    console.log("[R2] upload success:", path);
   } catch (uploadError) {
     // Rien n'a encore été écrit en base ni conservé ailleurs : aucun nettoyage nécessaire, échec propre.
     const message = uploadError instanceof Error ? uploadError.message : String(uploadError);
@@ -308,12 +305,10 @@ export async function persistGeneratedVisual(input: PersistGeneratedVisualInput)
 
   const bucketExtension = BUCKET_EXTENSION_BY_MIME[mimeType];
   const canUploadToBucket = hasR2Config() && Boolean(bucketExtension);
-  console.log("[R2] config available:", hasR2Config());
 
   if (!canUploadToBucket) {
     // ponytail: pas de "fallback Supabase" ici — aucun objet storage n'est écrit, la data URI
     // part telle quelle dans la colonne `image_url` (comportement démo/hors-R2 historique, K10).
-    console.log("[Storage] no R2 config or format non éligible — image_url stocké en data URI inline, aucune écriture objet storage");
     return createDraftVisualAsset({ ...input, imageUrl: input.generatedImageUrl });
   }
 
@@ -364,7 +359,6 @@ export async function persistUploadedVisual(input: PersistUploadedVisualInput): 
     presetVersion: MANUAL_IMPORT_PRESET_VERSION,
   };
 
-  console.log("[R2] config available:", hasR2Config());
   if (!hasR2Config()) {
     // ponytail: pas de "fallback Supabase" ici — aucun objet storage n'est écrit, la data URI
     // part telle quelle dans la colonne `image_url` (comportement démo/hors-R2 historique, K10).
