@@ -2,9 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { LOGO_ASSETS } from "@/lib/visuals/logoAssets";
+
+/** Au-delà de ce défilement (px), l'en-tête devient plus transparent — seuil court pour une transition perceptible dès le début du scroll, sans clignoter sur un micro-rebond tactile. */
+const SCROLL_TRANSPARENCY_THRESHOLD = 8;
+
+/** Vrai passé le seuil de défilement — écoute passive, un seul re-rendu par franchissement du seuil (jamais à chaque pixel). */
+function useScrolled(threshold: number): boolean {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    function handleScroll() {
+      setScrolled(window.scrollY > threshold);
+    }
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [threshold]);
+  return scrolled;
+}
 
 const NAV_ITEMS = [
   { label: "Accueil", href: "/" },
@@ -51,9 +68,15 @@ function MenuIcon({ open }: { open: boolean }) {
 export function SiteHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const scrolled = useScrolled(SCROLL_TRANSPARENCY_THRESHOLD);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-grise bg-ivoire/95 backdrop-blur">
+    <header
+      className={`sticky top-0 z-20 border-b backdrop-blur transition-colors duration-200 ${
+        scrolled ? "border-grise/40 bg-ivoire/70" : "border-grise bg-ivoire/95"
+      }`}
+    >
+
       <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
