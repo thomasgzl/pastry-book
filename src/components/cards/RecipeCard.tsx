@@ -28,14 +28,15 @@ interface RecipeCardProps {
 }
 
 /**
- * Cadre visuel de tête de carte : ratio maîtrisé, cohérent avec
- * `CulinaryFrame` (fiche recette) sans reprendre sa brindille décorative —
- * trop dense à l'échelle d'une grille de cartes (lot J7, correction P2 :
- * la carte recette n'avait auparavant qu'un monogramme carré).
+ * Cadre visuel de tête de carte, même traitement que `SourceCard`
+ * (entreprises) et `EntryCard` (accueil) : grande illustration pleine
+ * largeur, fondu vers le fond de la zone de texte plutôt qu'une bordure
+ * nette. Ne touche jamais à l'image elle-même (lot « même genre que
+ * entreprise », demande explicite : aucune régénération).
  */
 function RecipeCardVisual({ imageUrl, title }: { imageUrl?: string | null; title: string }) {
   return (
-    <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden border-b border-grise bg-ivoire">
+    <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-ivoire">
       {imageUrl ? (
         <ImageWithSkeleton src={imageUrl} alt={`Illustration de ${title}`} className="h-full w-full object-cover" />
       ) : (
@@ -43,6 +44,7 @@ function RecipeCardVisual({ imageUrl, title }: { imageUrl?: string | null; title
           <PlaceholderIllustration label={title} className="h-12 w-12" />
         </div>
       )}
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-coquille" />
     </div>
   );
 }
@@ -63,19 +65,21 @@ export function RecipeCard({
   const visibleTags = ingredientTags.slice(0, 2);
 
   return (
-    <Link href={href} className={`block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
+    <Link href={href} className={`group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}>
       <Card className="flex h-full flex-col gap-0 overflow-hidden p-0 transition-colors hover:bg-avoine/40">
         <RecipeCardVisual imageUrl={imageUrl} title={title} />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
-          <p className="truncate font-serif text-base font-semibold text-cacao">{title}</p>
-          <p className="truncate text-sm text-cacao/70">
-            {sourceName}
-            {categoryName ? ` · ${categoryName}` : ""}
-          </p>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 p-4">
+          <div className="min-w-0">
+            <p className="truncate font-serif text-base font-semibold text-cacao">{title}</p>
+            <p className="truncate text-sm text-cacao/70">
+              {sourceName}
+              {categoryName ? ` · ${categoryName}` : ""}
+            </p>
+          </div>
 
           {visibleTags.length > 0 && (
-            <ul className="mt-1 flex flex-wrap gap-1.5">
+            <ul className="flex flex-wrap gap-1.5">
               {visibleTags.map((tag) => (
                 <li key={tag}>
                   <Tag>{tag}</Tag>
@@ -83,6 +87,13 @@ export function RecipeCard({
               ))}
             </ul>
           )}
+
+          <span
+            aria-hidden="true"
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-laiton text-coquille transition-transform duration-200 group-hover:translate-x-0.5"
+          >
+            →
+          </span>
         </div>
       </Card>
     </Link>
