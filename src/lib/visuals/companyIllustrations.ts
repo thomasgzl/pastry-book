@@ -19,27 +19,27 @@ export interface CompanyIllustration {
 
 export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> = {
   "institut-culinaire-de-france": {
-    path: "/visuals/company/01-institut-culinaire-de-france.png",
+    path: "/visuals/company/01-institut-culinaire-de-france.webp",
     position: "30% 75%",
     icon: "building",
   },
   "peter-coffee-shop": {
-    path: "/visuals/company/02-peter-coffee-shop.png",
+    path: "/visuals/company/02-peter-coffee-shop.webp",
     position: "40% 80%",
     icon: "cup",
   },
   "le-7-cite-du-vin": {
-    path: "/visuals/company/03-le-7-cite-du-vin.png",
+    path: "/visuals/company/03-le-7-cite-du-vin.webp",
     position: "35% 78%",
     icon: "wine",
   },
   hennessy: {
-    path: "/visuals/company/04-chateau-de-bagnolet-hennessy.png",
+    path: "/visuals/company/04-chateau-de-bagnolet-hennessy.webp",
     position: "45% 88%",
     icon: "bottle",
   },
   "eden-rock": {
-    path: "/visuals/company/05-eden-rock.png",
+    path: "/visuals/company/05-eden-rock.webp",
     position: "60% 78%",
     icon: "palm",
   },
@@ -49,12 +49,7 @@ export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> =
     icon: "house",
   },
   personnel: {
-    // Seule illustration horizontale (16:9) du lot — choix delibere, les 6
-    // autres sont verticales. Nature morte quasi centree (mesure reelle sur
-    // le rendu : centre du contenu a ~50% x / ~49% y, marges symetriques),
-    // donc un recadrage `object-fit: cover` centre suffit a garder le carnet,
-    // la poche a douille, le fouet et la vanille entierement visibles.
-    path: "/visuals/company/personnel.png",
+    path: "/visuals/company/personnel.webp",
     position: "50% 49%",
     icon: "chefHat",
   },
