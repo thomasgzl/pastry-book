@@ -44,7 +44,7 @@ export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> =
     icon: "palm",
   },
   "auberge-du-pere-bise": {
-    path: "/visuals/company/06-auberge-du-pere-bise.png",
+    path: "/visuals/company/06-auberge-du-pere-bise.webp",
     position: "40% 87%",
     icon: "house",
   },
