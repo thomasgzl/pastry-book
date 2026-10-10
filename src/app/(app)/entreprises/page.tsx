@@ -25,7 +25,7 @@ export default async function EntreprisesPage() {
 
       <EditorialTitle>Entreprises</EditorialTitle>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map((source, index) => {
           const fallbackIllustration = getCompanyIllustration(source.slug);
           return (
@@ -35,6 +35,7 @@ export default async function EntreprisesPage() {
               recipeCount={recipeCounts[index]}
               imageUrl={visualUrls[index] ?? fallbackIllustration?.path}
               imagePosition={fallbackIllustration?.position}
+              icon={fallbackIllustration?.icon}
               href={`/entreprises/${source.slug}`}
             />
           );
