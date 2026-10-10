@@ -8,50 +8,39 @@
  * bandeau de titre, ajusté au cas par cas selon la composition de chaque
  * affiche.
  */
-import type { CompanyIconVariant } from "@/components/ui/CompanyIcon";
-
 export interface CompanyIllustration {
   path: string;
   position: string;
-  /** Pictogramme du badge de carte (`SourceCard.tsx`) — évocation de l'activité, jamais un logo. */
-  icon: CompanyIconVariant;
 }
 
 export const COMPANY_ILLUSTRATION_BY_SLUG: Record<string, CompanyIllustration> = {
   "institut-culinaire-de-france": {
     path: "/visuals/company/01-institut-culinaire-de-france.webp",
     position: "30% 75%",
-    icon: "building",
   },
   "peter-coffee-shop": {
     path: "/visuals/company/02-peter-coffee-shop.webp",
     position: "40% 80%",
-    icon: "cup",
   },
   "le-7-cite-du-vin": {
     path: "/visuals/company/03-le-7-cite-du-vin.webp",
     position: "35% 78%",
-    icon: "wine",
   },
   hennessy: {
     path: "/visuals/company/04-chateau-de-bagnolet-hennessy.webp",
     position: "45% 88%",
-    icon: "bottle",
   },
   "eden-rock": {
     path: "/visuals/company/05-eden-rock.webp",
     position: "60% 78%",
-    icon: "palm",
   },
   "auberge-du-pere-bise": {
     path: "/visuals/company/06-auberge-du-pere-bise.webp",
     position: "40% 87%",
-    icon: "house",
   },
   personnel: {
     path: "/visuals/company/personnel.webp",
     position: "50% 49%",
-    icon: "chefHat",
   },
 };
 

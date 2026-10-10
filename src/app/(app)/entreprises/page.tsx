@@ -35,7 +35,6 @@ export default async function EntreprisesPage() {
               recipeCount={recipeCounts[index]}
               imageUrl={visualUrls[index] ?? fallbackIllustration?.path}
               imagePosition={fallbackIllustration?.position}
-              icon={fallbackIllustration?.icon}
               href={`/entreprises/${source.slug}`}
             />
           );
