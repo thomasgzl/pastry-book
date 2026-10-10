@@ -27,7 +27,13 @@ interface CanonicalIngredientCardProps {
   className?: string;
 }
 
-/** Carte du répertoire des matières premières normalisées — carré éditorial (K19). */
+/**
+ * Carte du répertoire des matières premières, même genre que `RecipeCard`/
+ * `SourceCard` : grande illustration en tête (ratio 4/3, `object-cover`),
+ * fondu vers le fond de la zone de texte, nom + nombre de recettes, bouton
+ * rond laiton en pied. Un ornement botanique décoratif (trait fin, pas une
+ * photo) reste centré/contenu plutôt que recadré en plein cadre.
+ */
 export function CanonicalIngredientCard({
   name,
   recipeCount,
@@ -43,37 +49,35 @@ export function CanonicalIngredientCard({
       href={href}
       className={`group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <div
-        className="flex h-full w-full flex-col overflow-hidden rounded-lg border border-grise bg-ivoire shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md"
-        style={{ aspectRatio: "1 / 1" }}
-      >
-        {/* Zone haute : hauteur fixe (pas liée au contenu) afin que
-            l'illustration démarre au même niveau sur toutes les cartes,
-            qu'un nom tienne sur une ou deux lignes (docs/06-DESIGN_SYSTEM.md). */}
-        <div className="flex h-[34px] shrink-0 flex-col justify-start gap-0.5 px-1.5 pt-1.5 sm:h-[40px] sm:px-2 sm:pt-2">
-          <p className="font-serif text-[11px] font-semibold leading-snug text-cacao sm:text-xs">{name}</p>
-          <p className="text-[9px] text-cacao/60 sm:text-[11px]">
-            {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
-          </p>
-        </div>
-
-        <div className="relative min-h-0 flex-1 px-1 pb-1">
+      <div className="flex h-full flex-col overflow-hidden rounded-xl border border-grise bg-coquille shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
+        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-ivoire">
           {imageUrl ? (
-            <ImageWithSkeleton
-              src={imageUrl}
-              alt={name}
-              className="h-full w-full origin-bottom object-contain object-bottom transition-transform duration-200 group-hover:scale-[1.02]"
-            />
-          ) : botanicalVariant ? (
-            <BotanicalOrnament
-              variant={botanicalVariant}
-              className="h-full w-full origin-bottom object-contain object-bottom transition-transform duration-200 group-hover:scale-[1.02]"
-            />
+            <ImageWithSkeleton src={imageUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <PlaceholderIllustration label={name} className="h-9 w-9 sm:h-12 sm:w-12" />
+            <div className="flex h-full w-full items-center justify-center p-4">
+              {botanicalVariant ? (
+                <BotanicalOrnament variant={botanicalVariant} className="h-full w-full object-contain" />
+              ) : (
+                <PlaceholderIllustration label={name} className="h-12 w-12" />
+              )}
             </div>
           )}
+          <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-coquille" />
+        </div>
+
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <div className="min-w-0">
+            <p className="truncate font-serif text-base font-semibold text-cacao">{name}</p>
+            <p className="text-sm text-cacao/70">
+              {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
+            </p>
+          </div>
+          <span
+            aria-hidden="true"
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-laiton text-coquille transition-transform duration-200 group-hover:translate-x-0.5"
+          >
+            →
+          </span>
         </div>
       </div>
     </Link>
