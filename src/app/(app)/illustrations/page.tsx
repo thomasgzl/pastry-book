@@ -24,6 +24,7 @@ import { listVisualAssets } from "@/lib/visuals/storage";
 import { getAllVisualSubjects } from "@/lib/visuals/subjects";
 import { bestVisualStatus } from "@/lib/visuals/status";
 import { IllustrationsBrowser, type IllustrationEntry, type RegenerateProviderInfo } from "./IllustrationsBrowser";
+import { BackgroundRemovalReviewPanel, type PendingBackgroundRemovalItem } from "./BackgroundRemovalReviewPanel";
 
 const KINDS: VisualSubjectKind[] = ["ingredient", "recipe", "source", "sourceCategory"];
 
@@ -110,6 +111,20 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
   });
 }
 
+/** Une entrée par VERSION en attente (pas par sujet) : un sujet régénéré plusieurs fois peut avoir plusieurs versions à valider séparément. */
+function pendingBackgroundRemovalItems(entries: IllustrationEntry[]): PendingBackgroundRemovalItem[] {
+  return entries.flatMap((entry) =>
+    entry.versions
+      .filter((version) => version.backgroundRemovedUrl && !version.useBackgroundRemoved)
+      .map((version) => ({
+        id: version.id,
+        label: entry.label,
+        originalUrl: version.imageUrl,
+        cleanedUrl: version.backgroundRemovedUrl as string,
+      })),
+  );
+}
+
 export default async function IllustrationsPage() {
   let entries: IllustrationEntry[] | null = null;
   let loadError = false;
@@ -138,7 +153,10 @@ export default async function IllustrationsPage() {
       {loadError || !entries ? (
         <ErrorState message="Les illustrations n'ont pas pu être chargées. Merci de réessayer." />
       ) : (
-        <IllustrationsBrowser entries={entries} regenerateInfo={buildRegenerateInfo()} />
+        <>
+          <BackgroundRemovalReviewPanel items={pendingBackgroundRemovalItems(entries)} />
+          <IllustrationsBrowser entries={entries} regenerateInfo={buildRegenerateInfo()} />
+        </>
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import {
   deleteVisualAsset,
   getVisualAssetById,
   hasAnyVisualAsset,
+  listVisualAssets,
   rejectVisualAsset,
   setPrimaryVisualAsset,
   setUseBackgroundRemoved,
@@ -26,7 +27,7 @@ import {
 import { getAllVisualSubjects, getVisualSubject } from "@/lib/visuals/subjects";
 import type { VisualAsset } from "@/lib/domain/schemas";
 import type { RecipeVisualMode } from "@/lib/visuals/preset";
-import { BATCH_CONFIRMATION_PREFIX } from "@/lib/visuals/batch";
+import { BACKGROUND_REMOVAL_BATCH_CONFIRMATION_PREFIX, BATCH_CONFIRMATION_PREFIX } from "@/lib/visuals/batch";
 
 const subjectTypeSchema = visualAssetSchema.shape.subjectType;
 const generateSchema = z.object({ subjectType: subjectTypeSchema, subjectId: z.uuid() });
@@ -229,6 +230,45 @@ export async function setUseBackgroundRemovedAction(formData: FormData): Promise
 export interface BatchActionState {
   error: string | null;
   success: string | null;
+}
+
+/**
+ * Validation en lot des versions fond-transparent (K-BG) : évite de répéter
+ * « Utiliser la version nettoyée » image par image une fois les premiers
+ * résultats jugés satisfaisants. Même garde que `generateMissingBatchAction`
+ * (E3/E4) : toujours une confirmation nommée portant le nombre EXACT recalculé
+ * ici (jamais une valeur transmise par le client), jamais un lot silencieux.
+ * Ne concerne jamais les visuels sans version nettoyée ni ceux déjà validés.
+ */
+export async function applyAllBackgroundRemovedBatchAction(
+  _previous: BatchActionState,
+  formData: FormData,
+): Promise<BatchActionState> {
+  const allIngredientAssets = await listVisualAssets("ingredient");
+  const pending = allIngredientAssets.filter((asset) => asset.backgroundRemovedUrl && !asset.useBackgroundRemoved);
+  if (pending.length === 0) {
+    return { error: null, success: "Aucune version nettoyée en attente de validation." };
+  }
+
+  const expected = `${BACKGROUND_REMOVAL_BATCH_CONFIRMATION_PREFIX} ${pending.length}`;
+  const typedRaw = z.string().safeParse(formData.get("confirmation"));
+  const typed = (typedRaw.success ? typedRaw.data : "").trim().toUpperCase();
+  if (typed !== expected) {
+    return {
+      error: `Confirmation invalide. Tapez exactement « ${expected} » pour valider ${pending.length} version(s) nettoyée(s).`,
+      success: null,
+    };
+  }
+
+  for (const asset of pending) {
+    try {
+      await revalidatePublicPages(await setUseBackgroundRemoved(asset.id, true));
+    } catch (error) {
+      if (!(error instanceof VisualAssetActionError)) throw error;
+    }
+  }
+  revalidatePath("/illustrations");
+  return { error: null, success: `${pending.length} version(s) nettoyée(s) validée(s).` };
 }
 
 /**
