@@ -20,6 +20,7 @@ import {
   hasAnyVisualAsset,
   rejectVisualAsset,
   setPrimaryVisualAsset,
+  setUseBackgroundRemoved,
   VisualAssetActionError,
 } from "@/lib/visuals/storage";
 import { getAllVisualSubjects, getVisualSubject } from "@/lib/visuals/subjects";
@@ -30,6 +31,7 @@ import { BATCH_CONFIRMATION_PREFIX } from "@/lib/visuals/batch";
 const subjectTypeSchema = visualAssetSchema.shape.subjectType;
 const generateSchema = z.object({ subjectType: subjectTypeSchema, subjectId: z.uuid() });
 const assetIdSchema = z.object({ assetId: z.uuid() });
+const useBackgroundRemovedSchema = z.object({ assetId: z.uuid(), use: z.enum(["true", "false"]) });
 
 function readForm<T>(formData: FormData, schema: z.ZodType<T>): T | null {
   const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
@@ -204,6 +206,24 @@ export async function setPrimaryAction(formData: FormData): Promise<void> {
     if (!(error instanceof VisualAssetActionError)) throw error;
   }
   revalidatePath("/visuels");
+}
+
+/**
+ * Choix humain « Utiliser l'original » / « Utiliser la version nettoyée »
+ * (K-BG, `/illustrations`) — jamais de bascule automatique en masse, une
+ * action = un visuel. Une erreur de validation (visuel sans version nettoyée
+ * disponible) est ignorée silencieusement plutôt que de planter la page,
+ * même garde que les autres actions de ce fichier.
+ */
+export async function setUseBackgroundRemovedAction(formData: FormData): Promise<void> {
+  const input = readForm(formData, useBackgroundRemovedSchema);
+  if (!input) return;
+  try {
+    await revalidatePublicPages(await setUseBackgroundRemoved(input.assetId, input.use === "true"));
+  } catch (error) {
+    if (!(error instanceof VisualAssetActionError)) throw error;
+  }
+  revalidatePath("/illustrations");
 }
 
 export interface BatchActionState {

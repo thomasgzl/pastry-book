@@ -111,5 +111,9 @@ export async function getApprovedVisualUrl(
   // future de cette fonction ou à un appelant qui la contournerait.
   if (asset.status !== "approved" || !asset.isPrimary) return null;
 
-  return resolveVisualAssetDisplayUrl(asset.imageUrl);
+  // Nettoyage de fond (K-BG) : affiché seulement si un humain l'a explicitement validé
+  // depuis /illustrations (`useBackgroundRemoved`) — jamais activé automatiquement,
+  // même quand une version nettoyée existe (CLAUDE.md, pas de bascule en masse).
+  const imageKey = asset.useBackgroundRemoved && asset.backgroundRemovedUrl ? asset.backgroundRemovedUrl : asset.imageUrl;
+  return resolveVisualAssetDisplayUrl(imageKey);
 }

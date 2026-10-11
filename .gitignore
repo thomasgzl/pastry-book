@@ -18,6 +18,9 @@
 # Manifest de migration images (K-R2-migration) — données de production réelles (id/paths), jamais committé
 migration-images-manifest.json
 
+# Manifest de suppression de fond (K-BG) — mêmes raisons que ci-dessus
+background-removal-manifest.json
+
 # Éditeurs / OS
 .DS_Store
 Thumbs.db

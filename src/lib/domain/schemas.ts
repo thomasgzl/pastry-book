@@ -248,5 +248,13 @@ export const visualAssetSchema = z.object({
   prompt: z.string().min(1),
   presetVersion: z.string().min(1),
   createdAt: z.iso.datetime(),
+  /**
+   * Nettoyage automatique de fond (K-BG, matières premières uniquement) —
+   * optionnels : absent dans toute donnée/fixture écrite avant cette tâche,
+   * jamais une raison de les rendre obligatoires partout où un `VisualAsset`
+   * est construit à la main (tests, démo).
+   */
+  backgroundRemovedUrl: z.url().nullable().optional(),
+  useBackgroundRemoved: z.boolean().optional(),
 });
 export type VisualAsset = z.infer<typeof visualAssetSchema>;

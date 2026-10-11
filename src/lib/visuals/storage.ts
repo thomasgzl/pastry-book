@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/supabase/env";
 import { deleteFromR2, existsInR2, hasR2Config, uploadToR2 } from "@/lib/r2";
 import { optimizeImageForStorage } from "./optimizeImage";
+import { removeIngredientBackground } from "./removeBackground";
 import { DEMO_VISUAL_ASSETS } from "./fixtures/demo-examples";
 
 type SubjectType = VisualAsset["subjectType"];
@@ -55,6 +56,8 @@ function fromRow(row: VisualAssetRow): VisualAsset {
     prompt: row.prompt,
     presetVersion: row.preset_version,
     createdAt: row.created_at,
+    backgroundRemovedUrl: row.background_removed_url,
+    useBackgroundRemoved: row.use_background_removed,
   };
 }
 
@@ -289,8 +292,9 @@ async function storeBytesAndCreateDraft(
     throw new VisualAssetPersistenceError(`Stockage de l'image impossible : ${message}`);
   }
 
+  let asset: VisualAsset;
   try {
-    return await createDraftVisualAsset({ ...input, imageUrl: path });
+    asset = await createDraftVisualAsset({ ...input, imageUrl: path });
   } catch (dbError) {
     const dbErrorMessage = dbError instanceof Error ? dbError.message : String(dbError);
     let cleanup: "removed" | "cleanup_failed" = "removed";
@@ -304,6 +308,51 @@ async function storeBytesAndCreateDraft(
       `Enregistrement du visuel impossible après stockage réussi (fichier ${cleanup === "removed" ? "nettoyé" : "potentiellement orphelin, voir journal serveur"}) : ${dbErrorMessage}`,
     );
   }
+
+  // Ligne déjà créée avec succès : le nettoyage de fond est un à-côté non bloquant, jamais
+  // capable de faire échouer un import par ailleurs réussi (voir `applyBackgroundRemovalBestEffort`).
+  await applyBackgroundRemovalBestEffort(asset, bytes);
+  return asset;
+}
+
+/**
+ * Suppression de fond automatique à l'import (K-BG) — matières premières
+ * UNIQUEMENT (jamais recette/entreprise/catégorie), toujours un à-côté :
+ * aucune exception ne remonte jamais au-delà de cette fonction, aucun champ
+ * `image_url` n'est touché. Un échec (Sharp, upload R2, écriture DB) laisse
+ * simplement `background_removed_url` à `null` — comportement d'import
+ * identique à avant cette tâche. `needs_review` (fond trop complexe) n'est
+ * pas une erreur : silencieusement ignoré, jamais de version dégradée écrite.
+ */
+async function applyBackgroundRemovalBestEffort(asset: VisualAsset, originalBytes: Buffer): Promise<void> {
+  if (asset.subjectType !== "ingredient") return;
+
+  try {
+    const result = await removeIngredientBackground(originalBytes);
+    if (result.status !== "ok") return;
+
+    const cleanedPath = asset.imageUrl.replace(/\.[a-zA-Z0-9]+$/, "-nobg.webp");
+    await uploadToR2(cleanedPath, result.buffer, "image/webp");
+    await writeBackgroundRemovedUrl(asset.id, cleanedPath);
+  } catch (cause) {
+    console.warn(
+      "[visuals] suppression de fond échouée — import non affecté, l'illustration originale reste la seule disponible",
+      { assetId: asset.id, cause: cause instanceof Error ? cause.message : String(cause) },
+    );
+  }
+}
+
+async function writeBackgroundRemovedUrl(id: string, backgroundRemovedUrl: string): Promise<void> {
+  if (!hasSupabaseConfig()) {
+    updateInMemory(id, { backgroundRemovedUrl });
+    return;
+  }
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("visual_assets")
+    .update({ background_removed_url: backgroundRemovedUrl })
+    .eq("id", id);
+  if (error) throw new VisualAssetPersistenceError(`Écriture de la version nettoyée impossible : ${error.message}`);
 }
 
 export async function persistGeneratedVisual(input: PersistGeneratedVisualInput): Promise<VisualAsset> {
@@ -542,5 +591,35 @@ export async function setPrimaryVisualAsset(id: string): Promise<VisualAsset> {
       `Changement de principal impossible (l'ancien principal a été désactivé, réessayez) : ${error.message}`,
     );
   }
+  return fromRow(data);
+}
+
+/**
+ * Choix humain explicite (K-BG, écran `/illustrations`) d'afficher la
+ * version fond-transparent plutôt que l'original, ou l'inverse — jamais
+ * déclenché automatiquement pour un lot entier (CLAUDE.md, génération de
+ * visuels jamais en masse sans validation). Activer exige qu'une version
+ * nettoyée existe déjà ; revenir à l'original est toujours possible, l'objet
+ * R2 original n'étant jamais supprimé ni modifié par ce nettoyage.
+ */
+export async function setUseBackgroundRemoved(id: string, use: boolean): Promise<VisualAsset> {
+  const asset = await getVisualAssetById(id);
+  if (!asset) throw new VisualAssetActionError("Visuel introuvable.");
+  if (use && !asset.backgroundRemovedUrl) {
+    throw new VisualAssetActionError("Aucune version nettoyée disponible pour ce visuel.");
+  }
+
+  if (!hasSupabaseConfig()) {
+    return updateInMemory(id, { useBackgroundRemoved: use });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("visual_assets")
+    .update({ use_background_removed: use })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw new VisualAssetPersistenceError(`Changement de version affichée impossible : ${error.message}`);
   return fromRow(data);
 }

@@ -18,10 +18,15 @@ const PNG_DATA_URI =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEElEQVQImWPgEpGDIwbiOABgdAPBAI1kjQAAAABJRU5ErkJggg==";
 const SVG_DATA_URI = "data:image/svg+xml;base64,PHN2Zy8+"; // format démo, jamais accepté par le bucket
 
-const { uploadMock, removeMock, insertSingleMock } = vi.hoisted(() => ({
+const { uploadMock, removeMock, insertSingleMock, updateEqMock } = vi.hoisted(() => ({
   uploadMock: vi.fn(),
   removeMock: vi.fn(),
   insertSingleMock: vi.fn(),
+  // Suppression de fond (K-BG) : `SUBJECT` est de type "ingredient" dans ce fichier, donc le
+  // succès déclenche aussi un upload de la version nettoyée + une écriture
+  // `background_removed_url` — ce mock couvre cette écriture, jamais testée ligne à ligne ici
+  // (couverte par `removeBackground.test.ts` et `storage.test.ts`).
+  updateEqMock: vi.fn().mockResolvedValue({ error: null }),
 }));
 
 vi.mock("@/lib/supabase/env", () => ({
@@ -43,6 +48,9 @@ vi.mock("@/lib/supabase/server", () => ({
             select: () => ({
               single: insertSingleMock,
             }),
+          }),
+          update: () => ({
+            eq: updateEqMock,
           }),
         };
       }
@@ -85,6 +93,7 @@ beforeEach(() => {
   uploadMock.mockReset();
   removeMock.mockReset();
   insertSingleMock.mockReset();
+  updateEqMock.mockReset().mockResolvedValue({ error: null });
 });
 
 describe("persistGeneratedVisual (K10) — validation avant tout stockage", () => {
@@ -124,7 +133,9 @@ describe("persistGeneratedVisual (K10) — succès : ordre Storage puis base, st
 
     const asset = await persistGeneratedVisual(baseInput());
 
-    expect(callOrder).toEqual(["upload", "insert"]);
+    // Un 3e appel "upload" suit désormais "insert" : suppression de fond (K-BG) best-effort,
+    // seulement pour `subject_type = "ingredient"` — jamais avant la création réussie du brouillon.
+    expect(callOrder).toEqual(["upload", "insert", "upload"]);
     expect(asset.status).toBe("draft");
     expect(asset.isPrimary).toBe(false);
     // L'image_url persisté est un chemin R2, jamais la data URI brute renvoyée par le fournisseur.

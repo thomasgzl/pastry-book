@@ -3,7 +3,12 @@ import { Card } from "@/components/ui/Card";
 import { ImageWithSkeleton } from "@/components/ui/ImageWithSkeleton";
 import { PlaceholderIllustration } from "@/components/ui/PlaceholderIllustration";
 import { VisualStatusPill } from "@/components/ui/VisualStatusPill";
-import { approveAsPrimaryAction, rejectAction, setPrimaryAction } from "../visuels/actions";
+import {
+  approveAsPrimaryAction,
+  rejectAction,
+  setPrimaryAction,
+  setUseBackgroundRemovedAction,
+} from "../visuels/actions";
 import { DeleteVisualAssetButton } from "./DeleteVisualAssetButton";
 import { RegenerateVersionForm } from "./RegenerateVersionForm";
 import { UploadVisualForm } from "./UploadVisualForm";
@@ -66,6 +71,55 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
         <span className="text-xs text-cacao/60">
           preset {version.presetVersion} · {formatDate(version.createdAt)}
         </span>
+
+        {version.backgroundRemovedUrl && (
+          <div className="flex flex-col gap-2 rounded-lg border border-dashed border-grise bg-ivoire p-2.5 sm:flex-row sm:items-center">
+            <div className="flex flex-1 items-center gap-3">
+              <div className="flex flex-col items-center gap-1">
+                <ImageWithSkeleton
+                  src={version.imageUrl ?? ""}
+                  alt=""
+                  className="h-14 w-14 rounded-lg border border-grise bg-coquille object-contain"
+                />
+                <span className="text-xs text-cacao/60">Original</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <ImageWithSkeleton
+                  src={version.backgroundRemovedUrl}
+                  alt=""
+                  className="h-14 w-14 rounded-lg border border-grise bg-coquille object-contain"
+                />
+                <span className="text-xs text-cacao/60">Fond supprimé</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <form action={setUseBackgroundRemovedAction}>
+                <input type="hidden" name="assetId" value={version.id} />
+                <input type="hidden" name="use" value="false" />
+                <Button
+                  type="submit"
+                  variant={version.useBackgroundRemoved ? "secondary" : "primary"}
+                  disabled={!version.useBackgroundRemoved}
+                  className="text-sm"
+                >
+                  Utiliser l'original
+                </Button>
+              </form>
+              <form action={setUseBackgroundRemovedAction}>
+                <input type="hidden" name="assetId" value={version.id} />
+                <input type="hidden" name="use" value="true" />
+                <Button
+                  type="submit"
+                  variant={version.useBackgroundRemoved ? "primary" : "secondary"}
+                  disabled={Boolean(version.useBackgroundRemoved)}
+                  className="text-sm"
+                >
+                  Utiliser la version nettoyée
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {version.status === "draft" && (
           <div className="flex flex-wrap items-center gap-2 pt-1">

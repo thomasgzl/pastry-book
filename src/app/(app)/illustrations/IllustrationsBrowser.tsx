@@ -26,6 +26,14 @@ export interface IllustrationVersion {
   imageUrl: string | null;
   presetVersion: string;
   createdAt: string;
+  /**
+   * Version fond-transparent (K-BG, matières premières uniquement) — `null`/absent si jamais
+   * traitée, non applicable, ou signature échouée. Optionnel : absent dans toute fixture de test
+   * écrite avant cette tâche, jamais une raison de les rendre obligatoires partout.
+   */
+  backgroundRemovedUrl?: string | null;
+  /** Choix humain actuel : `true` si la version nettoyée est affichée publiquement plutôt que l'original. Absent ≡ `false`. */
+  useBackgroundRemoved?: boolean;
 }
 
 export interface IllustrationEntry {

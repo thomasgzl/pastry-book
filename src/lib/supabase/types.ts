@@ -184,6 +184,10 @@ export type VisualAssetRow = {
   prompt: string;
   preset_version: string;
   created_at: string;
+  /** Clé R2 de la version fond-transparent (nettoyage automatique K-BG), ou `null` si jamais traitée/non applicable (seulement `subject_type = 'ingredient'`). Jamais une copie de `image_url` : l'original n'est jamais modifié. */
+  background_removed_url: Nullable<string>;
+  /** Choix humain explicite d'afficher la version nettoyée plutôt que l'original — jamais vrai par défaut (pas d'activation automatique en masse, CLAUDE.md). */
+  use_background_removed: boolean;
 };
 
 /**
@@ -245,7 +249,13 @@ export interface Database {
       >;
       visual_assets: Table<
         VisualAssetRow,
-        "id" | "status" | "is_primary" | "source_photo_url" | "created_at"
+        | "id"
+        | "status"
+        | "is_primary"
+        | "source_photo_url"
+        | "created_at"
+        | "background_removed_url"
+        | "use_background_removed"
       >;
     };
     Views: Record<string, never>;

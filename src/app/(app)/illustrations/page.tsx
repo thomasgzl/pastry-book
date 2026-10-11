@@ -73,7 +73,10 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
     else assetsBySubjectId.set(key, [asset]);
   }
 
-  const displayUrlByPath = await resolveVisualAssetDisplayUrls(allAssets.map((asset) => asset.imageUrl)).catch(
+  const keysToResolve = allAssets.flatMap((asset) =>
+    asset.backgroundRemovedUrl ? [asset.imageUrl, asset.backgroundRemovedUrl] : [asset.imageUrl],
+  );
+  const displayUrlByPath = await resolveVisualAssetDisplayUrls(keysToResolve).catch(
     () => new Map<string, string>(),
   );
 
@@ -100,6 +103,8 @@ async function loadIllustrationEntries(): Promise<IllustrationEntry[]> {
         imageUrl: displayUrlByPath.get(asset.imageUrl) ?? null,
         presetVersion: asset.presetVersion,
         createdAt: asset.createdAt,
+        backgroundRemovedUrl: asset.backgroundRemovedUrl ? displayUrlByPath.get(asset.backgroundRemovedUrl) ?? null : null,
+        useBackgroundRemoved: asset.useBackgroundRemoved ?? false,
       })),
     } satisfies IllustrationEntry;
   });
