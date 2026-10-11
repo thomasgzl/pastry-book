@@ -28,11 +28,12 @@ interface CanonicalIngredientCardProps {
 }
 
 /**
- * Carte du répertoire des matières premières, même genre que `RecipeCard`/
- * `SourceCard` : grande illustration en tête (ratio 4/3, `object-cover`),
- * fondu vers le fond de la zone de texte, nom + nombre de recettes, bouton
- * rond laiton en pied. Un ornement botanique décoratif (trait fin, pas une
- * photo) reste centré/contenu plutôt que recadré en plein cadre.
+ * Carte « herbier » du répertoire des matières premières : grande zone
+ * d'illustration (ratio 4/3, hauteur homogène même sans image), nom +
+ * nombre de recettes, bouton rond laiton en pied. Les illustrations
+ * portent déjà leur propre fond — zone d'image sans couleur ni dégradé
+ * ajoutés, pour ne jamais couper ni recolorer le sujet (`object-contain`,
+ * marge interne).
  */
 export function CanonicalIngredientCard({
   name,
@@ -49,10 +50,12 @@ export function CanonicalIngredientCard({
       href={href}
       className={`group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive ${className}`}
     >
-      <div className="flex h-full flex-col overflow-hidden rounded-xl border border-grise bg-coquille shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-olive/40 hover:shadow-md">
-        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-ivoire">
+      <div className="flex h-full flex-col overflow-hidden rounded-xl border border-grise bg-coquille shadow-sm transition-all duration-200 motion-reduce:transition-none hover:-translate-y-1 hover:border-olive/40 hover:shadow-md motion-reduce:hover:translate-y-0">
+        <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
           {imageUrl ? (
-            <ImageWithSkeleton src={imageUrl} alt={name} className="h-full w-full object-cover" />
+            <div className="flex h-full w-full items-center justify-center p-4">
+              <ImageWithSkeleton src={imageUrl} alt={name} className="h-full w-full object-contain" />
+            </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center p-4">
               {botanicalVariant ? (
@@ -62,19 +65,18 @@ export function CanonicalIngredientCard({
               )}
             </div>
           )}
-          <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-coquille" />
         </div>
 
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div className="min-w-0">
-            <p className="truncate font-serif text-base font-semibold text-cacao">{name}</p>
-            <p className="text-sm text-cacao/70">
+            <p className="truncate font-serif text-lg font-semibold text-cacao">{name}</p>
+            <p className="text-xs text-cacao/70">
               {recipeCount} {recipeCount === 1 ? "recette" : "recettes"}
             </p>
           </div>
           <span
             aria-hidden="true"
-            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-laiton text-coquille transition-transform duration-200 group-hover:translate-x-0.5"
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-laiton text-coquille transition-all duration-200 motion-reduce:transition-none group-hover:translate-x-0.5 group-hover:brightness-90 motion-reduce:group-hover:translate-x-0"
           >
             →
           </span>
