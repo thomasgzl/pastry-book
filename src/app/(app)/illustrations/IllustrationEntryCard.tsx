@@ -9,6 +9,7 @@ import {
   setPrimaryAction,
   setUseBackgroundRemovedAction,
 } from "../visuels/actions";
+import { BackgroundRemovalPreview } from "./BackgroundRemovalPreview";
 import { DeleteVisualAssetButton } from "./DeleteVisualAssetButton";
 import { RegenerateVersionForm } from "./RegenerateVersionForm";
 import { UploadVisualForm } from "./UploadVisualForm";
@@ -37,7 +38,13 @@ function formatDate(iso: string): string {
  * n'est jamais approuvé automatiquement, CLAUDE.md) — une phrase l'explique
  * plutôt qu'un contrôle qui n'aurait aucun effet à cliquer.
  */
-function VersionRow({ version }: { version: IllustrationEntry["versions"][number] }) {
+function VersionRow({
+  version,
+  subjectLabel,
+}: {
+  version: IllustrationEntry["versions"][number];
+  subjectLabel: string;
+}) {
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-grise bg-coquille p-3 sm:flex-row sm:items-start">
       {version.imageUrl ? (
@@ -73,52 +80,14 @@ function VersionRow({ version }: { version: IllustrationEntry["versions"][number
         </span>
 
         {version.backgroundRemovedUrl && (
-          <div className="flex flex-col gap-2 rounded-lg border border-dashed border-grise bg-ivoire p-2.5 sm:flex-row sm:items-center">
-            <div className="flex flex-1 items-center gap-3">
-              <div className="flex flex-col items-center gap-1">
-                <ImageWithSkeleton
-                  src={version.imageUrl ?? ""}
-                  alt=""
-                  className="h-14 w-14 rounded-lg border border-grise bg-coquille object-contain"
-                />
-                <span className="text-xs text-cacao/60">Original</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <ImageWithSkeleton
-                  src={version.backgroundRemovedUrl}
-                  alt=""
-                  className="h-14 w-14 rounded-lg border border-grise bg-coquille object-contain"
-                />
-                <span className="text-xs text-cacao/60">Fond supprimé</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <form action={setUseBackgroundRemovedAction}>
-                <input type="hidden" name="assetId" value={version.id} />
-                <input type="hidden" name="use" value="false" />
-                <Button
-                  type="submit"
-                  variant={version.useBackgroundRemoved ? "secondary" : "primary"}
-                  disabled={!version.useBackgroundRemoved}
-                  className="text-sm"
-                >
-                  Utiliser l'original
-                </Button>
-              </form>
-              <form action={setUseBackgroundRemovedAction}>
-                <input type="hidden" name="assetId" value={version.id} />
-                <input type="hidden" name="use" value="true" />
-                <Button
-                  type="submit"
-                  variant={version.useBackgroundRemoved ? "primary" : "secondary"}
-                  disabled={Boolean(version.useBackgroundRemoved)}
-                  className="text-sm"
-                >
-                  Utiliser la version nettoyée
-                </Button>
-              </form>
-            </div>
-          </div>
+          <BackgroundRemovalPreview
+            assetId={version.id}
+            name={subjectLabel}
+            originalUrl={version.imageUrl}
+            cleanedUrl={version.backgroundRemovedUrl}
+            useBackgroundRemoved={Boolean(version.useBackgroundRemoved)}
+            setUseBackgroundRemovedAction={setUseBackgroundRemovedAction}
+          />
         )}
 
         {version.status === "draft" && (
@@ -238,7 +207,7 @@ export function IllustrationEntryCard({ entry, regenerateInfo }: IllustrationEnt
         <div className="flex flex-col gap-3 border-t border-grise p-4">
           <ul className="flex flex-col gap-3">
             {entry.versions.map((version) => (
-              <VersionRow key={version.id} version={version} />
+              <VersionRow key={version.id} version={version} subjectLabel={entry.label} />
             ))}
           </ul>
 
