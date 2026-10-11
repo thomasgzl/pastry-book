@@ -15,6 +15,7 @@
  *   npm run backgrounds:remove -- --limit=3
  *   npm run backgrounds:remove -- --names="Abricot,Açaï,Ail des ours"
  *   npm run backgrounds:remove            (lot complet — JAMAIS lancé seul sans confirmation explicite)
+ *   npm run backgrounds:remove -- --auto-approve   (voir §auto-approve ci-dessous)
  *
  * Sécurité : ne modifie et ne supprime JAMAIS `image_url` (original). Écrit
  * uniquement `background_removed_url`, vers une clé R2 DISTINCTE
@@ -24,6 +25,16 @@
  * manifest) est sautée — jamais retraitée sans raison. Seules les images
  * réellement stockées sur R2 (clé brute, ni `/visuals/...` statique, ni
  * `data:`) sont prises en charge. Jamais de credential loggé.
+ *
+ * --auto-approve (demandé explicitement, dérogation scope à CETTE commande
+ * uniquement — le défaut du produit reste « jamais de bascule automatique
+ * sans validation humaine », CLAUDE.md) : après un nettoyage réussi
+ * (`status: "ok"`, jamais `needs_review`) d'un visuel dont le `status`
+ * (brouillon/approuvé/rejeté) est déjà `approved`, active aussi
+ * `use_background_removed` dans le MÊME update que `background_removed_url`.
+ * N'approuve jamais un brouillon ni ne touche un rejeté — seul le choix
+ * d'affichage d'un visuel déjà public change, jamais son statut
+ * d'approbation. Réversible à tout moment depuis `/illustrations`.
  */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -57,6 +68,7 @@ const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
+const AUTO_APPROVE = args.includes("--auto-approve");
 const limitArg = args.find((a) => a.startsWith("--limit="));
 const LIMIT = limitArg ? Number.parseInt(limitArg.split("=")[1], 10) : undefined;
 const namesArg = args.find((a) => a.startsWith("--names="));
@@ -114,6 +126,7 @@ interface VisualAssetRow {
   subject_id: string;
   image_url: string;
   background_removed_url: string | null;
+  status: "draft" | "approved" | "rejected";
 }
 
 interface IngredientRow {
@@ -136,7 +149,8 @@ async function main(): Promise<void> {
 
   console.log(
     `Mode : ${DRY_RUN ? "DRY-RUN (aucune écriture)" : "RÉEL"}` +
-      `${LIMIT ? `, limite=${LIMIT}` : ""}${NAMES ? `, noms=[${NAMES.join(", ")}]` : ""}`,
+      `${LIMIT ? `, limite=${LIMIT}` : ""}${NAMES ? `, noms=[${NAMES.join(", ")}]` : ""}` +
+      `${AUTO_APPROVE ? ", auto-approve=ON (visuels déjà approuvés uniquement)" : ""}`,
   );
 
   const { data: ingredients, error: ingredientsError } = await supabase
@@ -147,7 +161,7 @@ async function main(): Promise<void> {
 
   let query = supabase
     .from("visual_assets")
-    .select("id, subject_id, image_url, background_removed_url")
+    .select("id, subject_id, image_url, background_removed_url, status")
     .eq("subject_type", "ingredient");
   if (NAMES) {
     const ids = (ingredients as IngredientRow[]).filter((row) => NAMES.includes(row.name)).map((row) => row.id);
@@ -202,6 +216,8 @@ async function main(): Promise<void> {
   let okCount = 0;
   let needsReviewCount = 0;
   let failedCount = 0;
+  let activatedCount = 0;
+  const needsReviewNames: string[] = [];
 
   await runWithConcurrency(selected, CONCURRENCY, async (row) => {
     const name = nameById.get(row.subject_id) ?? row.subject_id;
@@ -230,6 +246,7 @@ async function main(): Promise<void> {
         entry.status = "needs_review";
         entry.reason = result.reason;
         needsReviewCount++;
+        needsReviewNames.push(`${name} (${row.id}) : ${result.reason}`);
         console.warn(`[needs_review] ${name} (${row.id}) : ${result.reason}`);
         return;
       }
@@ -240,16 +257,23 @@ async function main(): Promise<void> {
       const verified = await existsInR2(cleanedKey);
       if (!verified) throw new Error("vérification post-upload échouée : objet absent de R2 après l'écriture.");
 
+      // --auto-approve : jamais sur un brouillon/rejeté (n'approuve rien, ne change aucun
+      // statut) — seulement le choix d'affichage d'un visuel déjà approuvé.
+      const shouldActivate = AUTO_APPROVE && row.status === "approved";
       const { error: updateError } = await supabase
         .from("visual_assets")
-        .update({ background_removed_url: cleanedKey })
+        .update({
+          background_removed_url: cleanedKey,
+          ...(shouldActivate ? { use_background_removed: true } : {}),
+        })
         .eq("id", row.id);
       if (updateError) throw new Error(`mise à jour DB impossible après upload R2 réussi (objet R2 conservé, relançable) : ${updateError.message}`);
 
       entry.status = "ok";
       entry.backgroundRemovedUrl = cleanedKey;
       okCount++;
-      console.log(`[ok] ${name} (${row.id}) → ${cleanedKey}`);
+      if (shouldActivate) activatedCount++;
+      console.log(`[ok] ${name} (${row.id}) → ${cleanedKey}${shouldActivate ? " (activée)" : ""}`);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       entry.status = "failed";
@@ -263,14 +287,22 @@ async function main(): Promise<void> {
   });
 
   console.log(`\n── Résumé ──`);
-  console.log(`Traités avec succès : ${okCount}`);
-  console.log(`Fond trop complexe, vérification manuelle requise : ${needsReviewCount}`);
+  console.log(`Visuels "ingredient" trouvés : ${(rows as VisualAssetRow[]).length}`);
+  console.log(`Déjà traités avant ce run (sautés) : ${alreadyProcessed}`);
+  console.log(`Nouvellement nettoyés avec succès : ${okCount}`);
+  console.log(`  dont versions activées (--auto-approve) : ${activatedCount}`);
+  console.log(`Fond trop complexe, vérification manuelle requise (needs_review) : ${needsReviewCount}`);
   console.log(`Échecs : ${failedCount}`);
-  console.log(`Déjà traités (sautés) : ${alreadyProcessed}`);
-  console.log(`Hors périmètre : ${outOfScope}`);
+  console.log(`Hors périmètre (jamais sur R2) : ${outOfScope}`);
+  if (needsReviewNames.length > 0) {
+    console.log(`\nÀ vérifier manuellement (needs_review, jamais traité automatiquement) :`);
+    for (const line of needsReviewNames) console.log(`  - ${line}`);
+  }
   console.log(
-    `\nAucun original modifié ni supprimé. Versions nettoyées écrites dans "background_removed_url" uniquement ` +
-      `— jamais affichées publiquement sans validation humaine depuis /illustrations.`,
+    `\nAucun original modifié ni supprimé. Versions nettoyées écrites dans "background_removed_url" uniquement` +
+      (AUTO_APPROVE
+        ? " — activées (use_background_removed) seulement pour les visuels déjà approuvés, jamais pour needs_review/brouillon/rejeté."
+        : " — jamais affichées publiquement sans validation humaine depuis /illustrations."),
   );
 }
 
